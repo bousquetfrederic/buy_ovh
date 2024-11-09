@@ -8,7 +8,7 @@ import datetime
 
 # --- INITIAL VALUES ------------------------
 #acceptable_dc = ['gra','rbx']
-acceptable_dc = ['gra','rbx','sbg','lon','fra','waw']
+acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
 
 filterInvoiceName = ['KS-LE', 'KS-A']
 
