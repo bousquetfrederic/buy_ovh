@@ -6,16 +6,14 @@ import sys
 import datetime
 
 
-# --- INITIAL VALUES ------------------------
-#acceptable_dc = ['gra','rbx']
-acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
-
-filterInvoiceName = ['KS-LE', 'KS-A']
-
-ovhSubsidiary="FR"
-
-sleepsecs = 60
-
+# --- Conf values ------------------------
+try:
+    from conf import *
+except:
+    acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
+    filterInvoiceName = ['KS-LE', 'KS-A']
+    ovhSubsidiary="FR"
+    sleepsecs = 60
 # -------------------------------------------
 
 
