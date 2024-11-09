@@ -14,7 +14,7 @@ filterInvoiceName = ['KS-LE', 'KS-A']
 
 ovhSubsidiary="FR"
 
-sleepsecs = 10
+sleepsecs = 60
 
 # -------------------------------------------
 
