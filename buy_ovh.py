@@ -7,6 +7,8 @@ import datetime
 
 
 # --- Conf values ------------------------
+# if there is a file conf.py with conf values, use it
+# otherwise use defaults values below
 try:
     from conf import *
 except:
@@ -260,13 +262,3 @@ try:
 except ovh.exceptions.BadParametersError as e:
     print("Not today.")
     print(e)
-
-
-
-
-
-
-
-
-
-
