@@ -14,6 +14,7 @@ try:
 except:
     acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
     filterInvoiceName = ['KS-LE', 'KS-A']
+    filterDisk = ['ssd','nvme']
     ovhSubsidiary="FR"
     sleepsecs = 60
 # -------------------------------------------
@@ -21,18 +22,18 @@ except:
 
 # --- Coloring stuff ------------------------
 class color:
-   PURPLE = '\033[1;35;48m'
-   CYAN = '\033[1;36;48m'
-   BOLD = '\033[1;37;48m'
-   BLUE = '\033[1;34;48m'
-   GREEN = '\033[1;32;48m'
-   YELLOW = '\033[1;33;48m'
-   RED = '\033[1;31;48m'
-   BLACK = '\033[1;30;48m'
-   UNDERLINE = '\033[4;37;48m'
-   END = '\033[1;37;0m'
+   PURPLE = '\033[0;35;48m'
+   CYAN = '\033[0;36;48m'
+   BOLD = '\033[0;37;48m'
+   BLUE = '\033[0;34;48m'
+   GREEN = '\033[0;32;48m'
+   YELLOW = '\033[0;33;48m'
+   RED = '\033[0;31;48m'
+   BLACK = '\033[0;30;48m'
+   UNDERLINE = '\033[0;37;48m'
+   END = '\033[0;37;0m'
 
-whichColor = { 'unknown'     : color.BLACK,
+whichColor = { 'unknown'     : color.CYAN,
                'low'         : color.YELLOW,
                'high'        : color.GREEN,
                'unavailable' : color.RED
@@ -47,6 +48,12 @@ def startsWithList(st,li):
             return True
     return False
 
+# endswith from a list
+def endsWithList(st,li):
+    for elem in li:
+        if st.endswith(elem):
+            return True
+    return False
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def buildList(cli):
@@ -61,6 +68,15 @@ def buildList(cli):
         # only consider plans name starting with the defined filter
         if ( not startsWithList(plan['invoiceName'], filterInvoiceName) ):
             continue
+
+        # find the price
+        allPrices = plan['pricings']
+        # let's just take the first one for the moment
+        if len(allPrices) > 0:
+            price = float(allPrices[0]['price'])/100000000
+        else:
+            price = 0.0
+        priceStr = "{:.2f}".format(price)
 
         allStorages = []
         allMemories = []
@@ -93,6 +109,9 @@ def buildList(cli):
                             # the API adds the name of the plan at the end of the addons, drop it
                             shortme = "-".join(me.split("-")[:-1])
                             shortst = "-".join(st.split("-")[:-1])
+                            # filter unwanted disk types
+                            if not endsWithList(shortst,filterDisk):
+                                continue
                             # build a list of the availabilities for the current plan + addons
                             avail = [x for x in API_availabilities
                                      if (x['fqn'] == planCode + "." + shortme + "." + shortst )]
@@ -116,6 +135,7 @@ def buildList(cli):
                                   'storage' : st,
                                   'memory' : me,
                                   'bandwidth' : ba,
+                                  'price' : priceStr,
                                   'availability' : myavailability
                                 })
     return myPlans
@@ -127,7 +147,7 @@ def printList(plans):
         avail = plan['availability']
         if avail in ['unavailable','unknown']:
             printcolor = whichColor[avail]
-        elif avail.endswith("low"):
+        elif avail.endswith("low") or avail.endswith('H'):
             printcolor = whichColor['low']
         elif avail.endswith("high"):
             printcolor = whichColor['high']
@@ -135,10 +155,11 @@ def printList(plans):
             printcolor = whichColor['unknown']
         print(printcolor
               + str(plans.index(plan)).ljust(5) + " | "
-              + plan['invoiceName'].ljust(30) + " | "
+              + plan['invoiceName'].split(" |")[0].ljust(10) + " | "
               + plan['datacenter'] + " | "
-              + "-".join(plan['memory'].split("-")[:-1]).ljust(25) + " | "
-              + "-".join(plan['storage'].split("-")[:-1]).ljust(25) + " | "
+              + "-".join(plan['memory'].split("-")[1:-1]).ljust(18) + " | "
+              + "-".join(plan['storage'].split("-")[1:-1]).ljust(12) + " | "
+              + plan['price'].ljust(5) + " | "
               + plan['availability']
               + color.END)
 
@@ -148,15 +169,26 @@ def printList(plans):
 
 client = ovh.Client()
 
+# if auto_buy is defined, then automode will become true
+autoMode = False
+
 try:
-    while True:
+    while not autoMode:
         try:
             os.system('cls' if os.name == 'nt' else 'clear')
             plans = buildList(client)
             printList(plans)
-            print("- Acceptable DCs : [" + ",".join(acceptable_dc) + "] - Filters : [" + ",".join(filterInvoiceName) + "]- OVH Subsidiary : " + ovhSubsidiary)
-            print("- Refresh every " + str(sleepsecs) + "s. CTRL-C to stop and buy/quit.")
-            time.sleep(sleepsecs)
+            print("- Acceptable DCs : [" + ",".join(acceptable_dc) + "] - Filters : [" + ",".join(filterInvoiceName) + "] - OVH Subsidiary : " + ovhSubsidiary)
+            if 'auto_buy' in dir() and len(auto_buy)>1:
+                print("- Auto Buy : " + auto_buy)
+                for plan in plans:
+                    if plan['availability'] not in ['unknown','unavailable'] and plan['invoiceName'].startswith(auto_buy):
+                        autoMode = True
+                        autoPlanId = plans.index(plan)
+                        break
+            if not autoMode:
+                print("- Refresh every " + str(sleepsecs) + "s. CTRL-C to stop and buy/quit.")
+                time.sleep(sleepsecs)
         except KeyboardInterrupt:
             raise
         except Exception as e:
@@ -164,19 +196,23 @@ try:
             print(e)
             print("Wait " + str(sleepsecs) + "s before retry.")
             time.sleep(sleepsecs)
-            pass
 except KeyboardInterrupt:
     pass
 
 print("")
 os.system('cls' if os.name == 'nt' else 'clear')
-printList(plans)
-sChoice = input("Which one? (Q to quit) ")
-if not sChoice.isdigit():
-    sys.exit("Bye now.")
-choice = int (sChoice)
-if choice >= len(plans):
-     sys.exit("You had one job.")
+
+if autoMode:
+    print("AUTO MODE!!!")
+    choice = autoPlanId
+else:
+    printList(plans)
+    sChoice = input("Which one? (Q to quit) ")
+    if not sChoice.isdigit():
+        sys.exit("Bye now.")
+    choice = int (sChoice)
+    if choice >= len(plans):
+         sys.exit("You had one job.")
 
 myplan = plans[choice]
 print("Let's go for " + myplan['invoiceName'] + " in " + myplan['datacenter'] + ".")
@@ -194,7 +230,6 @@ result = client.post(
                      quantity = 1
                     )
 itemId = result['itemId']
-print("Item ID = " + str(itemId))
 
 # add options
 result = client.post(
@@ -245,20 +280,24 @@ result = client.post(
 
 # checkout!
 
-whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
-if whattodo == 'i':
-    mybool = False
-elif whattodo == 'n':
+if autoMode:
     mybool = True
 else:
-    sys.exit("Keep your money!")
+    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
+    if whattodo == 'i':
+        mybool = False
+    elif whattodo == 'n':
+        mybool = True
+    else:
+        sys.exit("Keep your money!")
 
 try:
     result = client.post(f'/order/cart/{cartId}/checkout',
                          autoPayWithPreferredPaymentMethod=mybool,
                          waiveRetractationPeriod=mybool
                         )
-    print(result)
-except ovh.exceptions.BadParametersError as e:
+    print("Apparently it worked.")
+    print("URL: " + result['url'])
+except Exception as e:
     print("Not today.")
     print(e)
