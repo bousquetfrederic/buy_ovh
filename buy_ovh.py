@@ -18,6 +18,7 @@ except:
     ovhSubsidiary="FR"
     sleepsecs = 60
     showPrompt = True
+    showCpu = True
 # -------------------------------------------
 
 
@@ -154,13 +155,23 @@ def printList(plans):
             printcolor = whichColor['high']
         else:
             printcolor = whichColor['unknown']
+        invoiceNameSplit = plan['invoiceName'].split('|')
+        model = invoiceNameSplit[0]
+        if len(invoiceNameSplit) > 1:
+            cpu = invoiceNameSplit[1][1:]
+        else:
+            cpu = "unknown"
+        if showCpu:
+            modelStr = model.ljust(10) + "| " + cpu.ljust(20)
+        else:
+            modelStr = model.ljust(10)
         print(printcolor
-              + str(plans.index(plan)).ljust(5) + " | "
-              + plan['invoiceName'].split(" |")[0].ljust(10) + " | "
+              + str(plans.index(plan)).ljust(5) + "| "
+              + modelStr + "| "
               + plan['datacenter'] + " | "
-              + "-".join(plan['memory'].split("-")[1:-1]).ljust(18) + " | "
-              + "-".join(plan['storage'].split("-")[1:-1]).ljust(12) + " | "
-              + plan['price'].ljust(5) + " | "
+              + "-".join(plan['memory'].split("-")[1:-1]).ljust(18) + "| "
+              + "-".join(plan['storage'].split("-")[1:-1]).ljust(12) + "| "
+              + plan['price'].ljust(6) + "| "
               + plan['availability']
               + color.END)
 
