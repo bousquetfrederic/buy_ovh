@@ -6,3 +6,4 @@ filterInvoiceName = ['KS-LE', 'KS-A']
 filterDisk=['nvme','sa','ssd']
 ovhSubsidiary="FR"
 sleepsecs = 60
+showPrompt = True

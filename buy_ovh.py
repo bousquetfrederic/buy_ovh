@@ -3,7 +3,7 @@ import time
 import json
 import os
 import sys
-import datetime
+import time
 
 
 # --- Conf values ------------------------
@@ -17,6 +17,7 @@ except:
     filterDisk = ['ssd','nvme']
     ovhSubsidiary="FR"
     sleepsecs = 60
+    showPrompt = True
 # -------------------------------------------
 
 
@@ -163,7 +164,23 @@ def printList(plans):
               + plan['availability']
               + color.END)
 
+# ----------------- PRINT PROMPT --------------------------------------------------------------
+def printPrompt(showP):
+    if not showP:
+        return
+    print("- DCs : [" + ",".join(acceptable_dc)
+          + "] - Filters : [" + ",".join(filterInvoiceName)
+          + "][" + ",".join(filterDisk)
+          +"] - OVH Subsidiary : " + ovhSubsidiary)
+    if 'auto_buy' in dir() and len(auto_buy)>1:
+        print("- Auto Buy : " + auto_buy)
 
+# ----------------- SLEEP x SECONDS -----------------------------------------------------------
+def printAndSleep(showP):
+    for i in range(sleepsecs,0,-1):
+        if showP:
+            print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
+        time.sleep(1)
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
@@ -178,17 +195,15 @@ try:
             os.system('cls' if os.name == 'nt' else 'clear')
             plans = buildList(client)
             printList(plans)
-            print("- Acceptable DCs : [" + ",".join(acceptable_dc) + "] - Filters : [" + ",".join(filterInvoiceName) + "] - OVH Subsidiary : " + ovhSubsidiary)
             if 'auto_buy' in dir() and len(auto_buy)>1:
-                print("- Auto Buy : " + auto_buy)
                 for plan in plans:
                     if plan['availability'] not in ['unknown','unavailable'] and plan['invoiceName'].startswith(auto_buy):
                         autoMode = True
                         autoPlanId = plans.index(plan)
                         break
             if not autoMode:
-                print("- Refresh every " + str(sleepsecs) + "s. CTRL-C to stop and buy/quit.")
-                time.sleep(sleepsecs)
+                printPrompt(showPrompt)
+                printAndSleep(showPrompt)
         except KeyboardInterrupt:
             raise
         except Exception as e:
