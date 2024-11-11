@@ -172,8 +172,6 @@ def printPrompt(showP):
           + "] - Filters : [" + ",".join(filterInvoiceName)
           + "][" + ",".join(filterDisk)
           +"] - OVH Subsidiary : " + ovhSubsidiary)
-    if 'auto_buy' in dir() and len(auto_buy)>1:
-        print("- Auto Buy : " + auto_buy)
 
 # ----------------- SLEEP x SECONDS -----------------------------------------------------------
 def printAndSleep(showP):
@@ -203,6 +201,8 @@ try:
                         break
             if not autoMode:
                 printPrompt(showPrompt)
+                if showPrompt and 'auto_buy' in dir() and len(auto_buy)>1:
+                    print("- Auto Buy : " + auto_buy)
                 printAndSleep(showPrompt)
         except KeyboardInterrupt:
             raise
