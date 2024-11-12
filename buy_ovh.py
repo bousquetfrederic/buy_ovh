@@ -137,7 +137,7 @@ def buildList(cli):
                                   'storage' : st,
                                   'memory' : me,
                                   'bandwidth' : ba,
-                                  'fqn' : planCode + "." + shortme + "." + shortst,
+                                  'fqn' : planCode + "." + shortme + "." + shortst + "." + da, # for auto buy
                                   'price' : priceStr,
                                   'availability' : myavailability
                                 })
