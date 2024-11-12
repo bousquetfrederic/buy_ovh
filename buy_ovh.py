@@ -137,6 +137,7 @@ def buildList(cli):
                                   'storage' : st,
                                   'memory' : me,
                                   'bandwidth' : ba,
+                                  'fqn' : planCode + "." + shortme + "." + shortst,
                                   'price' : priceStr,
                                   'availability' : myavailability
                                 })
@@ -206,7 +207,7 @@ try:
             printList(plans)
             if 'auto_buy' in dir() and len(auto_buy)>1:
                 for plan in plans:
-                    if plan['availability'] not in ['unknown','unavailable'] and plan['invoiceName'].startswith(auto_buy):
+                    if plan['availability'] not in ['unknown','unavailable'] and plan['fqn'].startswith(auto_buy):
                         autoMode = True
                         autoPlanId = plans.index(plan)
                         break
