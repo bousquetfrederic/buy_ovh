@@ -205,16 +205,16 @@ try:
             os.system('cls' if os.name == 'nt' else 'clear')
             plans = buildList(client)
             printList(plans)
-            if 'auto_buy' in dir() and len(auto_buy)>1:
+            if 'auto_buy' in dir():
                 for plan in plans:
-                    if plan['availability'] not in ['unknown','unavailable'] and plan['fqn'].startswith(auto_buy):
+                    if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],auto_buy):
                         autoMode = True
                         autoPlanId = plans.index(plan)
                         break
             if not autoMode:
                 printPrompt(showPrompt)
-                if showPrompt and 'auto_buy' in dir() and len(auto_buy)>1:
-                    print("- Auto Buy : " + auto_buy)
+                if showPrompt and 'auto_buy' in dir():
+                    print("- Auto Buy : [" + ",".join(auto_buy) + "]")
                 printAndSleep(showPrompt)
         except KeyboardInterrupt:
             raise
