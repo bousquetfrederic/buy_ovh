@@ -214,7 +214,7 @@ try:
             if not autoMode:
                 printPrompt(showPrompt)
                 if showPrompt and 'auto_buy' in dir():
-                    print("- Auto Buy : [" + ",".join(auto_buy) + "]")
+                    print("- Auto Buy : " + ",\n             ".join(auto_buy))
                 printAndSleep(showPrompt)
         except KeyboardInterrupt:
             raise
