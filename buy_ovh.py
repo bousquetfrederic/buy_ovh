@@ -86,7 +86,6 @@ def buildList(cli):
         allBandwidths = []
 
         # find mandatory addons
-        # TODO: rewrite with list comprehension
         for family in plan['addonFamilies']:
             if family['name'] == "storage":
                 allStorages = family['addons']
@@ -133,7 +132,6 @@ def buildList(cli):
                             else:
                                 myavailability = 'unknown'
                             # try to find out the full price
-                            # TODO: could do one list comprehension then a loop
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
                                 thisPrice = thisPrice + float(storagePlan[0]['pricings'][1]['price'])/100000000
