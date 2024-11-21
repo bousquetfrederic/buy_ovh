@@ -65,6 +65,8 @@ def buildList(cli):
     allPlans = API_catalog['plans']
     myPlans = []
 
+    allAddons = API_catalog['addons']
+
     for plan in allPlans:
         planCode = plan['planCode']
         # only consider plans name starting with the defined filter
@@ -75,10 +77,9 @@ def buildList(cli):
         allPrices = plan['pricings']
         # let's just take the first one for the moment
         if len(allPrices) > 0:
-            price = float(allPrices[0]['price'])/100000000
+            planPrice = float(allPrices[0]['price'])/100000000
         else:
-            price = 0.0
-        priceStr = "{:.2f}".format(price)
+            planPrice = 0.0
 
         allStorages = []
         allMemories = []
@@ -108,6 +109,8 @@ def buildList(cli):
                 for ba in allBandwidths:
                     for me in allMemories:
                         for st in allStorages:
+                            # each config may have a different price within the same plan
+                            thisPrice = planPrice
                             # the API adds the name of the plan at the end of the addons, drop it
                             shortme = "-".join(me.split("-")[:-1])
                             shortst = "-".join(st.split("-")[:-1])
@@ -129,6 +132,19 @@ def buildList(cli):
                                     myavailability = 'unknown'
                             else:
                                 myavailability = 'unknown'
+                            # try to find out the full price
+                            # TODO: could do one list comprehension then a loop
+                            try:
+                                storagePlan = [x for x in allAddons if (x['planCode'] == st)]
+                                thisPrice = thisPrice + float(storagePlan[0]['pricings'][1]['price'])/100000000
+                            except Exception as e:
+                                print(e)
+                            try:
+                                memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
+                                thisPrice = thisPrice + float(memoryPlan[0]['pricings'][1]['price'])/100000000
+                            except Exception as e:
+                                print(e)
+                            priceStr = "{:.2f}".format(thisPrice)
                             # Add the plan to the list
                             myPlans.append(
                                 { 'planCode' : planCode,
