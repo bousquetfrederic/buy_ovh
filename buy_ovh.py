@@ -38,7 +38,8 @@ class color:
 whichColor = { 'unknown'     : color.CYAN,
                'low'         : color.YELLOW,
                'high'        : color.GREEN,
-               'unavailable' : color.RED
+               'unavailable' : color.RED,
+               'autobuy'     : color.PURPLE
              }
 
 # ------------ TOOLS --------------------------------------------------------------------------------------------
@@ -159,7 +160,7 @@ def buildList(cli):
 
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
-def printList(plans):
+def printList(plans,autobuy):
     for plan in plans:
         avail = plan['availability']
         if avail in ['unavailable','unknown']:
@@ -180,9 +181,14 @@ def printList(plans):
             modelStr = model.ljust(10) + "| " + cpu.ljust(20)
         else:
             modelStr = model.ljust(10)
+        # special colour for autobuy
+        if startsWithList(plan['fqn'],autobuy):
+            codeStr = whichColor['autobuy'] + plan['planCode'].ljust(11) + printcolor
+        else:
+            codeStr = plan['planCode'].ljust(11)
         print(printcolor
               + str(plans.index(plan)).ljust(5) + "| "
-              + plan['planCode'].ljust(11) + "| "
+              + codeStr  + "| "
               + modelStr + "| "
               + plan['datacenter'] + " | "
               + "-".join(plan['memory'].split("-")[1:-1]).ljust(18) + "| "
@@ -214,12 +220,18 @@ client = ovh.Client()
 # if auto_buy is defined, then automode will become true
 autoMode = False
 
+# make a list with autobuys, otherwise empty
+myAutoBuy = []
+if 'auto_buy' in dir():
+    myAutoBuyList = auto_buy
+
 try:
     while not autoMode:
         try:
             os.system('cls' if os.name == 'nt' else 'clear')
             plans = buildList(client)
-            printList(plans)
+            printList(plans,myAutoBuyList)
+            # TODO: use myAutoBuyList
             if 'auto_buy' in dir():
                 for plan in plans:
                     if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],auto_buy):
@@ -228,8 +240,6 @@ try:
                         break
             if not autoMode:
                 printPrompt(showPrompt)
-                if showPrompt and 'auto_buy' in dir():
-                    print("- Auto Buy : " + ",\n             ".join(auto_buy))
                 printAndSleep(showPrompt)
         except KeyboardInterrupt:
             raise
@@ -248,7 +258,7 @@ if autoMode:
     print("AUTO MODE!!!")
     choice = autoPlanId
 else:
-    printList(plans)
+    printList(plans,myAutoBuyList)
     sChoice = input("Which one? (Q to quit) ")
     if not sChoice.isdigit():
         sys.exit("Bye now.")
