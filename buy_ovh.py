@@ -182,6 +182,7 @@ def printList(plans):
             modelStr = model.ljust(10)
         print(printcolor
               + str(plans.index(plan)).ljust(5) + "| "
+              + plan['planCode'].ljust(11) + "| "
               + modelStr + "| "
               + plan['datacenter'] + " | "
               + "-".join(plan['memory'].split("-")[1:-1]).ljust(18) + "| "
