@@ -217,7 +217,8 @@ def printList(plans):
               + plan['price'].ljust(6) + "| "
               + plan['availability']
               + color.END)
-    if autoBuyOn:
+    # if there has been at least one auto buy, show counters
+    if autoBuyOn and autoBuyNum < autoBuyNumInit:
         print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
               + " - OK: " + str(autoOK) + ", NOK: " + str(autoKO) + ", Fake: " + str(autoFake))
 
@@ -344,7 +345,6 @@ while True:
         pass
 
     print("")
-    os.system('cls' if os.name == 'nt' else 'clear')
 
     if foundAutoBuyServer:
         print("AUTO MODE!!!")
@@ -354,7 +354,6 @@ while True:
         if autoBuyNum == 0:
             autoBuyList = []
     else:
-        printList(plans)
         sChoice = input("Which one? (Q to quit) ")
         if not sChoice.isdigit():
             sys.exit("Bye now.")
