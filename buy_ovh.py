@@ -5,7 +5,6 @@ import os
 import sys
 import time
 
-
 # --- Conf values ------------------------
 # if there is a file conf.py with conf values, use it
 # otherwise use defaults values below
@@ -21,6 +20,12 @@ except:
     showCpu = True
 # -------------------------------------------
 
+client = ovh.Client()
+
+# make a list with autobuys, otherwise empty
+autoBuyList = []
+if 'auto_buy' in dir():
+    autoBuyList = auto_buy
 
 # --- Coloring stuff ------------------------
 class color:
@@ -213,32 +218,92 @@ def printAndSleep(showP):
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
+# ---------------- BUILD THE CART --------------------------------------------------------------
+def buildCart(plan):
+    global client
+    # make a cart
+    cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
+    cartId = cart.get("cartId")
+    client.post("/order/cart/{0}/assign".format(cartId))
+    # add the server
+    result = client.post(
+                         f'/order/cart/{cart.get("cartId")}/eco',
+                         duration = "P1M",
+                         planCode = plan['planCode'],
+                         pricingMode = "default",
+                         quantity = 1
+                        )
+    itemId = result['itemId']
+
+    # add options
+    result = client.post(
+                         f'/order/cart/{cartId}/eco/options',
+                         duration = "P1M",
+                         itemId = itemId,
+                         planCode = plan['memory'],
+                         pricingMode = "default",
+                         quantity = 1
+                        )
+    result = client.post(
+                         f'/order/cart/{cartId}/eco/options',
+                         itemId = itemId,
+                         duration = "P1M",
+                         planCode = plan['storage'],
+                         pricingMode = "default",
+                         quantity = 1
+                        )
+    result = client.post(
+                         f'/order/cart/{cartId}/eco/options',
+                         itemId = itemId,
+                         duration = "P1M",
+                         planCode = plan['bandwidth'],
+                         pricingMode = "default",
+                         quantity = 1
+                        )
+
+    # add configuration
+    result = client.post(
+                         f'/order/cart/{cartId}/item/{itemId}/configuration',
+                         label = "dedicated_datacenter",
+                         value = plan['datacenter']
+                         )
+    result = client.post(
+                         f'/order/cart/{cartId}/item/{itemId}/configuration',
+                         label = "dedicated_os",
+                         value = "none_64.en"
+                         )
+    if plan['datacenter'] == "bhs":
+        myregion = "canada"
+    else:
+        myregion = "europe"
+    result = client.post(
+                         f'/order/cart/{cartId}/item/{itemId}/configuration',
+                         label = "region",
+                         value = myregion
+                         )
+    return cartId
+
+
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
-client = ovh.Client()
+# if auto_buy is defined, then this will become true if a server is available
+foundAutoBuyServer = False
 
-# if auto_buy is defined, then automode will become true
-autoMode = False
 
-# make a list with autobuys, otherwise empty
-myAutoBuy = []
-if 'auto_buy' in dir():
-    myAutoBuyList = auto_buy
 
 try:
-    while not autoMode:
+    while not foundAutoBuyServer:
         try:
             os.system('cls' if os.name == 'nt' else 'clear')
             plans = buildList(client)
-            printList(plans,myAutoBuyList)
-            # TODO: use myAutoBuyList
-            if 'auto_buy' in dir():
+            printList(plans,autoBuyList)
+            if autoBuyList:
                 for plan in plans:
-                    if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],auto_buy):
-                        autoMode = True
+                    if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList):
+                        foundAutoBuyServer = True
                         autoPlanId = plans.index(plan)
                         break
-            if not autoMode:
+            if not foundAutoBuyServer:
                 printPrompt(showPrompt)
                 printAndSleep(showPrompt)
         except KeyboardInterrupt:
@@ -254,11 +319,11 @@ except KeyboardInterrupt:
 print("")
 os.system('cls' if os.name == 'nt' else 'clear')
 
-if autoMode:
+if foundAutoBuyServer:
     print("AUTO MODE!!!")
     choice = autoPlanId
 else:
-    printList(plans,myAutoBuyList)
+    printList(plans,autoBuyList)
     sChoice = input("Which one? (Q to quit) ")
     if not sChoice.isdigit():
         sys.exit("Bye now.")
@@ -270,69 +335,11 @@ myplan = plans[choice]
 print("Let's go for " + myplan['invoiceName'] + " in " + myplan['datacenter'] + ".")
 
 # make a cart
-cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
-cartId = cart.get("cartId")
-client.post("/order/cart/{0}/assign".format(cartId))
-# add the server
-result = client.post(
-                     f'/order/cart/{cart.get("cartId")}/eco',
-                     duration = "P1M",
-                     planCode = myplan['planCode'],
-                     pricingMode = "default",
-                     quantity = 1
-                    )
-itemId = result['itemId']
-
-# add options
-result = client.post(
-                     f'/order/cart/{cartId}/eco/options',
-                     duration = "P1M",
-                     itemId = itemId,
-                     planCode = myplan['memory'],
-                     pricingMode = "default",
-                     quantity = 1
-                    )
-result = client.post(
-                     f'/order/cart/{cartId}/eco/options',
-                     itemId = itemId,
-                     duration = "P1M",
-                     planCode = myplan['storage'],
-                     pricingMode = "default",
-                     quantity = 1
-                    )
-result = client.post(
-                     f'/order/cart/{cartId}/eco/options',
-                     itemId = itemId,
-                     duration = "P1M",
-                     planCode = myplan['bandwidth'],
-                     pricingMode = "default",
-                     quantity = 1
-                    )
-
-# add configuration
-result = client.post(
-                     f'/order/cart/{cartId}/item/{itemId}/configuration',
-                     label = "dedicated_datacenter",
-                     value = myplan['datacenter']
-                     )
-result = client.post(
-                     f'/order/cart/{cartId}/item/{itemId}/configuration',
-                     label = "dedicated_os",
-                     value = "none_64.en"
-                     )
-if myplan['datacenter'] == "bhs":
-    myregion = "canada"
-else:
-    myregion = "europe"
-result = client.post(
-                     f'/order/cart/{cartId}/item/{itemId}/configuration',
-                     label = "region",
-                     value = myregion
-                     )
+cartId = buildCart(myplan)
 
 # checkout!
 
-if autoMode:
+if foundAutoBuyServer:
     mybool = True
 else:
     whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
