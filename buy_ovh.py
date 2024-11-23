@@ -21,11 +21,14 @@ except:
     fakeBuy = True
 # -------------------------------------------
 
+# --- Global variables ----------------------
 client = ovh.Client()
 
 # make a list with autobuys, otherwise empty
 autoBuyList = []
+autoBuyOn = False
 if 'auto_buy' in dir():
+    autoBuyOn = True
     autoBuyList = auto_buy
     # how many auto buys before stopping
     autoBuyNum = 1
@@ -33,6 +36,11 @@ if 'auto_buy' in dir():
         autoBuyNum = auto_buy_num
     if autoBuyNum < 1:
         autoBuyList = []
+# counters to display how auto buy are doing
+autoOK = 0
+autoKO = 0
+autoFake = 0
+autoBuyNumInit = autoBuyNum
 
 # --- Coloring stuff ------------------------
 class color:
@@ -172,7 +180,8 @@ def buildList(cli):
 
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
-def printList(plans,autobuy):
+def printList(plans):
+    global autoBuyOn, autoBuyList, autoBuyNum, autoBuyNumInit, autoOK, autoKO, autoFake
     for plan in plans:
         avail = plan['availability']
         if avail in ['unavailable','unknown']:
@@ -194,7 +203,7 @@ def printList(plans,autobuy):
         else:
             modelStr = model.ljust(10)
         # special colour for autobuy
-        if startsWithList(plan['fqn'],autobuy):
+        if startsWithList(plan['fqn'],autoBuyList):
             codeStr = whichColor['autobuy'] + plan['planCode'].ljust(11) + printcolor
         else:
             codeStr = plan['planCode'].ljust(11)
@@ -208,6 +217,10 @@ def printList(plans,autobuy):
               + plan['price'].ljust(6) + "| "
               + plan['availability']
               + color.END)
+    if autoBuyOn:
+        print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
+              + " - OK: " + str(autoOK) + ", NOK: " + str(autoKO) + ", Fake: " + str(autoFake))
+
 
 # ----------------- PRINT PROMPT --------------------------------------------------------------
 def printPrompt(showP):
@@ -227,7 +240,13 @@ def printAndSleep(showP):
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
-    global client
+    global client, fakeBuy
+
+    if fakeBuy:
+        print("Fake cart!")
+        time.sleep(1)
+        return 0
+
     # make a cart
     cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
     cartId = cart.get("cartId")
@@ -304,7 +323,7 @@ while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 plans = buildList(client)
-                printList(plans,autoBuyList)
+                printList(plans)
                 if autoBuyList:
                     for plan in plans:
                         if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList):
@@ -335,7 +354,7 @@ while True:
         if autoBuyNum == 0:
             autoBuyList = []
     else:
-        printList(plans,autoBuyList)
+        printList(plans)
         sChoice = input("Which one? (Q to quit) ")
         if not sChoice.isdigit():
             sys.exit("Bye now.")
@@ -347,11 +366,7 @@ while True:
     print("Let's go for " + myplan['invoiceName'] + " in " + myplan['datacenter'] + ".")
 
     # make a cart
-    if fakeBuy:
-        print("Fake cart!")
-        time.sleep(1)
-    else:
-        cartId = buildCart(myplan)
+    cartId = buildCart(myplan)
 
     # checkout!
 
@@ -369,6 +384,8 @@ while True:
     if fakeBuy:
         print("Fake buy!")
         time.sleep(1)
+        if foundAutoBuyServer:
+            autoFake += 1
         continue
 
     # this is it, we checkout the cart!
@@ -377,9 +394,13 @@ while True:
                              autoPayWithPreferredPaymentMethod=mybool,
                              waiveRetractationPeriod=mybool
                             )
+        if foundAutoBuyServer:
+            autoOK += 1
     except Exception as e:
         print("Not today.")
         print(e)
+        if foundAutoBuyServer:
+            autoKO += 1
         time.sleep(3)
 
     
