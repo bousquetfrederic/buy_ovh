@@ -18,6 +18,7 @@ except:
     sleepsecs = 60
     showPrompt = True
     showCpu = True
+    fakeBuy = True
 # -------------------------------------------
 
 client = ovh.Client()
@@ -26,6 +27,12 @@ client = ovh.Client()
 autoBuyList = []
 if 'auto_buy' in dir():
     autoBuyList = auto_buy
+    # how many auto buys before stopping
+    autoBuyNum = 1
+    if 'auto_buy_num' in dir():
+        autoBuyNum = auto_buy_num
+    if autoBuyNum < 1:
+        autoBuyList = []
 
 # --- Coloring stuff ------------------------
 class color:
@@ -286,77 +293,93 @@ def buildCart(plan):
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
-# if auto_buy is defined, then this will become true if a server is available
-foundAutoBuyServer = False
+# loop until the user wants out
+while True:
 
+    # if auto_buy is defined, then this will become true if a server is available
+    foundAutoBuyServer = False
 
+    try:
+        while not foundAutoBuyServer:
+            try:
+                os.system('cls' if os.name == 'nt' else 'clear')
+                plans = buildList(client)
+                printList(plans,autoBuyList)
+                if autoBuyList:
+                    for plan in plans:
+                        if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList):
+                            foundAutoBuyServer = True
+                            autoPlanId = plans.index(plan)
+                            break
+                if not foundAutoBuyServer:
+                    printPrompt(showPrompt)
+                    printAndSleep(showPrompt)
+            except KeyboardInterrupt:
+                raise
+            except Exception as e:
+                print("Exception!")
+                print(e)
+                print("Wait " + str(sleepsecs) + "s before retry.")
+                time.sleep(sleepsecs)
+    except KeyboardInterrupt:
+        pass
 
-try:
-    while not foundAutoBuyServer:
-        try:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            plans = buildList(client)
-            printList(plans,autoBuyList)
-            if autoBuyList:
-                for plan in plans:
-                    if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList):
-                        foundAutoBuyServer = True
-                        autoPlanId = plans.index(plan)
-                        break
-            if not foundAutoBuyServer:
-                printPrompt(showPrompt)
-                printAndSleep(showPrompt)
-        except KeyboardInterrupt:
-            raise
-        except Exception as e:
-            print("Exception!")
-            print(e)
-            print("Wait " + str(sleepsecs) + "s before retry.")
-            time.sleep(sleepsecs)
-except KeyboardInterrupt:
-    pass
+    print("")
+    os.system('cls' if os.name == 'nt' else 'clear')
 
-print("")
-os.system('cls' if os.name == 'nt' else 'clear')
+    if foundAutoBuyServer:
+        print("AUTO MODE!!!")
+        choice = autoPlanId
+        autoBuyNum -= 1
+        # after x number of auto buy, stop buying
+        if autoBuyNum == 0:
+            autoBuyList = []
+    else:
+        printList(plans,autoBuyList)
+        sChoice = input("Which one? (Q to quit) ")
+        if not sChoice.isdigit():
+            sys.exit("Bye now.")
+        choice = int (sChoice)
+        if choice >= len(plans):
+             sys.exit("You had one job.")
 
-if foundAutoBuyServer:
-    print("AUTO MODE!!!")
-    choice = autoPlanId
-else:
-    printList(plans,autoBuyList)
-    sChoice = input("Which one? (Q to quit) ")
-    if not sChoice.isdigit():
-        sys.exit("Bye now.")
-    choice = int (sChoice)
-    if choice >= len(plans):
-         sys.exit("You had one job.")
+    myplan = plans[choice]
+    print("Let's go for " + myplan['invoiceName'] + " in " + myplan['datacenter'] + ".")
 
-myplan = plans[choice]
-print("Let's go for " + myplan['invoiceName'] + " in " + myplan['datacenter'] + ".")
+    # make a cart
+    if fakeBuy:
+        print("Fake cart!")
+        time.sleep(1)
+    else:
+        cartId = buildCart(myplan)
 
-# make a cart
-cartId = buildCart(myplan)
+    # checkout!
 
-# checkout!
-
-if foundAutoBuyServer:
-    mybool = True
-else:
-    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
-    if whattodo == 'i':
-        mybool = False
-    elif whattodo == 'n':
+    if foundAutoBuyServer:
         mybool = True
     else:
-        sys.exit("Keep your money!")
+        whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
+        if whattodo == 'i':
+            mybool = False
+        elif whattodo == 'n':
+            mybool = True
+        else:
+            continue
 
-try:
-    result = client.post(f'/order/cart/{cartId}/checkout',
-                         autoPayWithPreferredPaymentMethod=mybool,
-                         waiveRetractationPeriod=mybool
-                        )
-    print("Apparently it worked.")
-    print("URL: " + result['url'])
-except Exception as e:
-    print("Not today.")
-    print(e)
+    if fakeBuy:
+        print("Fake buy!")
+        time.sleep(1)
+        continue
+
+    # this is it, we checkout the cart!
+    try:
+        result = client.post(f'/order/cart/{cartId}/checkout',
+                             autoPayWithPreferredPaymentMethod=mybool,
+                             waiveRetractationPeriod=mybool
+                            )
+    except Exception as e:
+        print("Not today.")
+        print(e)
+        time.sleep(3)
+
+    

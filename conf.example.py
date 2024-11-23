@@ -8,3 +8,4 @@ ovhSubsidiary="FR"
 sleepsecs = 60
 showPrompt = True
 showCpu = False
+fakeBuy = True
