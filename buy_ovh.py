@@ -87,9 +87,10 @@ def isAutoBuy(plan):
     return startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice)
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
-def buildList(cli):
-    API_catalog = cli.get("/order/catalog/public/eco", ovhSubsidiary=ovhSubsidiary)
-    API_availabilities = cli.get("/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(acceptable_dc))
+def buildList():
+    global client
+    API_catalog = client.get("/order/catalog/public/eco", ovhSubsidiary=ovhSubsidiary)
+    API_availabilities = client.get("/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(acceptable_dc))
 
     allPlans = API_catalog['plans']
     myPlans = []
@@ -148,13 +149,13 @@ def buildList(cli):
                             # build a list of the availabilities for the current plan + addons
                             avail = [x for x in API_availabilities
                                      if (x['fqn'] == planCode + "." + shortme + "." + shortst )]
-                            if len(avail) > 0:
+                            if avail:
                                 availability = avail[0]
                                 # the list contains the availabilities in each DC
                                 availAllDC = availability['datacenters']
                                 # find the one for the current DC
                                 mydc = [x for x in availAllDC if x['datacenter'] == da]
-                                if len(mydc) > 0:
+                                if mydc:
                                     myavailability = mydc[0]['availability']
                                 else:
                                     myavailability = 'unknown'
@@ -334,7 +335,7 @@ while True:
         while not foundAutoBuyServer:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
-                plans = buildList(client)
+                plans = buildList()
                 printList(plans)
                 if autoBuyList:
                     for plan in plans:
