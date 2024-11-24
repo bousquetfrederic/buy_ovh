@@ -217,12 +217,12 @@ def printList(plans):
         else:
             codeStr = plan['planCode'].ljust(11)
         print(printcolor
-              + str(plans.index(plan)).ljust(5) + "| "
+              + str(plans.index(plan)).ljust(4) + "| "
               + codeStr  + "| "
               + modelStr + "| "
               + plan['datacenter'] + " | "
-              + "-".join(plan['memory'].split("-")[1:-1]).ljust(18) + "| "
-              + "-".join(plan['storage'].split("-")[1:-1]).ljust(12) + "| "
+              + "-".join(plan['memory'].split("-")[1:-1]).ljust(17) + "| "
+              + "-".join(plan['storage'].split("-")[1:-1]).ljust(11) + "| "
               + plan['price'].ljust(6) + "| "
               + plan['availability']
               + color.END)
