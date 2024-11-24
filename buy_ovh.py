@@ -26,16 +26,19 @@ client = ovh.Client()
 
 # make a list with autobuys, otherwise empty
 autoBuyList = []
-autoBuyOn = False
 if 'auto_buy' in dir():
-    autoBuyOn = True
     autoBuyList = auto_buy
     # how many auto buys before stopping
-    autoBuyNum = 1
+    autoBuyNum = 0
     if 'auto_buy_num' in dir():
         autoBuyNum = auto_buy_num
     if autoBuyNum < 1:
         autoBuyList = []
+autoBuyMaxPrice = 0
+if 'auto_buy_max_price' in dir():
+    autoBuyMaxPrice = auto_buy_max_price
+else:
+    autoBuyMaxPrice = 0
 # counters to display how auto buy are doing
 autoOK = 0
 autoKO = 0
@@ -77,6 +80,11 @@ def endsWithList(st,li):
         if st.endswith(elem):
             return True
     return False
+
+# --- IS THIS PLAN ELIGIBLE FOR AUTO BUY ------------------------------------------------------
+def isAutoBuy(plan):
+    global autoBuyMaxPrice, autoBuyList
+    return startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice)
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def buildList(cli):
@@ -181,7 +189,7 @@ def buildList(cli):
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
-    global autoBuyOn, autoBuyList, autoBuyNum, autoBuyNumInit, autoOK, autoKO, autoFake
+    global autoBuyList, autoBuyNum, autoBuyNumInit, autoBuyMaxPrice, autoOK, autoKO, autoFake
     for plan in plans:
         avail = plan['availability']
         if avail in ['unavailable','unknown']:
@@ -203,7 +211,8 @@ def printList(plans):
         else:
             modelStr = model.ljust(10)
         # special colour for autobuy
-        if startsWithList(plan['fqn'],autoBuyList):
+        #if startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice):
+        if isAutoBuy(plan):
             codeStr = whichColor['autobuy'] + plan['planCode'].ljust(11) + printcolor
         else:
             codeStr = plan['planCode'].ljust(11)
@@ -218,7 +227,7 @@ def printList(plans):
               + plan['availability']
               + color.END)
     # if there has been at least one auto buy, show counters
-    if autoBuyOn and autoBuyNum < autoBuyNumInit:
+    if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
         print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
               + " - OK: " + str(autoOK) + ", NOK: " + str(autoKO) + ", Fake: " + str(autoFake))
 
@@ -311,6 +320,8 @@ def buildCart(plan):
     return cartId
 
 
+
+
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 # loop until the user wants out
@@ -327,7 +338,8 @@ while True:
                 printList(plans)
                 if autoBuyList:
                     for plan in plans:
-                        if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList):
+                        #if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice):
+                        if plan['availability'] not in ['unknown','unavailable'] and isAutoBuy(plan):
                             foundAutoBuyServer = True
                             autoPlanId = plans.index(plan)
                             break
