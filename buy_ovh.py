@@ -27,16 +27,16 @@ client = ovh.Client()
 
 # make a list with autobuys, otherwise empty
 autoBuyList = []
+# how many auto buys before stopping
 autoBuyNum = 0
 autoBuyNumInit = 0
+autoBuyMaxPrice = 0
 if 'auto_buy' in dir():
     autoBuyList = auto_buy
-    # how many auto buys before stopping
     if 'auto_buy_num' in dir():
         autoBuyNum = auto_buy_num
     if autoBuyNum < 1:
         autoBuyList = []
-autoBuyMaxPrice = 0
 if 'auto_buy_max_price' in dir():
     autoBuyMaxPrice = auto_buy_max_price
 # counters to display how auto buy are doing
@@ -99,7 +99,7 @@ def buildList(showU):
         # find the price
         allPrices = plan['pricings']
         # let's just take the first one for the moment
-        if len(allPrices) > 0:
+        if allPrices:
             planPrice = float(allPrices[0]['price'])/100000000
         else:
             planPrice = 0.0
@@ -185,8 +185,6 @@ def buildList(showU):
                                   'availability' : myavailability
                                 })
     return myPlans
-
-# ----------------- REMOVE UNAVAILABLE PLANS WITHOUT AUTOBUY ----------------------------------
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
