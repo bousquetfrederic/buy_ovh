@@ -18,6 +18,7 @@ except:
     sleepsecs = 60
     showPrompt = True
     showCpu = True
+    showUnavailable = True
     fakeBuy = True
 # -------------------------------------------
 
@@ -81,12 +82,8 @@ def endsWithList(st,li):
             return True
     return False
 
-# --- IS THIS PLAN ELIGIBLE FOR AUTO BUY ------------------------------------------------------
-def isAutoBuy(plan):
-    return startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice)
-
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
-def buildList():
+def buildList(showU):
     API_catalog = client.get("/order/catalog/public/eco", ovhSubsidiary=ovhSubsidiary)
     API_availabilities = client.get("/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(acceptable_dc))
 
@@ -171,6 +168,11 @@ def buildList():
                             except Exception as e:
                                 print(e)
                             priceStr = "{:.2f}".format(thisPrice)
+                            # don't add plan if unavailable and not auto buy (if option selected)
+                            myFqn = planCode + "." + shortme + "." + shortst + "." + da
+                            myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
+                            if myavailability == 'unavailable' and not myAutoBuy and not showU:
+                                continue
                             # Add the plan to the list
                             myPlans.append(
                                 { 'planCode' : planCode,
@@ -180,11 +182,13 @@ def buildList():
                                   'memory' : me,
                                   'bandwidth' : ba,
                                   'fqn' : planCode + "." + shortme + "." + shortst + "." + da, # for auto buy
+                                  'autobuy' : myAutoBuy,
                                   'price' : priceStr,
                                   'availability' : myavailability
                                 })
     return myPlans
 
+# ----------------- REMOVE UNAVAILABLE PLANS WITHOUT AUTOBUY ----------------------------------
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
@@ -209,8 +213,7 @@ def printList(plans):
         else:
             modelStr = model.ljust(10)
         # special colour for autobuy
-        #if startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice):
-        if isAutoBuy(plan):
+        if plan['autobuy']:
             codeStr = whichColor['autobuy'] + plan['planCode'].ljust(11) + printcolor
         else:
             codeStr = plan['planCode'].ljust(11)
@@ -363,12 +366,12 @@ while True:
         while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
-                plans = buildList()
+                plans = buildList(showUnavailable)
                 printList(plans)
                 foundAutoBuyServer = False
                 if autoBuyList:
                     for plan in plans:
-                        if autoBuyNum > 0 and plan['availability'] not in ['unknown','unavailable'] and isAutoBuy(plan):
+                        if autoBuyNum > 0 and plan['availability'] not in ['unknown','unavailable'] and plan['autobuy']:
                             # auto buy
                             foundAutoBuyServer = True
                             buyServer(plan, True, True)
