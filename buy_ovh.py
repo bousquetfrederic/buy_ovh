@@ -248,7 +248,6 @@ def printAndSleep(showP):
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
-
     if fakeBuy:
         print("Fake cart!")
         time.sleep(1)
@@ -318,15 +317,13 @@ def buildCart(plan):
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------
 def checkoutCart(cartId, buyNow, autoMode):
-    global autoFake, autoOk
+    global autoFake, autoOK
     if fakeBuy:
-        print("Fake buy!")
-        time.sleep(1)
+        print("Fake buy! Now: " + str(buyNow) + ", Auto: " + str(autoMode))
+        time.sleep(2)
         if autoMode:
             autoFake += 1
         return
-
-    print("Checking Out")
 
     # this is it, we checkout the cart!
     result = client.post(f'/order/cart/{cartId}/checkout',
@@ -339,7 +336,15 @@ def checkoutCart(cartId, buyNow, autoMode):
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow, autoMode):
     global autoKO
-    print("Let's go for " + plan['invoiceName'] + " in " + plan['datacenter'] + ".")
+    if autoMode:
+        strAuto = "   -Auto Mode-"
+    else:
+        strAuto = ""
+    if buyNow:
+        strBuyNow = "buy now a "
+    else:
+        strBuyNow = "get an invoice for a "
+    print("Let's " + strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "." + strAuto)
     try:
         checkoutCart(buildCart(plan), buyNow, autoMode)
     except Exception as e:
@@ -354,21 +359,23 @@ def buyServer(plan, buyNow, autoMode):
 # loop until the user wants out
 while True:
 
-    # if auto_buy is defined, then this will become true if a server is available
-    foundAutoBuyServer = False
-
     try:
-        while not foundAutoBuyServer:
+        while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 plans = buildList()
                 printList(plans)
+                foundAutoBuyServer = False
                 if autoBuyList:
                     for plan in plans:
-                        if plan['availability'] not in ['unknown','unavailable'] and isAutoBuy(plan):
+                        if autoBuyNum > 0 and plan['availability'] not in ['unknown','unavailable'] and isAutoBuy(plan):
+                            # auto buy
                             foundAutoBuyServer = True
-                            autoPlanId = plans.index(plan)
-                            break
+                            buyServer(plan, True, True)
+                            autoBuyNum -= 1
+                            if autoBuyNum < 1:
+                                autoBuyList = []
+                                break
                 if not foundAutoBuyServer:
                     printPrompt(showPrompt)
                     printAndSleep(showPrompt)
@@ -384,30 +391,19 @@ while True:
 
     print("")
 
-    if foundAutoBuyServer:
-        print("AUTO MODE!!!")
-        choice = autoPlanId
-        autoBuyNum -= 1
-        # after x number of auto buy, stop buying
-        if autoBuyNum == 0:
-            autoBuyList = []
-    else:
-        sChoice = input("Which one? (Q to quit) ")
-        if not sChoice.isdigit():
-            sys.exit("Bye now.")
-        choice = int (sChoice)
-        if choice >= len(plans):
-             sys.exit("You had one job.")
+    sChoice = input("Which one? (Q to quit) ")
+    if not sChoice.isdigit():
+        sys.exit("Bye now.")
+    choice = int (sChoice)
+    if choice >= len(plans):
+         sys.exit("You had one job.")
 
-    if foundAutoBuyServer:
+    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
+    if whattodo == 'i':
+        mybool = False
+    elif whattodo == 'n':
         mybool = True
     else:
-        whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
-        if whattodo == 'i':
-            mybool = False
-        elif whattodo == 'n':
-            mybool = True
-        else:
-            continue
+        continue
 
-    buyServer(plans[choice], mybool, foundAutoBuyServer)
+    buyServer(plans[choice], mybool, False)
