@@ -83,12 +83,10 @@ def endsWithList(st,li):
 
 # --- IS THIS PLAN ELIGIBLE FOR AUTO BUY ------------------------------------------------------
 def isAutoBuy(plan):
-    global autoBuyMaxPrice, autoBuyList
     return startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice)
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def buildList():
-    global client
     API_catalog = client.get("/order/catalog/public/eco", ovhSubsidiary=ovhSubsidiary)
     API_availabilities = client.get("/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(acceptable_dc))
 
@@ -190,7 +188,6 @@ def buildList():
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
-    global autoBuyList, autoBuyNum, autoBuyNumInit, autoBuyMaxPrice, autoOK, autoKO, autoFake
     for plan in plans:
         avail = plan['availability']
         if avail in ['unavailable','unknown']:
@@ -251,7 +248,6 @@ def printAndSleep(showP):
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
-    global client, fakeBuy
 
     if fakeBuy:
         print("Fake cart!")
@@ -320,8 +316,32 @@ def buildCart(plan):
                          )
     return cartId
 
+# ---------------- CHECKOUT THE CART ---------------------------------------------------------
+def checkoutCart(cartId, buyNow, autoMode):
+    global autoFake, autoOk, autoKO
+    if fakeBuy:
+        print("Fake buy!")
+        time.sleep(1)
+        if autoMode:
+            autoFake += 1
+        return
 
+    print("Checking Out")
 
+    # this is it, we checkout the cart!
+    try:
+        result = client.post(f'/order/cart/{cartId}/checkout',
+                             autoPayWithPreferredPaymentMethod=buyNow,
+                             waiveRetractationPeriod=buyNow
+                            )
+        if autoMode:
+            autoOK += 1
+    except Exception as e:
+        print("Not today.")
+        print(e)
+        if foundAutoBuyServer:
+            autoKO += 1
+        time.sleep(3)
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
@@ -339,7 +359,6 @@ while True:
                 printList(plans)
                 if autoBuyList:
                     for plan in plans:
-                        #if plan['availability'] not in ['unknown','unavailable'] and startsWithList(plan['fqn'],autoBuyList) and (autoBuyMaxPrice == 0 or float(plan['price']) <= autoBuyMaxPrice):
                         if plan['availability'] not in ['unknown','unavailable'] and isAutoBuy(plan):
                             foundAutoBuyServer = True
                             autoPlanId = plans.index(plan)
@@ -393,26 +412,4 @@ while True:
         else:
             continue
 
-    if fakeBuy:
-        print("Fake buy!")
-        time.sleep(1)
-        if foundAutoBuyServer:
-            autoFake += 1
-        continue
-
-    # this is it, we checkout the cart!
-    try:
-        result = client.post(f'/order/cart/{cartId}/checkout',
-                             autoPayWithPreferredPaymentMethod=mybool,
-                             waiveRetractationPeriod=mybool
-                            )
-        if foundAutoBuyServer:
-            autoOK += 1
-    except Exception as e:
-        print("Not today.")
-        print(e)
-        if foundAutoBuyServer:
-            autoKO += 1
-        time.sleep(3)
-
-    
+    checkoutCart(cartId, mybool, foundAutoBuyServer)
