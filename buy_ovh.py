@@ -318,7 +318,7 @@ def buildCart(plan):
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------
 def checkoutCart(cartId, buyNow, autoMode):
-    global autoFake, autoOk, autoKO
+    global autoFake, autoOk
     if fakeBuy:
         print("Fake buy!")
         time.sleep(1)
@@ -329,17 +329,23 @@ def checkoutCart(cartId, buyNow, autoMode):
     print("Checking Out")
 
     # this is it, we checkout the cart!
+    result = client.post(f'/order/cart/{cartId}/checkout',
+                         autoPayWithPreferredPaymentMethod=buyNow,
+                         waiveRetractationPeriod=buyNow
+                        )
+    if autoMode:
+        autoOK += 1
+
+# ----------------- BUY SERVER ----------------------------------------------------------------
+def buyServer(plan, buyNow, autoMode):
+    global autoKO
+    print("Let's go for " + plan['invoiceName'] + " in " + plan['datacenter'] + ".")
     try:
-        result = client.post(f'/order/cart/{cartId}/checkout',
-                             autoPayWithPreferredPaymentMethod=buyNow,
-                             waiveRetractationPeriod=buyNow
-                            )
-        if autoMode:
-            autoOK += 1
+        checkoutCart(buildCart(plan), buyNow, autoMode)
     except Exception as e:
         print("Not today.")
         print(e)
-        if foundAutoBuyServer:
+        if autoMode:
             autoKO += 1
         time.sleep(3)
 
@@ -393,14 +399,6 @@ while True:
         if choice >= len(plans):
              sys.exit("You had one job.")
 
-    myplan = plans[choice]
-    print("Let's go for " + myplan['invoiceName'] + " in " + myplan['datacenter'] + ".")
-
-    # make a cart
-    cartId = buildCart(myplan)
-
-    # checkout!
-
     if foundAutoBuyServer:
         mybool = True
     else:
@@ -412,4 +410,4 @@ while True:
         else:
             continue
 
-    checkoutCart(cartId, mybool, foundAutoBuyServer)
+    buyServer(plans[choice], mybool, foundAutoBuyServer)
