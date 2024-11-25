@@ -222,7 +222,7 @@ def printList(plans):
               + "-".join(plan['memory'].split("-")[1:-1]).ljust(17) + "| "
               + "-".join(plan['storage'].split("-")[1:-1]).ljust(11) + "| "
               + plan['price'].ljust(6) + "| "
-              + plan['availability']
+              #+ plan['availability']
               + color.END)
     # if there has been at least one auto buy, show counters
     if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
