@@ -27,10 +27,11 @@ client = ovh.Client()
 
 # make a list with autobuys, otherwise empty
 autoBuyList = []
+autoBuyNum = 0
+autoBuyNumInit = 0
 if 'auto_buy' in dir():
     autoBuyList = auto_buy
     # how many auto buys before stopping
-    autoBuyNum = 0
     if 'auto_buy_num' in dir():
         autoBuyNum = auto_buy_num
     if autoBuyNum < 1:
@@ -38,13 +39,10 @@ if 'auto_buy' in dir():
 autoBuyMaxPrice = 0
 if 'auto_buy_max_price' in dir():
     autoBuyMaxPrice = auto_buy_max_price
-else:
-    autoBuyMaxPrice = 0
 # counters to display how auto buy are doing
 autoOK = 0
 autoKO = 0
 autoFake = 0
-autoBuyNumInit = autoBuyNum
 
 # --- Coloring stuff ------------------------
 class color:
@@ -192,6 +190,8 @@ def buildList(showU):
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
+    if not plans:
+        print(whichColor['unavailable'] + "No availability." + color.END)
     for plan in plans:
         avail = plan['availability']
         if avail in ['unavailable','unknown']:
