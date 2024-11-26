@@ -80,10 +80,19 @@ def endsWithList(st,li):
             return True
     return False
 
+# -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
+def buildAvailabilityDict():
+    myAvail = {}
+    for avail in client.get("/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(acceptable_dc)):
+        myFqn = avail['fqn']
+        for da in avail['datacenters']:
+            myLongFqn = myFqn + "." + da['datacenter']
+            myAvail[myLongFqn] = da['availability']
+    return myAvail
+
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
-def buildList(showU):
+def buildList(avail, showU):
     API_catalog = client.get("/order/catalog/public/eco", ovhSubsidiary=ovhSubsidiary)
-    API_availabilities = client.get("/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(acceptable_dc))
 
     allPlans = API_catalog['plans']
     myPlans = []
@@ -139,21 +148,6 @@ def buildList(showU):
                             # filter unwanted disk types
                             if not endsWithList(shortst,filterDisk):
                                 continue
-                            # build a list of the availabilities for the current plan + addons
-                            avail = [x for x in API_availabilities
-                                     if (x['fqn'] == planCode + "." + shortme + "." + shortst )]
-                            if avail:
-                                availability = avail[0]
-                                # the list contains the availabilities in each DC
-                                availAllDC = availability['datacenters']
-                                # find the one for the current DC
-                                mydc = [x for x in availAllDC if x['datacenter'] == da]
-                                if mydc:
-                                    myavailability = mydc[0]['availability']
-                                else:
-                                    myavailability = 'unknown'
-                            else:
-                                myavailability = 'unknown'
                             # try to find out the full price
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
@@ -168,6 +162,10 @@ def buildList(showU):
                             priceStr = "{:.2f}".format(thisPrice)
                             # don't add plan if unavailable and not auto buy (if option selected)
                             myFqn = planCode + "." + shortme + "." + shortst + "." + da
+                            if myFqn in avail:
+                                myavailability = avail[myFqn]
+                            else:
+                                myavailability = 'unknown'
                             myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
                             if myavailability in ['unavailable','unknown'] and not myAutoBuy and not showU:
                                 continue
@@ -179,7 +177,7 @@ def buildList(showU):
                                   'storage' : st,
                                   'memory' : me,
                                   'bandwidth' : ba,
-                                  'fqn' : planCode + "." + shortme + "." + shortst + "." + da, # for auto buy
+                                  'fqn' : myFqn, # for auto buy
                                   'autobuy' : myAutoBuy,
                                   'price' : priceStr,
                                   'availability' : myavailability
@@ -357,6 +355,9 @@ def buyServer(plan, buyNow, autoMode):
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
+# build an initial list of availabilities so we can see if anything is added during the run
+initAvailabilities = buildAvailabilityDict()
+
 # loop until the user wants out
 while True:
 
@@ -364,7 +365,11 @@ while True:
         while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
-                plans = buildList(showUnavailable)
+                availabilities = buildAvailabilityDict()
+                availabilities['prout'] = 'yeah'
+                availabilities['hello'] = 'freak'
+                newAvail = availabilities.keys() - initAvailabilities.keys()
+                plans = buildList(availabilities, showUnavailable)
                 printList(plans)
                 foundAutoBuyServer = False
                 if autoBuyList:
@@ -378,6 +383,9 @@ while True:
                                 autoBuyList = []
                                 break
                 if not foundAutoBuyServer:
+                    if newAvail:
+                        for newA in newAvail:
+                            print("New in availabilities : " + newA)
                     printPrompt(showPrompt)
                     printAndSleep(showPrompt)
             except KeyboardInterrupt:
