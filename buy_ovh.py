@@ -392,9 +392,17 @@ while True:
 
     print("")
 
-    sChoice = input("Which one? (Q to quit) ")
+    sChoice = input("Which one? (Q to quit, Toggles: U/P/C) ")
     if not sChoice.isdigit():
-        sys.exit("Bye now.")
+        if sChoice.lower() == 'u':
+            showUnavailable = not showUnavailable
+        elif sChoice.lower() == 'p':
+            showPrompt = not showPrompt
+        elif sChoice.lower() == 'c':
+            showCpu = not showCpu
+        elif sChoice.lower() == 'q':
+            sys.exit("Bye now.")
+        continue
     choice = int (sChoice)
     if choice >= len(plans):
          sys.exit("You had one job.")
