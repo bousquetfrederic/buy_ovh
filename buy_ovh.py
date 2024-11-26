@@ -169,7 +169,7 @@ def buildList(showU):
                             # don't add plan if unavailable and not auto buy (if option selected)
                             myFqn = planCode + "." + shortme + "." + shortst + "." + da
                             myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
-                            if myavailability == 'unavailable' and not myAutoBuy and not showU:
+                            if myavailability in ['unavailable','unknown'] and not myAutoBuy and not showU:
                                 continue
                             # Add the plan to the list
                             myPlans.append(
