@@ -366,8 +366,6 @@ while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 availabilities = buildAvailabilityDict()
-                availabilities['prout'] = 'yeah'
-                availabilities['hello'] = 'freak'
                 newAvail = availabilities.keys() - initAvailabilities.keys()
                 plans = buildList(availabilities, showUnavailable)
                 printList(plans)
