@@ -20,7 +20,7 @@ except Exception as e:
     time.sleep(3)
 
 acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else ['gra','rbx','sbg']
-filterInvoiceName = configFile['filterName'] if 'filterName' in configFile else ['KS-A']
+filterName = configFile['filterName'] if 'filterName' in configFile else ['KS-A']
 filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ['ssd','nvme','sa']
 ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
 sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
@@ -163,7 +163,8 @@ def buildList(avail):
     for plan in allPlans:
         planCode = plan['planCode']
         # only consider plans name starting with the defined filter
-        if ( not startsWithList(plan['invoiceName'], filterInvoiceName) ):
+        if ( not startsWithList(plan['invoiceName'], filterName)
+             and not startsWithList(plan['planCode'], filterName) ):
             continue
 
         # find the price
@@ -295,7 +296,7 @@ def printPrompt():
     if not showPrompt:
         return
     print("- DCs : [" + ",".join(acceptable_dc)
-          + "] - Filters : [" + ",".join(filterInvoiceName)
+          + "] - Filters : [" + ",".join(filterName)
           + "][" + ",".join(filterDisk)
           +"]")
 
@@ -477,8 +478,8 @@ while True:
     sChoice = input("Which one? (Q to quit, Toggles: U/P/C, Filters N/D) ")
     if not sChoice.isdigit():
         if sChoice.lower() == 'n':
-            print("Current : " + ",".join(filterInvoiceName))
-            filterInvoiceName = getListFromUser("One per line")
+            print("Current : " + ",".join(filterName))
+            filterName = getListFromUser("One per line")
         elif sChoice.lower() == 'd':
             print("Current : " + ",".join(filterDisk))
             filterDisk = getListFromUser("One per line (nvme,ssd,sa)")

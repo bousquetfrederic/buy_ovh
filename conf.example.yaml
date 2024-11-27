@@ -10,9 +10,9 @@ datacenters:
     - waw
     - bhs
 
-# the invoice Name of the servers must start with:
+# the invoice name or plan code of the servers must start with:
 filterName:
-    - "KS-A"
+    - "24ska"
     - "KS-LE-B"
     - "KS-LE-4"
 
