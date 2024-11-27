@@ -4,23 +4,9 @@ import os
 import sys
 import time
 import yaml
-
-# # --- Conf values ------------------------
-# # if there is a file conf.py with conf values, use it
-# # otherwise use defaults values below
-# try:
-    # from conf import *
-# except:
-    # acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
-    # filterInvoiceName = ['KS-LE', 'KS-A']
-    # filterDisk = ['ssd','nvme']
-    # ovhSubsidiary="FR"
-    # sleepsecs = 60
-    # showPrompt = True
-    # showCpu = True
-    # showUnavailable = True
-    # fakeBuy = True
-# # -------------------------------------------
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # --- Global variables ----------------------
 client = ovh.Client()
@@ -47,13 +33,22 @@ autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
 autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
 if autoBuyNum == 0:
     autoBuyList = []
-
 autoBuyNumInit = autoBuyNum
 
 # counters to display how auto buy are doing
 autoOK = 0
 autoKO = 0
 autoFake = 0
+
+# for sending emails
+email_on = configFile['email_on'] if 'email_on' in configFile else False
+email_server_port = configFile['email_server_port'] if 'email_server_port' in configFile else 0
+email_server_name = configFile['email_server_name'] if 'email_server_name' in configFile else ""
+email_server_login = configFile['email_server_login'] if 'email_server_login' in configFile else ""
+email_server_password = configFile['email_server_password'] if 'email_server_password' in configFile else ""
+email_sender = configFile['email_sender'] if 'email_sender' in configFile else ""
+email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile else ""
+email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
 
 # --- Coloring stuff ------------------------
 class color:
@@ -94,6 +89,41 @@ def endsWithList(st,li):
 # keys present in dict A not in dict B
 def inAnotB(A,B):
     return [x for x in A.keys() if x not in B.keys()]
+
+# send an email
+def sendEmail(subject,text):
+    try:
+        # Create a multipart message and set headers
+        message = MIMEMultipart()
+        message["From"] = email_sender
+        message["To"] = email_receiver
+        message["Subject"] = subject
+
+        # Attach the HTML part
+        message.attach(MIMEText(text, "html"))
+
+        # Send the email
+        with smtplib.SMTP(email_server_name, email_server_port) as server:
+            server.starttls()
+            server.login(email_server_login, email_server_password)
+            server.sendmail(email_sender, email_receiver, message.as_string())
+    except Exception as e:
+        print("Failed to send an email.")
+        print(e)
+        time.sleep(2)
+
+# -------------- STARTUP EMAIL -----------------------------------------------------------------------------------
+def sendStartupEmail():
+    html = """\
+<html>
+  <body>
+    <p>Hi,<br>
+    BUY_OVH has started</p>
+  </body>
+</html>
+"""
+    sendEmail("BUY_OVH: startup", html)
+
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def buildAvailabilityDict():
@@ -376,6 +406,10 @@ def buyServer(plan, buyNow, autoMode):
         time.sleep(3)
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
+
+# send email at startup
+if email_at_startup:
+    sendStartupEmail()
 
 # build an initial list of availabilities so we can see if anything is added during the run
 initAvailabilities = buildAvailabilityDict()

@@ -32,3 +32,13 @@ showUnavailable: False
 
 # if True, don't actually buy (for testing)
 fakeBuy: True
+
+# email sending (email_on = False deactivate all emails)
+email_on: False
+email_at_startup: False
+email_server_port: 587
+email_server_name: "my.server.com"
+email_server_login: "login"
+email_server_password: "password"
+email_sender: "login@hello.com"
+email_receiver: "receiver@hello.com"
