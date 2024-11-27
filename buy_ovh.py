@@ -91,6 +91,8 @@ def endsWithList(st,li):
 def inAnotB(A,B):
     return [x for x in A.keys() if x not in B.keys()]
 
+# -------------- EMAILS ---------------------------------------------------------------------------------------
+
 # send an email
 def sendEmail(subject,text):
 
@@ -123,7 +125,6 @@ def sendEmail(subject,text):
         print(e)
         time.sleep(2)
 
-# -------------- EMAILS ---------------------------------------------------------------------------------------
 def sendStartupEmail():
     sendEmail("BUY_OVH: startup", "BUY_OVH has started")
 
@@ -141,7 +142,7 @@ def buildAvailabilityDict():
     return myAvail
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
-def buildList(avail, showU):
+def buildList(avail):
     API_catalog = client.get("/order/catalog/public/eco", ovhSubsidiary=ovhSubsidiary)
 
     allPlans = API_catalog['plans']
@@ -217,7 +218,7 @@ def buildList(avail, showU):
                             else:
                                 myavailability = 'unknown'
                             myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
-                            if myavailability in ['unavailable','unknown'] and not myAutoBuy and not showU:
+                            if myavailability in ['unavailable','unknown'] and not myAutoBuy and not showUnavailable:
                                 continue
                             # Add the plan to the list
                             myPlans.append(
@@ -280,18 +281,18 @@ def printList(plans):
 
 
 # ----------------- PRINT PROMPT --------------------------------------------------------------
-def printPrompt(showP):
-    if not showP:
+def printPrompt():
+    if not showPrompt:
         return
     print("- DCs : [" + ",".join(acceptable_dc)
           + "] - Filters : [" + ",".join(filterInvoiceName)
           + "][" + ",".join(filterDisk)
-          +"] - OVH Subsidiary : " + ovhSubsidiary)
+          +"]")
 
 # ----------------- SLEEP x SECONDS -----------------------------------------------------------
-def printAndSleep(showP):
+def printAndSleep():
     for i in range(sleepsecs,0,-1):
-        if showP:
+        if showPrompt:
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
@@ -401,7 +402,7 @@ def buyServer(plan, buyNow, autoMode):
     else:
         strBuyNow = "get an invoice for a "
     strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
-    print("Let's" + strBuy + strAuto)
+    print("Let's " + strBuy + strAuto)
     try:
         checkoutCart(buildCart(plan), buyNow, autoMode)
         if autoMode and email_auto_buy:
@@ -432,7 +433,7 @@ while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 availabilities = buildAvailabilityDict()
-                plans = buildList(availabilities, showUnavailable)
+                plans = buildList(availabilities)
                 printList(plans)
                 foundAutoBuyServer = False
                 if autoBuyList:
@@ -447,8 +448,8 @@ while True:
                                 break
                 if not foundAutoBuyServer:
                     printAddedOrRemoved(initAvailabilities, availabilities)
-                    printPrompt(showPrompt)
-                    printAndSleep(showPrompt)
+                    printPrompt()
+                    printAndSleep()
             except KeyboardInterrupt:
                 raise
             except Exception as e:
