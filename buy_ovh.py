@@ -445,6 +445,8 @@ while True:
                 availabilities = buildAvailabilityDict()
                 plans = buildList(availabilities)
                 printList(plans)
+                if fakeBuy:
+                    print("- Fake Buy ON")
                 foundAutoBuyServer = False
                 if autoBuyList:
                     for plan in plans:
@@ -493,7 +495,7 @@ while True:
     if choice >= len(plans):
          sys.exit("You had one job.")
 
-    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out :").lower()
+    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
     if whattodo == 'i':
         mybool = False
     elif whattodo == 'n':
