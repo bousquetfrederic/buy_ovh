@@ -80,6 +80,10 @@ def endsWithList(st,li):
             return True
     return False
 
+# keys present in dict A not in dict B
+def inAnotB(A,B):
+    return [x for x in A.keys() if x not in B.keys()]
+
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def buildAvailabilityDict():
     myAvail = {}
@@ -245,6 +249,13 @@ def printAndSleep(showP):
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
+# ----------------- PRINT AVAIL NEW OR REMOVED ------------------------------------------------
+def printAddedOrRemoved(oldA, newA):
+    for added in inAnotB(newA, oldA):
+        print("Added to availabilities: " + added)
+    for removed in inAnotB(oldA, newA):
+        print("Removed from availabilities: " + removed)
+
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
     if fakeBuy:
@@ -366,7 +377,6 @@ while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 availabilities = buildAvailabilityDict()
-                newAvail = availabilities.keys() - initAvailabilities.keys()
                 plans = buildList(availabilities, showUnavailable)
                 printList(plans)
                 foundAutoBuyServer = False
@@ -381,9 +391,7 @@ while True:
                                 autoBuyList = []
                                 break
                 if not foundAutoBuyServer:
-                    if newAvail:
-                        for newA in newAvail:
-                            print("New in availabilities : " + newA)
+                    printAddedOrRemoved(initAvailabilities, availabilities)
                     printPrompt(showPrompt)
                     printAndSleep(showPrompt)
             except KeyboardInterrupt:
