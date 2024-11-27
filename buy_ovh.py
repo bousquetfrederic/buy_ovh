@@ -91,6 +91,16 @@ def endsWithList(st,li):
 def inAnotB(A,B):
     return [x for x in A.keys() if x not in B.keys()]
 
+# user input a list
+def getListFromUser(prompt):
+    a = "a"
+    newList = []
+    while a:
+        a = input(prompt + ". Return to finish : ")
+        if a:
+            newList.append(a)
+    return newList
+
 # -------------- EMAILS ---------------------------------------------------------------------------------------
 
 # send an email
@@ -462,8 +472,14 @@ while True:
 
     print("")
 
-    sChoice = input("Which one? (Q to quit, Toggles: U/P/C) ")
+    sChoice = input("Which one? (Q to quit, Toggles: U/P/C, Filters N/D) ")
     if not sChoice.isdigit():
+        if sChoice.lower() == 'n':
+            print("Current : " + ",".join(filterInvoiceName))
+            filterInvoiceName = getListFromUser("One per line")
+        elif sChoice.lower() == 'd':
+            print("Current : " + ",".join(filterDisk))
+            filterDisk = getListFromUser("One per line (nvme,ssd,sa)")
         if sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
