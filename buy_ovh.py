@@ -1,44 +1,55 @@
 import ovh
 import time
-import json
 import os
 import sys
 import time
+import yaml
 
-# --- Conf values ------------------------
-# if there is a file conf.py with conf values, use it
-# otherwise use defaults values below
-try:
-    from conf import *
-except:
-    acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
-    filterInvoiceName = ['KS-LE', 'KS-A']
-    filterDisk = ['ssd','nvme']
-    ovhSubsidiary="FR"
-    sleepsecs = 60
-    showPrompt = True
-    showCpu = True
-    showUnavailable = True
-    fakeBuy = True
-# -------------------------------------------
+# # --- Conf values ------------------------
+# # if there is a file conf.py with conf values, use it
+# # otherwise use defaults values below
+# try:
+    # from conf import *
+# except:
+    # acceptable_dc = ['gra','rbx','sbg','lon','fra','waw',"bhs"]
+    # filterInvoiceName = ['KS-LE', 'KS-A']
+    # filterDisk = ['ssd','nvme']
+    # ovhSubsidiary="FR"
+    # sleepsecs = 60
+    # showPrompt = True
+    # showCpu = True
+    # showUnavailable = True
+    # fakeBuy = True
+# # -------------------------------------------
 
 # --- Global variables ----------------------
 client = ovh.Client()
 
-# make a list with autobuys, otherwise empty
-autoBuyList = []
-# how many auto buys before stopping
-autoBuyNum = 0
-autoBuyNumInit = 0
-autoBuyMaxPrice = 0
-if 'auto_buy' in dir():
-    autoBuyList = auto_buy
-    if 'auto_buy_num' in dir():
-        autoBuyNum = auto_buy_num
-    if autoBuyNum < 1:
-        autoBuyList = []
-if 'auto_buy_max_price' in dir():
-    autoBuyMaxPrice = auto_buy_max_price
+configFile = {}
+try:
+    configFile = yaml.safe_load(open('conf.yaml', 'r'))
+except Exception as e:
+    print("Error with config.yaml, using default values")
+    print(e)
+    time.sleep(3)
+
+acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else ['gra','rbx','sbg']
+filterInvoiceName = configFile['filterName'] if 'filterName' in configFile else ['KS-A']
+filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ['ssd','nvme','sa']
+ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
+sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
+showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
+showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
+showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
+fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
+autoBuyList = configFile['auto_buy'] if 'auto_buy' in configFile else []
+autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
+autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
+if autoBuyNum == 0:
+    autoBuyList = []
+
+autoBuyNumInit = autoBuyNum
+
 # counters to display how auto buy are doing
 autoOK = 0
 autoKO = 0

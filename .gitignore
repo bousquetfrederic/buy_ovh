@@ -1,4 +1,5 @@
 /ovh.conf
 /conf.py
+/conf.yaml
 __pycache__/
 *.py[cod]

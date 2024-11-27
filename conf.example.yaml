@@ -1,0 +1,35 @@
+
+# example configuration file for buy_ovh
+
+# in which datacenters are we looking for?
+datacenters:
+    - gra
+    - rbx
+    - sbg
+    - lon
+    - fra
+    - waw
+    - bhs
+
+# the invoice Name of the servers must start with:
+filterName:
+    - "KS-A"
+    - "KS-LE-B"
+    - "KS-LE-4"
+
+# type of disks we want. (ssd,nvme,sa)
+filterDisk:
+    - ssd
+    - nvme
+
+subsidiary: FR
+
+# how many seconds before a refresh
+sleepsecs: 60
+
+showPrompt: True
+showCpu: False
+showUnavailable: False
+
+# if True, don't actually buy (for testing)
+fakeBuy: True
