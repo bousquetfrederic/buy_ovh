@@ -49,6 +49,7 @@ email_server_password = configFile['email_server_password'] if 'email_server_pas
 email_sender = configFile['email_sender'] if 'email_sender' in configFile else ""
 email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile else ""
 email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
+email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
 
 # --- Coloring stuff ------------------------
 class color:
@@ -92,6 +93,16 @@ def inAnotB(A,B):
 
 # send an email
 def sendEmail(subject,text):
+
+    html = """\
+<html>
+  <body>
+    <p>
+""" + text + """\
+    </p>
+  </body>
+</html>
+"""
     try:
         # Create a multipart message and set headers
         message = MIMEMultipart()
@@ -100,7 +111,7 @@ def sendEmail(subject,text):
         message["Subject"] = subject
 
         # Attach the HTML part
-        message.attach(MIMEText(text, "html"))
+        message.attach(MIMEText(html, "html"))
 
         # Send the email
         with smtplib.SMTP(email_server_name, email_server_port) as server:
@@ -112,18 +123,12 @@ def sendEmail(subject,text):
         print(e)
         time.sleep(2)
 
-# -------------- STARTUP EMAIL -----------------------------------------------------------------------------------
+# -------------- EMAILS ---------------------------------------------------------------------------------------
 def sendStartupEmail():
-    html = """\
-<html>
-  <body>
-    <p>Hi,<br>
-    BUY_OVH has started</p>
-  </body>
-</html>
-"""
-    sendEmail("BUY_OVH: startup", html)
+    sendEmail("BUY_OVH: startup", "BUY_OVH has started")
 
+def sendAutoBuyEmail(string):
+    sendEmail("BUY_OVH: autobuy", string)
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def buildAvailabilityDict():
@@ -395,12 +400,17 @@ def buyServer(plan, buyNow, autoMode):
         strBuyNow = "buy now a "
     else:
         strBuyNow = "get an invoice for a "
-    print("Let's " + strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "." + strAuto)
+    strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
+    print("Let's" + strBuy + strAuto)
     try:
         checkoutCart(buildCart(plan), buyNow, autoMode)
+        if autoMode and email_auto_buy:
+            sendAutoBuyEmail("SUCCESS: " + strBuy)
     except Exception as e:
         print("Not today.")
         print(e)
+        if autoMode and email_auto_buy:
+            sendAutoBuyEmail("FAILED: " + strBuy)
         if autoMode:
             autoKO += 1
         time.sleep(3)
