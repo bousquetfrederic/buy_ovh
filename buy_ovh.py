@@ -27,6 +27,7 @@ sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60
 showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
 showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
 showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
+showAddedRemoved = configFile['showAddedRemoved'] if 'showAddedRemoved' in configFile else True
 fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
 autoBuyList = configFile['auto_buy'] if 'auto_buy' in configFile else []
 autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
@@ -50,6 +51,7 @@ email_sender = configFile['email_sender'] if 'email_sender' in configFile else "
 email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile else ""
 email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
 email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
+email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
 
 # --- Coloring stuff ------------------------
 class color:
@@ -109,9 +111,7 @@ def sendEmail(subject,text):
     html = """\
 <html>
   <body>
-    <p>
 """ + text + """\
-    </p>
   </body>
 </html>
 """
@@ -136,10 +136,10 @@ def sendEmail(subject,text):
         time.sleep(2)
 
 def sendStartupEmail():
-    sendEmail("BUY_OVH: startup", "BUY_OVH has started")
+    sendEmail("BUY_OVH: startup", "<p>BUY_OVH has started</p>")
 
 def sendAutoBuyEmail(string):
-    sendEmail("BUY_OVH: autobuy", string)
+    sendEmail("BUY_OVH: autobuy", "<p>" + string + "</p>")
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def buildAvailabilityDict():
@@ -307,12 +307,29 @@ def printAndSleep():
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
-# ----------------- PRINT AVAIL NEW OR REMOVED ------------------------------------------------
+
+# ----------------- PRINT OR EMAIL AVAIL NEW OR REMOVED ----------------------------------------
 def printAddedOrRemoved(oldA, newA):
     for added in inAnotB(newA, oldA):
         print("Added to availabilities: " + added)
     for removed in inAnotB(oldA, newA):
         print("Removed from availabilities: " + removed)
+
+def sendEmailAddedOrRemoved(oldA, newA):
+    strAdded = ""
+    strRemoved = ""
+    for added in inAnotB(newA, oldA):
+        strAdded += "<p>Added to availabilities: " + added + "</p>\n"
+    for removed in inAnotB(oldA, newA):
+        strRemoved += "<p>Removed from availabilities: " + removed + "</p>\n"
+    if strAdded or strRemoved:
+        sendEmail("BUY_OVH: added/removed", strAdded + strRemoved)
+
+def addedOrRemoved(initA, previousA, newA):
+    if previousA and email_added_removed:
+        sendEmailAddedOrRemoved(previousA, newA)
+    if showAddedRemoved:
+        printAddedOrRemoved(initA, newA)
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
@@ -436,6 +453,11 @@ if email_at_startup:
 # build an initial list of availabilities so we can see if anything is added during the run
 initAvailabilities = buildAvailabilityDict()
 
+# previous list of availabilities so we can send email if something pops up
+previousAvailabilities = {}
+
+availabilities = {}
+
 # loop until the user wants out
 while True:
 
@@ -443,6 +465,8 @@ while True:
         while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
+                if availabilities:
+                    previousAvailabilities = availabilities
                 availabilities = buildAvailabilityDict()
                 plans = buildList(availabilities)
                 printList(plans)
@@ -459,8 +483,8 @@ while True:
                             if autoBuyNum < 1:
                                 autoBuyList = []
                                 break
+                addedOrRemoved(initAvailabilities, previousAvailabilities, availabilities)
                 if not foundAutoBuyServer:
-                    printAddedOrRemoved(initAvailabilities, availabilities)
                     printPrompt()
                     printAndSleep()
             except KeyboardInterrupt:

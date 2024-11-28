@@ -29,6 +29,8 @@ sleepsecs: 60
 showPrompt: True
 showCpu: False
 showUnavailable: False
+# has a new server been added to the availabilities since the start of the script?
+showAddedRemoved: True
 
 # if True, don't actually buy (for testing)
 fakeBuy: True
@@ -36,6 +38,7 @@ fakeBuy: True
 # email sending (email_on = False deactivate all emails)
 email_on: False
 email_at_startup: False
+email_added_removed: False
 email_server_port: 587
 email_server_name: "my.server.com"
 email_server_login: "login"
