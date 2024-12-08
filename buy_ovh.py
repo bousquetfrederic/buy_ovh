@@ -228,6 +228,9 @@ def buildList(avail):
                                 myavailability = avail[myFqn]
                             else:
                                 myavailability = 'unknown'
+                            # ComingSoon is a possible value according to the API, let's consider it as unknown
+                            if myavailability == 'comingSoon':
+                                myavailability = 'unknown' 
                             myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
                             if myavailability in ['unavailable','unknown'] and not myAutoBuy and not showUnavailable:
                                 continue
