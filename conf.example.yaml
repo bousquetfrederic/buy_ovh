@@ -21,7 +21,7 @@ filterDisk:
     - ssd
     - nvme
 
-subsidiary: FR
+ovhSubsidiary: FR
 
 # how many seconds before a refresh
 sleepsecs: 60
