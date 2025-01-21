@@ -208,7 +208,8 @@ def buildList(avail):
                             shortme = "-".join(me.split("-")[:-1])
                             shortst = "-".join(st.split("-")[:-1])
                             # filter unwanted disk types
-                            if not endsWithList(shortst,filterDisk):
+                            # OVH seems to add sata now, like in "ssd-sata"
+                            if not endsWithList(shortst.removesuffix("-sata"),filterDisk):
                                 continue
                             # try to find out the full price
                             try:
@@ -284,7 +285,7 @@ def printList(plans):
               + modelStr + "| "
               + plan['datacenter'] + " | "
               + "-".join(plan['memory'].split("-")[1:-1]).ljust(17) + "| "
-              + "-".join(plan['storage'].split("-")[1:-1]).ljust(11) + "| "
+              + "-".join(plan['storage'].split("-")[1:-1]).ljust(16) + "| "
               + plan['price'].ljust(6) + "| "
               #+ plan['availability']
               + color.END)
