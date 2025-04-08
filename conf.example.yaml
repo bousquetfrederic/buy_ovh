@@ -1,5 +1,13 @@
 # example configuration file for buy_ovh
 
+# API stuff
+# Comment them if you don't know
+# The script will tell you what to do
+APIEndpoint: ovh-eu
+APIKey: 123
+APISecret: 456
+APIConsumerKey: 789
+
 # in which datacenters are we looking for?
 datacenters:
     - gra
@@ -17,6 +25,7 @@ filterName:
     - "KS-LE-4"
 
 # type of disks we want. (ssd,nvme,sa)
+# don't define it if you want all types
 filterDisk:
     - ssd
     - nvme
@@ -27,6 +36,7 @@ ovhSubsidiary: FR
 sleepsecs: 60
 
 showPrompt: True
+# show the CPU type if available (unless showFqn=true)
 showCpu: False
 showUnavailable: False
 # if true, just print the FQN instead of spliting it

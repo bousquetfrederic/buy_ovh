@@ -9,15 +9,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 # --- Global variables ----------------------
-client = ovh.Client()
 
 configFile = {}
 try:
     configFile = yaml.safe_load(open('conf.yaml', 'r'))
 except Exception as e:
-    print("Error with config.yaml, using default values")
+    print("Error with config.yaml")
     print(e)
-    time.sleep(3)
+    sys.exit("Bye now.")
 
 acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
 filterName = configFile['filterName'] if 'filterName' in configFile else []
@@ -53,6 +52,48 @@ email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile 
 email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
 email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
 email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
+
+# --- Create the API client -----------------
+if 'APIEndpoint' not in configFile:
+    print("APIEndpoint is mandatory in config file.")
+    print("It should look like 'ovh-eu', 'ovh-us', 'ovh-ca'")
+    print("See https://github.com/ovh/python-ovh?tab=readme-ov-file#1-create-an-application")
+    sys.exit("Bye now.")
+else:
+    api_endpoint = configFile['APIEndpoint']
+
+if 'APIKey' not in configFile or 'APISecret' not in configFile:
+    print("APIKey and APISecret are mandatory in config file.")
+    print("You need to create an application key!")
+    print("See https://github.com/ovh/python-ovh?tab=readme-ov-file#1-create-an-application")
+    print("Once you have the key and secret for your endpoint, fill APIKey and APISecret.")
+    sys.exit("Bye now.")
+else:
+    api_key = configFile['APIKey']
+    api_secret = configFile['APISecret']
+
+if 'APIConsumerKey' not in configFile:
+    print("You need a consumer key in the config file.")
+    print("Let's try to get you one with full access.")
+    ck_client = ovh.Client(endpoint=api_endpoint,
+                           application_key=api_key,
+                           application_secret=api_secret)
+    ck = ck_client.new_consumer_key_request()
+    ck.add_recursive_rules(ovh.API_READ_WRITE, "/")
+    validation = ck.request()
+    print("Please visit %s to authenticate" % validation['validationUrl'])
+    input("and press Enter to continue...")
+    print("Ok", ck_client.get('/me')['firstname'])
+    print("Your APIConsumerKey is '%s'" % validation['consumerKey'])
+    print("Add it to the config file and try again.")
+    sys.exit("Bye now.")        
+else:
+    api_ck = configFile['APIConsumerKey']
+
+client = ovh.Client(endpoint=api_endpoint,
+                    application_key=api_key,
+                    application_secret=api_secret,
+                    consumer_key=api_ck)
 
 # --- Coloring stuff ------------------------
 class color:
