@@ -3,3 +3,4 @@
 /conf.yaml
 __pycache__/
 *.py[cod]
+.vscode/

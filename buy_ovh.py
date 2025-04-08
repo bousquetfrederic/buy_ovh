@@ -19,9 +19,9 @@ except Exception as e:
     print(e)
     time.sleep(3)
 
-acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else ['gra','rbx','sbg']
-filterName = configFile['filterName'] if 'filterName' in configFile else ['KS-A']
-filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ['ssd','nvme','sa']
+acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
+filterName = configFile['filterName'] if 'filterName' in configFile else []
+filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else []
 ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
 sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
 showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
@@ -164,7 +164,8 @@ def buildList(avail):
     for plan in allPlans:
         planCode = plan['planCode']
         # only consider plans name starting with the defined filter
-        if ( not startsWithList(plan['invoiceName'], filterName)
+        # unless the filter is empty
+        if ( filterName and not startsWithList(plan['invoiceName'], filterName)
              and not startsWithList(plan['planCode'], filterName) ):
             continue
 
@@ -209,8 +210,9 @@ def buildList(avail):
                             shortme = "-".join(me.split("-")[:-1])
                             shortst = "-".join(st.split("-")[:-1])
                             # filter unwanted disk types
+                            # if the disk filter is set
                             # OVH seems to add sata now, like in "ssd-sata"
-                            if not endsWithList(shortst.removesuffix("-sata"),filterDisk):
+                            if filterDisk and not endsWithList(shortst.removesuffix("-sata"),filterDisk):
                                 continue
                             # try to find out the full price
                             try:
