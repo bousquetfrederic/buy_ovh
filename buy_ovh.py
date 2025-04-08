@@ -279,7 +279,7 @@ def printList(plans):
         if plan['autobuy']:
             planColor = whichColor['autobuy']
         else:
-            planColor = printColor
+            planColor = printcolor
         if showFqn:
             fqnStr = planColor + plan['fqn'] + " " + printcolor
         else:
