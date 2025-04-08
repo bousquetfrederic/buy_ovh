@@ -29,6 +29,8 @@ sleepsecs: 60
 showPrompt: True
 showCpu: False
 showUnavailable: False
+# if true, just print the FQN instead of spliting it
+showFqn: False
 # has a new server been added to the availabilities since the start of the script?
 showAddedRemoved: True
 

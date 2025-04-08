@@ -26,6 +26,7 @@ ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile els
 sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
 showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
 showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
+showFqn = configFile['showFqn'] if 'showFqn' in configFile else True
 showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
 showAddedRemoved = configFile['showAddedRemoved'] if 'showAddedRemoved' in configFile else True
 fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
@@ -276,16 +277,19 @@ def printList(plans):
             modelStr = model.ljust(10)
         # special colour for autobuy
         if plan['autobuy']:
-            codeStr = whichColor['autobuy'] + plan['planCode'].ljust(11) + printcolor
+            planColor = whichColor['autobuy']
         else:
-            codeStr = plan['planCode'].ljust(11)
+            planColor = printColor
+        if showFqn:
+            fqnStr = planColor + plan['fqn'] + " " + printcolor
+        else:
+            codeStr = planColor + plan['planCode'].ljust(11) + printcolor
+            fqnStr = codeStr  + "| " + modelStr + "| " + plan['datacenter'] + " | " \
+                     + "-".join(plan['memory'].split("-")[1:-1]).ljust(17) + "| " \
+                     + "-".join(plan['storage'].split("-")[1:-1]).ljust(16)
         print(printcolor
               + str(plans.index(plan)).ljust(4) + "| "
-              + codeStr  + "| "
-              + modelStr + "| "
-              + plan['datacenter'] + " | "
-              + "-".join(plan['memory'].split("-")[1:-1]).ljust(17) + "| "
-              + "-".join(plan['storage'].split("-")[1:-1]).ljust(16) + "| "
+              + fqnStr + "| "
               + plan['price'].ljust(6) + "| "
               #+ plan['availability']
               + color.END)
@@ -503,7 +507,7 @@ while True:
 
     print("")
 
-    sChoice = input("Which one? (Q to quit, Toggles: U/P/C, Filters N/D) ")
+    sChoice = input("Which one? (Q to quit, Toggles: U/P/C/F, Filters N/D) ")
     if not sChoice.isdigit():
         if sChoice.lower() == 'n':
             print("Current : " + ",".join(filterName))
@@ -517,6 +521,8 @@ while True:
             showPrompt = not showPrompt
         elif sChoice.lower() == 'c':
             showCpu = not showCpu
+        elif sChoice.lower() == 'f':
+            showFqn = not showFqn
         elif sChoice.lower() == 'q':
             sys.exit("Bye now.")
         continue
