@@ -27,7 +27,6 @@ showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
 showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
 showFqn = configFile['showFqn'] if 'showFqn' in configFile else True
 showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
-showAddedRemoved = configFile['showAddedRemoved'] if 'showAddedRemoved' in configFile else True
 fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
 autoBuyList = configFile['auto_buy'] if 'auto_buy' in configFile else []
 autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
@@ -359,13 +358,7 @@ def printAndSleep():
         time.sleep(1)
 
 
-# ----------------- PRINT OR EMAIL AVAIL NEW OR REMOVED ----------------------------------------
-def printAddedOrRemoved(oldA, newA):
-    for added in inAnotB(newA, oldA):
-        print("Added to availabilities: " + added)
-    for removed in inAnotB(oldA, newA):
-        print("Removed from availabilities: " + removed)
-
+# ----------------- EMAIL AVAIL NEW OR REMOVED ----------------------------------------
 def sendEmailAddedOrRemoved(oldA, newA):
     strAdded = ""
     strRemoved = ""
@@ -376,11 +369,9 @@ def sendEmailAddedOrRemoved(oldA, newA):
     if strAdded or strRemoved:
         sendEmail("BUY_OVH: added/removed", strAdded + strRemoved)
 
-def addedOrRemoved(initA, previousA, newA):
+def addedOrRemoved(previousA, newA):
     if previousA and email_added_removed:
         sendEmailAddedOrRemoved(previousA, newA)
-    if showAddedRemoved:
-        printAddedOrRemoved(initA, newA)
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
@@ -501,9 +492,6 @@ def buyServer(plan, buyNow, autoMode):
 if email_at_startup:
     sendStartupEmail()
 
-# build an initial list of availabilities so we can see if anything is added during the run
-initAvailabilities = buildAvailabilityDict()
-
 # previous list of availabilities so we can send email if something pops up
 previousAvailabilities = {}
 
@@ -534,7 +522,7 @@ while True:
                             if autoBuyNum < 1:
                                 autoBuyList = []
                                 break
-                addedOrRemoved(initAvailabilities, previousAvailabilities, availabilities)
+                addedOrRemoved(previousAvailabilities, availabilities)
                 if not foundAutoBuyServer:
                     printPrompt()
                     printAndSleep()

@@ -1,7 +1,8 @@
 # example configuration file for buy_ovh
 
 # API stuff
-# Comment them if you don't know
+# They are explained here: https://github.com/ovh/python-ovh
+# Comment them if you still don't know
 # The script will tell you what to do
 APIEndpoint: ovh-eu
 APIKey: 123
@@ -33,24 +34,28 @@ filterDisk:
 ovhSubsidiary: FR
 
 # how many seconds before a refresh
-sleepsecs: 60
+sleepsecs: 20
 
 showPrompt: True
 # show the CPU type if available (unless showFqn=true)
 showCpu: False
+# show the servers even if they are unavailable
 showUnavailable: False
-# if true, just print the FQN instead of spliting it
+# print the FQN instead of spliting it
 showFqn: False
-# has a new server been added to the availabilities since the start of the script?
-showAddedRemoved: True
 
 # if True, don't actually buy (for testing)
+# set to False if you want to actually buy the servers
 fakeBuy: True
 
 # email sending (email_on = False deactivate all emails)
 email_on: False
+# Send an email at startup (for test maybe)
 email_at_startup: False
+# Send email if something is added or removed on the
+# availability endpoint during a run
 email_added_removed: False
+# email server details
 email_server_port: 587
 email_server_name: "my.server.com"
 email_server_login: "login"
