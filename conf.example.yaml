@@ -23,7 +23,7 @@ datacenters:
 filterName:
     - "24ska"
     - "KS-LE-B"
-    - "KS-LE-4"
+    - "KS-4"
 
 # type of disks we want. (ssd,nvme,sa)
 # don't define it if you want all types
@@ -57,6 +57,7 @@ email_at_startup: False
 email_added_removed: False
 # Monitor availability of servers whose FQN starts with a string
 # This is a "super" FQN which has the datacenter at the end
+# The server must pass the filters (filterName and filterDisk)
 email_availability_monitor:
     # NVMe KS-4 with 32g RAM in GRA
     - 24sk40.ram-32g-ecc-2133.softraid-2x450nvme.gra
