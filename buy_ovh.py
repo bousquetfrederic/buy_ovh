@@ -51,7 +51,7 @@ email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile 
 email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
 email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
 email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
-email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile else []
+email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else []
 
 # --- Create the API client -----------------
 if 'APIEndpoint' not in configFile:
