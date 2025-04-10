@@ -55,10 +55,15 @@ email_at_startup: False
 # Send email if something is added or removed on the
 # availability endpoint during a run
 email_added_removed: False
-# Monitor availability of servers whose FQN starts with
+# Monitor availability of servers whose FQN starts with a string
+# This is a "super" FQN which has the datacenter at the end
 email_availability_monitor:
-    - 25sk4
-    - 24ska
+    # NVMe KS-4 with 32g RAM in GRA
+    - 24sk40.ram-32g-ecc-2133.softraid-2x450nvme.gra
+    # Same but any datacenter
+    - 24sk40.ram-32g-ecc-2133.softraid-2x450nvme
+    # Any KS-4
+    - 24sk40
 # email server details
 email_server_port: 587
 email_server_name: "my.server.com"
