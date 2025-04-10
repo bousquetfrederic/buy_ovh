@@ -55,6 +55,10 @@ email_at_startup: False
 # Send email if something is added or removed on the
 # availability endpoint during a run
 email_added_removed: False
+# Monitor availability of servers whose FQN starts with
+email_availability_monitor:
+    - 25sk4
+    - 24ska
 # email server details
 email_server_port: 587
 email_server_name: "my.server.com"

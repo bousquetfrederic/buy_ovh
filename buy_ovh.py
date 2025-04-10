@@ -51,6 +51,7 @@ email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile 
 email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
 email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
 email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
+email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile else []
 
 # --- Create the API client -----------------
 if 'APIEndpoint' not in configFile:
@@ -373,6 +374,29 @@ def addedOrRemoved(previousA, newA):
     if previousA and email_added_removed:
         sendEmailAddedOrRemoved(previousA, newA)
 
+
+# ---------------- EMAIL MONITOR AVAIL OF SOME SERVERS -----------------------------------------
+def sendEmailAvailChanged(changeList):
+    strChanged = ""
+    for fqn in changeList:
+        strChanged += "<p>Available now: " + fqn + "</p>\n"
+    sendEmail("BUY_OVH: availability monitor", strChanged)
+
+def availabilityMonitor(previousA, newA):
+    if email_availability_monitor:
+        availChanged = []
+        for fqn, avail in newA.items():
+            if (previousA
+                and avail not in ['unavailable','unknown']
+                and startsWithList(fqn, email_availability_monitor)):
+                # found an available server that matches the filter
+                if (fqn not in previousA.keys()
+                     or previousA[fqn] in ['unavailable','unknown']):
+                    # its availability went from unavailable to available
+                    availChanged.append(fqn)
+        if availChanged:
+            sendEmailAvailChanged(availChanged)
+
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
     if fakeBuy:
@@ -523,6 +547,7 @@ while True:
                                 autoBuyList = []
                                 break
                 addedOrRemoved(previousAvailabilities, availabilities)
+                availabilityMonitor(previousAvailabilities, availabilities)
                 if not foundAutoBuyServer:
                     printPrompt()
                     printAndSleep()
