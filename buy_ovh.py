@@ -10,6 +10,8 @@ from email.mime.multipart import MIMEMultipart
 
 # --- Global variables ----------------------
 
+unavailableList = ['comingSoon', 'unavailable', 'unknown']
+
 configFile = {}
 try:
     configFile = yaml.safe_load(open('conf.yaml', 'r'))
@@ -112,6 +114,7 @@ whichColor = { 'unknown'     : color.CYAN,
                'low'         : color.YELLOW,
                'high'        : color.GREEN,
                'unavailable' : color.RED,
+               'comingSoon'  : color.BLUE,
                'autobuy'     : color.PURPLE
              }
 
@@ -273,11 +276,8 @@ def buildList(avail):
                                 myavailability = avail[myFqn]
                             else:
                                 myavailability = 'unknown'
-                            # ComingSoon is a possible value according to the API, let's consider it as unknown
-                            if myavailability == 'comingSoon':
-                                myavailability = 'unknown' 
                             myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
-                            if myavailability in ['unavailable','unknown'] and not myAutoBuy and not showUnavailable:
+                            if myavailability in unavailableList and not myAutoBuy and not showUnavailable:
                                 continue
                             # Add the plan to the list
                             myPlans.append(
@@ -300,7 +300,7 @@ def printList(plans):
         print(whichColor['unavailable'] + "No availability." + color.END)
     for plan in plans:
         avail = plan['availability']
-        if avail in ['unavailable','unknown']:
+        if avail in unavailableList:
             printcolor = whichColor[avail]
         elif avail.endswith("low") or avail.endswith('H'):
             printcolor = whichColor['low']
@@ -387,11 +387,11 @@ def availabilityMonitor(previousA, plans):
         availChanged = []
         for plan in plans:
             myFqn = plan['fqn']
-            if (plan['availability'] not in ['unavailable','unknown']
+            if (plan['availability'] not in unavailableList
                 and startsWithList(myFqn, email_availability_monitor)):
                 # found an available server that matches the filter
                 if (myFqn not in previousA.keys()
-                     or previousA[myFqn] in ['unavailable','unknown']):
+                     or previousA[myFqn] in unavailableList):
                     # its availability went from unavailable to available
                     availChanged.append(myFqn)
         if availChanged:
@@ -538,7 +538,7 @@ while True:
                 foundAutoBuyServer = False
                 if autoBuyList:
                     for plan in plans:
-                        if autoBuyNum > 0 and plan['availability'] not in ['unknown','unavailable'] and plan['autobuy']:
+                        if autoBuyNum > 0 and plan['availability'] not in unavailableList and plan['autobuy']:
                             # auto buy
                             foundAutoBuyServer = True
                             buyServer(plan, True, True)
