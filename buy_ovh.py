@@ -30,6 +30,7 @@ showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
 showFqn = configFile['showFqn'] if 'showFqn' in configFile else True
 showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
 fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
+coupon = configFile['coupon'] if 'coupon' in configFile else ''
 autoBuyList = configFile['auto_buy'] if 'auto_buy' in configFile else []
 autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
 autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
@@ -349,7 +350,7 @@ def printPrompt():
     print("- DCs : [" + ",".join(acceptable_dc)
           + "] - Filters : [" + ",".join(filterName)
           + "][" + ",".join(filterDisk)
-          +"]")
+          +"] - Coupon : [" + coupon + "]")
 
 # ----------------- SLEEP x SECONDS -----------------------------------------------------------
 def printAndSleep():
@@ -464,6 +465,13 @@ def buildCart(plan):
                          label = "region",
                          value = myregion
                          )
+
+    # add coupon
+    if coupon:
+        result = client.post(f'/order/cart/{cartId}/coupon',
+                             label = "coupon",
+                             value = coupon)
+
     return cartId
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------

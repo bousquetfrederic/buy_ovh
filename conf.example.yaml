@@ -44,6 +44,9 @@ showUnavailable: False
 # print the FQN instead of spliting it
 showFqn: False
 
+# define if you have a coupon
+#coupon: MYCOUPON
+
 # if True, don't actually buy (for testing)
 # set to False if you want to actually buy the servers
 fakeBuy: True
