@@ -1,5 +1,13 @@
+# buy_ovh
 Python script that uses the OVH API and their Python helper. See here: https://github.com/ovh/python-ovh
 
+The 'ovh' and 'PyYAML' modules must be installed.
+```
+pip install ovh
+```
+```
+pip install PyYAML
+```
 
 There is a conf file that you need to make, conf.yaml, where you can define stuff. There is an example file provided.
 In there you at least need the following for the connection to the API: endpoint, api key and secret, and a consumer key. The script will guide you if you don't know what they are. You can also read about them at the python-ovh repo (above).
