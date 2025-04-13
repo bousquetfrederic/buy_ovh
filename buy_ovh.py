@@ -543,17 +543,23 @@ def unpaidOrders():
             for detailId in details:
                 orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
                 if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
-                    description = orderDetail['description']
+                    description = orderDetail['description'].split('|')[0]
+                    location = orderDetail['description'].split('-')[-2][-4:]
                     theOrder = client.get("/me/order/{0}/".format(orderId))
                     orderURL = theOrder['url']
+                    orderDate = theOrder['expirationDate'].split('T')[0]
                     orderList.append({
                                     'orderId' : orderId,
                                     'description' : description,
-                                    'url' : orderURL})
+                                    'location' : location,
+                                    'url' : orderURL,
+                                    'date' : orderDate})
 
     for order in orderList:
         print (str(orderList.index(order)).ljust(4) + "| "
-            + order['description'])
+            + order['description'] + "| "
+            + order['location']  + "| "
+            + order['date'])
 
     continueLoop = True
     while continueLoop:
