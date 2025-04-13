@@ -21,9 +21,7 @@ Then you can chose which server you want, and if you want to generate the invoic
 
 You can also toggle the display of some stuff, and change or empty the filters.
 
+The script can also show you a list of your unpaid orders and provide an URL if you want to pay for one.
+
 If you end up buying a 600€ server, it's not the script fault, it's yours, because this is just a random python script you found on the internet.
 I have only tested with OVH France.
-
-# orders.py
-Python script which lists all your unpaid orders (invoices) in the last 14 days, and provides the URL if you want to pay for one.
-It uses the same config file above.
