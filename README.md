@@ -25,4 +25,5 @@ If you end up buying a 600€ server, it's not the script fault, it's yours, bec
 I have only tested with OVH France.
 
 # orders.py
-Python script which uses the same config file and lists all your unpaid orders (invoices) in the last 14 days, and provide the URL if you want to pay for one.
+Python script which lists all your unpaid orders (invoices) in the last 14 days, and provides the URL if you want to pay for one.
+It uses the same config file above.
