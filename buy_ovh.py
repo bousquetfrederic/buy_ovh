@@ -523,12 +523,13 @@ def buyServer(plan, buyNow, autoMode):
 def unpaidOrders():
     # Get today's date
     today = datetime.now()
+    tomorrow = today + timedelta(days=1)
     # Calculate the date 14 days ago
     date_14_days_ago = today - timedelta(days=14)
 
     params = {}
     params['date.from'] = date_14_days_ago.strftime('%Y-%m-%d')
-    params['date.to'] = today.strftime('%Y-%m-%d')
+    params['date.to'] = tomorrow.strftime('%Y-%m-%d')
 
     API_orders = client.get("/me/order/", **params)
 
