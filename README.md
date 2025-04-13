@@ -1,4 +1,4 @@
-# buy_ovh
+# buy_ovh.py
 Python script that uses the OVH API and their Python helper. See here: https://github.com/ovh/python-ovh
 
 The 'ovh' and 'PyYAML' modules must be installed.
@@ -23,3 +23,6 @@ You can also toggle the display of some stuff, and change or empty the filters.
 
 If you end up buying a 600€ server, it's not the script fault, it's yours, because this is just a random python script you found on the internet.
 I have only tested with OVH France.
+
+# orders.py
+Python script which uses the same config file and lists all your unpaid orders (invoices) in the last 14 days, and provide the URL if you want to pay for one.
