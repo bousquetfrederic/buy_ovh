@@ -620,7 +620,7 @@ while True:
 
     print("")
 
-    sChoice = input("Which one? (Q to quit, Toggles: U/P/C/F, Filters N/D) ")
+    sChoice = input("Which one? (Q to quit, O for unpaid orders, Toggles: U/P/C/F, Filters N/D) ")
     if not sChoice.isdigit():
         if sChoice.lower() == 'n':
             print("Current : " + ",".join(filterName))
