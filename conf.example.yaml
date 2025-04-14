@@ -33,26 +33,30 @@ filterDisk:
 
 ovhSubsidiary: FR
 
+# show a helpful prompt after the list of server
 showPrompt: True
 # show the CPU type if available (unless showFqn=true)
 showCpu: False
 # show the servers even if they are unavailable
 showUnavailable: False
 # print the FQN instead of spliting it
+# less readeable but up to you
 showFqn: False
 
 # define if you have a coupon
+# buying will fail with an incorrect coupon so be careful
 #coupon: MYCOUPON
 
 # if True, don't actually buy (for testing)
 # set to False if you want to actually buy the servers
+# Try the script once with fakeBuy but don't forget to set it to False after your test
 fakeBuy: True
 
 # Loop?
-# If True, the script loops every 'sleepsecs' seconds
-# and does the monitoring (email sending)
-# If False, it displays the list of servers once
-# and let you choose.
+# If True, the script refreshes the list of servers
+# every 'sleepsecs' seconds and does the monitoring (email sending).
+# You need to press CTRL-C to stop the loop and then you can choose.
+# If False, it displays the list of servers once and let you choose.
 loop: False
 
 # how many seconds before a refresh (if loop = True)
