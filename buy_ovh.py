@@ -35,6 +35,7 @@ coupon = configFile['coupon'] if 'coupon' in configFile else ''
 autoBuyList = configFile['auto_buy'] if 'auto_buy' in configFile else []
 autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
 autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
+autoBuyLastIsInvoice = configFile['auto_buy_last_is_invoice'] if 'auto_buy_last_is_invoice' in configFile else False
 if autoBuyNum == 0:
     autoBuyList = []
 autoBuyNumInit = autoBuyNum
@@ -605,7 +606,8 @@ while True:
                         if autoBuyNum > 0 and plan['availability'] not in unavailableList and plan['autobuy']:
                             # auto buy
                             foundAutoBuyServer = True
-                            buyServer(plan, True, True)
+                            autoBuyInvoice = autoBuyLastIsInvoice and autoBuyNum == 1
+                            buyServer(plan, not autoBuyInvoice, True)
                             autoBuyNum -= 1
                             if autoBuyNum < 1:
                                 autoBuyList = []
