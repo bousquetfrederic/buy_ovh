@@ -25,6 +25,7 @@ acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
 filterName = configFile['filterName'] if 'filterName' in configFile else []
 filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else []
 ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
+loop = configFile['loop'] if 'loop' in configFile else False
 sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
 showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
 showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
@@ -601,6 +602,11 @@ while True:
                 if fakeBuy:
                     print("- Fake Buy ON")
                 foundAutoBuyServer = False
+                # if the conf says no loop, don't do the auto things
+                # instead jump to the menu
+                if not loop:
+                    printPrompt()
+                    break
                 if autoBuyList:
                     for plan in plans:
                         if autoBuyNum > 0 and plan['availability'] not in unavailableList and plan['autobuy']:
@@ -631,7 +637,7 @@ while True:
 
     print("")
 
-    sChoice = input("Which one? (Q to quit, O for unpaid orders, Toggles: U/P/C/F, Filters N/D) ")
+    sChoice = input("Which one? (Q to quit, O for unpaid orders, Toggles: U/P/C/F/L, Filters N/D) ")
     if not sChoice.isdigit():
         if sChoice.lower() == 'n':
             print("Current : " + ",".join(filterName))
@@ -647,6 +653,8 @@ while True:
             showCpu = not showCpu
         elif sChoice.lower() == 'f':
             showFqn = not showFqn
+        elif sChoice.lower() == 'l':
+            loop = not loop
         elif sChoice.lower() == 'o':
             unpaidOrders()
         elif sChoice.lower() == 'q':
