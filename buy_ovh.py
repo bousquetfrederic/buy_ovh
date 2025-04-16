@@ -576,6 +576,17 @@ def unpaidOrders():
         else:
             continueLoop = False
 
+# ----------------- LOOK UP AVAILABILITIES ----------------------------------------------------
+def lookUpAvail(avail):
+
+    sChoice = 'a'
+    while sChoice:
+        sChoice = input("FQN starts with: ")
+        if sChoice:
+            for eachFqn in avail.keys():
+                if eachFqn.startswith(sChoice):
+                    print(eachFqn + " | " + avail[eachFqn])
+
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 # send email at startup
@@ -657,6 +668,8 @@ while True:
             loop = not loop
         elif sChoice.lower() == 'o':
             unpaidOrders()
+        elif sChoice.lower() == 'v':
+            lookUpAvail(availabilities)
         elif sChoice.lower() == 'q':
             sys.exit("Bye now.")
         continue
