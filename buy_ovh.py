@@ -386,18 +386,17 @@ def sendEmailAvailChanged(changeList):
         strChanged += "<p>Available now: " + fqn + "</p>\n"
     sendEmail("BUY_OVH: availability monitor", strChanged)
 
-def availabilityMonitor(previousA, plans):
+def availabilityMonitor(previousA, newA):
     if previousA and email_availability_monitor:
         availChanged = []
-        for plan in plans:
-            myFqn = plan['fqn']
-            if (plan['availability'] not in unavailableList
-                and startsWithList(myFqn, email_availability_monitor)):
+        for fqn in newA:
+            if (newA[fqn] not in unavailableList
+                and startsWithList(fqn, email_availability_monitor)):
                 # found an available server that matches the filter
-                if (myFqn not in previousA.keys()
-                     or previousA[myFqn] in unavailableList):
+                if (fqn not in previousA.keys()
+                     or previousA[fqn] in unavailableList):
                     # its availability went from unavailable to available
-                    availChanged.append(myFqn)
+                    availChanged.append(fqn)
         if availChanged:
             sendEmailAvailChanged(availChanged)
 
@@ -632,7 +631,7 @@ while True:
                                 autoBuyList = []
                                 break
                 addedOrRemoved(previousAvailabilities, availabilities)
-                availabilityMonitor(previousAvailabilities, plans)
+                availabilityMonitor(previousAvailabilities, availabilities)
                 if not foundAutoBuyServer:
                     printPrompt()
                     printAndSleep()

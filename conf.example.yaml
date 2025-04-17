@@ -75,7 +75,6 @@ email_added_removed: False
 
 # Monitor availability of servers whose FQN starts with a string
 # This is a "super" FQN which has the datacenter at the end
-# The server must pass the filters (filterName and filterDisk)
 # (only if loop = True)
 email_availability_monitor:
     # NVMe KS-4 with 32g RAM in GRA
