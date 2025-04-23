@@ -646,8 +646,9 @@ while True:
         pass
 
     print("")
-
-    sChoice = input("Which one? (Q to quit, O for unpaid orders, Toggles: U/P/C/F/L, Filters N/D) ")
+    # stop the infinite loop, the user must press L to restart it
+    loop = False
+    sChoice = input("Which one? (Q to quit, L for loop, O for unpaid orders, Toggles: U/P/C/F, Filters N/D) ")
     if not sChoice.isdigit():
         if sChoice.lower() == 'n':
             print("Current : " + ",".join(filterName))
@@ -664,7 +665,7 @@ while True:
         elif sChoice.lower() == 'f':
             showFqn = not showFqn
         elif sChoice.lower() == 'l':
-            loop = not loop
+            loop = True
         elif sChoice.lower() == 'o':
             unpaidOrders()
         elif sChoice.lower() == 'v':

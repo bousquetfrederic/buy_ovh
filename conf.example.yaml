@@ -57,6 +57,8 @@ fakeBuy: True
 # every 'sleepsecs' seconds and does the monitoring (email sending).
 # You need to press CTRL-C to stop the loop and then you can choose.
 # If False, it displays the list of servers once and let you choose.
+# This is only the initial state, the user can always start the loop
+# by pressing 'L'
 loop: False
 
 # how many seconds before a refresh (if loop = True)
