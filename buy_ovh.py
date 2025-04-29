@@ -648,7 +648,8 @@ while True:
     print("")
     # stop the infinite loop, the user must press L to restart it
     loop = False
-    sChoice = input("Which one? (Q to quit, L for loop, O for unpaid orders, Toggles: U/P/C/F, Filters N/D) ")
+    print("(Q to quit, L for loop, O for unpaid orders, K for coupon, Toggles: U/P/C/F, Filters N/D)")
+    sChoice = input("Which one? ")
     if not sChoice.isdigit():
         if sChoice.lower() == 'n':
             print("Current : " + ",".join(filterName))
@@ -656,7 +657,10 @@ while True:
         elif sChoice.lower() == 'd':
             print("Current : " + ",".join(filterDisk))
             filterDisk = getListFromUser("One per line (nvme,ssd,sa)")
-        if sChoice.lower() == 'u':
+        elif sChoice.lower() == 'k':
+            print("Current : " + coupon)
+            coupon = input("Enter Coupon: ")
+        elif sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
             showPrompt = not showPrompt
