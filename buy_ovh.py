@@ -343,9 +343,6 @@ def printList(plans):
     isAvailability = False
     for plan in plans:
         avail = plan['availability']
-        # don't print unavailable servers unless instructed
-        if avail in unavailableList and not plan['autobuy'] and not showUnavailable:
-            continue
         isAvailability = True
         if avail in unavailableList:
             printcolor = whichColor[avail]
@@ -606,7 +603,11 @@ previousAvailabilities = {}
 previousPlans = []
 
 availabilities = {}
+# Plans which pass the filters (name + disk)
 plans = []
+# Unavailable servers can be hidden (see conf file),
+# so we need a list of non hidden plans for display and order
+displayedPlans = []
 
 # loop until the user wants out
 while True:
@@ -621,7 +622,8 @@ while True:
                     previousPlans = plans
                 availabilities = buildAvailabilityDict()
                 plans = buildList(availabilities)
-                printList(plans)
+                displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in unavailableList)]
+                printList(displayedPlans)
                 if fakeBuy:
                     print("- Fake Buy ON")
                 foundAutoBuyServer = False
@@ -691,7 +693,7 @@ while True:
             sys.exit("Bye now.")
         continue
     choice = int (sChoice)
-    if choice >= len(plans):
+    if choice >= len(displayedPlans):
          sys.exit("You had one job.")
 
     whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
@@ -702,4 +704,4 @@ while True:
     else:
         continue
 
-    buyServer(plans[choice], mybool, False)
+    buyServer(displayedPlans[choice], mybool, False)
