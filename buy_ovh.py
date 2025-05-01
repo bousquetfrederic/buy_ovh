@@ -191,6 +191,47 @@ def sendStartupEmail():
 def sendAutoBuyEmail(string):
     sendEmail("BUY_OVH: autobuy", "<p>" + string + "</p>")
 
+# ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
+# - detect new servers appearing in availabilities (or leaving)
+# - monitor availability of some servers
+def availabilityMonitor(previousA, newA):
+    strToSend = ""
+    if previousA and email_added_removed:
+        for added in inAnotB(newA, previousA):
+            strToSend += "<p>Added to availabilities: " + added + "</p>\n"
+        for removed in inAnotB(previousA, newA):
+            strToSend += "<p>Removed from availabilities: " + removed + "</p>\n"
+    if previousA and email_availability_monitor:
+        availChanged = []
+        for fqn in newA:
+            if (newA[fqn] not in unavailableList
+                and startsWithList(fqn, email_availability_monitor)):
+                # found an available server that matches the filter
+                if (fqn not in previousA.keys()
+                     or previousA[fqn] in unavailableList):
+                    # its availability went from unavailable to available
+                    availChanged.append(fqn)
+        if availChanged:
+            for fqn in availChanged:
+                strToSend += "<p>Available now: " + fqn + "</p>\n"
+    if strToSend:
+        sendEmail("BUY_OVH: availability monitor", strToSend)
+
+# ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
+def catalogMonitor(previousP, newP):
+    if previousP and email_catalog_monitor:
+        previousFqns = [x['fqn'] for x in previousP]
+        newFqns = [x['fqn'] for x in newP]
+        addedFqns = [ x for x in newFqns if x not in previousFqns]
+        removedFqns = [ x for x in previousFqns if x not in newFqns]
+        if addedFqns or removedFqns:
+            strChanged = ""
+            for fqn in addedFqns:
+                strChanged += "<p>New to the catalog: " + fqn + "</p>\n"
+            for fqn in removedFqns:
+                strChanged += "<p>Not longer in the catalog: " + fqn + "</p>\n"
+            sendEmail("BUY_OVH: catalog monitor", strChanged)
+
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def buildAvailabilityDict():
     myAvail = {}
@@ -366,49 +407,6 @@ def printAndSleep():
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
-# ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
-# - detect new servers appearing in availabilities (or leaving)
-# - monitor availability of some servers
-def availabilityMonitor(previousA, newA):
-    if previousA and email_added_removed:
-        strAdded = ""
-        strRemoved = ""
-        for added in inAnotB(newA, previousA):
-            strAdded += "<p>Added to availabilities: " + added + "</p>\n"
-        for removed in inAnotB(previousA, newA):
-            strRemoved += "<p>Removed from availabilities: " + removed + "</p>\n"
-        if strAdded or strRemoved:
-            sendEmail("BUY_OVH: added/removed", strAdded + strRemoved)
-    if previousA and email_availability_monitor:
-        availChanged = []
-        for fqn in newA:
-            if (newA[fqn] not in unavailableList
-                and startsWithList(fqn, email_availability_monitor)):
-                # found an available server that matches the filter
-                if (fqn not in previousA.keys()
-                     or previousA[fqn] in unavailableList):
-                    # its availability went from unavailable to available
-                    availChanged.append(fqn)
-        if availChanged:
-            strChanged = ""
-            for fqn in availChanged:
-                strChanged += "<p>Available now: " + fqn + "</p>\n"
-            sendEmail("BUY_OVH: availability monitor", strChanged)
-
-# ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
-def catalogMonitor(previousP, newP):
-    if previousP and email_catalog_monitor:
-        previousFqns = [x['fqn'] for x in previousP]
-        newFqns = [x['fqn'] for x in newP]
-        addedFqns = [ x for x in newFqns if x not in previousFqns]
-        removedFqns = [ x for x in previousFqns if x not in newFqns]
-        if addedFqns or removedFqns:
-            strChanged = ""
-            for fqn in addedFqns:
-                strChanged += "<p>New to the catalog: " + fqn + "</p>\n"
-            for fqn in removedFqns:
-                strChanged += "<p>Not longer in the catalog: " + fqn + "</p>\n"
-            sendEmail("BUY_OVH: catalog monitor", strChanged)
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
     if fakeBuy:
