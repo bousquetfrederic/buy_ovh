@@ -401,15 +401,18 @@ def availabilityMonitor(previousA, newA):
             sendEmail("BUY_OVH: availability monitor", strChanged)
 
 # ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
-def catalogMonitor(previousP, P):
+def catalogMonitor(previousP, newP):
     if previousP and email_catalog_monitor:
         previousFqns = [x['fqn'] for x in previousP]
-        Fqns = [x['fqn'] for x in P]
-        newFqns = [ x for x in Fqns if x not in previousFqns]
-        if newFqns:
+        newFqns = [x['fqn'] for x in newP]
+        addedFqns = [ x for x in newFqns if x not in previousFqns]
+        removedFqns = [ x for x in previousFqns if x not in newFqns]
+        if addedFqns or removedFqns:
             strChanged = ""
-            for fqn in newFqns:
-                strChanged += "<p>New to catalog: " + fqn + "</p>\n"
+            for fqn in addedFqns:
+                strChanged += "<p>New to the catalog: " + fqn + "</p>\n"
+            for fqn in removedFqns:
+                strChanged += "<p>Not longer in the catalog: " + fqn + "</p>\n"
             sendEmail("BUY_OVH: catalog monitor", strChanged)
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
