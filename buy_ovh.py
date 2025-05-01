@@ -58,6 +58,7 @@ email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in confi
 email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
 email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
 email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else []
+email_catalog_monitor = configFile['email_catalog_monitor'] if 'email_catalog_monitor' in configFile and email_on else False
 
 # --- Create the API client -----------------
 if 'APIEndpoint' not in configFile:
@@ -374,18 +375,11 @@ def sendEmailAddedOrRemoved(oldA, newA):
     if strAdded or strRemoved:
         sendEmail("BUY_OVH: added/removed", strAdded + strRemoved)
 
-def addedOrRemoved(previousA, newA):
+def addedOrRemovedAvail(previousA, newA):
     if previousA and email_added_removed:
         sendEmailAddedOrRemoved(previousA, newA)
 
-
 # ---------------- EMAIL MONITOR AVAIL OF SOME SERVERS -----------------------------------------
-def sendEmailAvailChanged(changeList):
-    strChanged = ""
-    for fqn in changeList:
-        strChanged += "<p>Available now: " + fqn + "</p>\n"
-    sendEmail("BUY_OVH: availability monitor", strChanged)
-
 def availabilityMonitor(previousA, newA):
     if previousA and email_availability_monitor:
         availChanged = []
@@ -398,8 +392,22 @@ def availabilityMonitor(previousA, newA):
                     # its availability went from unavailable to available
                     availChanged.append(fqn)
         if availChanged:
-            sendEmailAvailChanged(availChanged)
+            strChanged = ""
+            for fqn in availChanged:
+                strChanged += "<p>Available now: " + fqn + "</p>\n"
+            sendEmail("BUY_OVH: availability monitor", strChanged)
 
+# ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
+def catalogMonitor(previousP, P):
+    if previousP and email_catalog_monitor:
+        previousFqns = [x['fqn'] for x in previousP]
+        Fqns = [x['fqn'] for x in P]
+        newFqns = [ x for x in Fqns if x not in previousFqns]
+        if newFqns:
+            strChanged = ""
+            for fqn in newFqns:
+                strChanged += "<p>New to catalog: " + fqn + "</p>\n"
+            sendEmail("BUY_OVH: catalog monitor", strChanged)
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def buildCart(plan):
     if fakeBuy:
@@ -595,7 +603,11 @@ if email_at_startup:
 # previous list of availabilities so we can send email if something pops up
 previousAvailabilities = {}
 
+# previous plans
+previousPlans = []
+
 availabilities = {}
+plans = []
 
 # loop until the user wants out
 while True:
@@ -606,6 +618,8 @@ while True:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 if availabilities:
                     previousAvailabilities = availabilities
+                if plans:
+                    previousPlans = plans
                 availabilities = buildAvailabilityDict()
                 plans = buildList(availabilities)
                 printList(plans)
@@ -630,8 +644,9 @@ while True:
                             if autoBuyNum < 1:
                                 autoBuyList = []
                                 break
-                addedOrRemoved(previousAvailabilities, availabilities)
+                addedOrRemovedAvail(previousAvailabilities, availabilities)
                 availabilityMonitor(previousAvailabilities, availabilities)
+                catalogMonitor(previousPlans, plans)
                 if not foundAutoBuyServer:
                     printPrompt()
                     printAndSleep()
