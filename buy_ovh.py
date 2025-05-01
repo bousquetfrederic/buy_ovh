@@ -282,8 +282,6 @@ def buildList(avail):
                             else:
                                 myavailability = 'unknown'
                             myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
-                            if myavailability in unavailableList and not myAutoBuy and not showUnavailable:
-                                continue
                             # Add the plan to the list
                             myPlans.append(
                                 { 'planCode' : planCode,
@@ -301,10 +299,13 @@ def buildList(avail):
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
-    if not plans:
-        print(whichColor['unavailable'] + "No availability." + color.END)
+    isAvailability = False
     for plan in plans:
         avail = plan['availability']
+        # don't print unavailable servers unless instructed
+        if avail in unavailableList and not plan['autobuy'] and not showUnavailable:
+            continue
+        isAvailability = True
         if avail in unavailableList:
             printcolor = whichColor[avail]
         elif avail.endswith("low") or avail.endswith('H'):
@@ -341,6 +342,8 @@ def printList(plans):
               + plan['price'].ljust(6) + "| "
               #+ plan['availability']
               + color.END)
+    if not isAvailability:
+        print(whichColor['unavailable'] + "No availability." + color.END)
     # if there has been at least one auto buy, show counters
     if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
         print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
