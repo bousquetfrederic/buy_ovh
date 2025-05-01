@@ -366,24 +366,19 @@ def printAndSleep():
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
-
-# ----------------- EMAIL AVAIL NEW OR REMOVED ----------------------------------------
-def sendEmailAddedOrRemoved(oldA, newA):
-    strAdded = ""
-    strRemoved = ""
-    for added in inAnotB(newA, oldA):
-        strAdded += "<p>Added to availabilities: " + added + "</p>\n"
-    for removed in inAnotB(oldA, newA):
-        strRemoved += "<p>Removed from availabilities: " + removed + "</p>\n"
-    if strAdded or strRemoved:
-        sendEmail("BUY_OVH: added/removed", strAdded + strRemoved)
-
-def addedOrRemovedAvail(previousA, newA):
-    if previousA and email_added_removed:
-        sendEmailAddedOrRemoved(previousA, newA)
-
-# ---------------- EMAIL MONITOR AVAIL OF SOME SERVERS -----------------------------------------
+# ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
+# - detect new servers appearing in availabilities (or leaving)
+# - monitor availability of some servers
 def availabilityMonitor(previousA, newA):
+    if previousA and email_added_removed:
+        strAdded = ""
+        strRemoved = ""
+        for added in inAnotB(newA, previousA):
+            strAdded += "<p>Added to availabilities: " + added + "</p>\n"
+        for removed in inAnotB(previousA, newA):
+            strRemoved += "<p>Removed from availabilities: " + removed + "</p>\n"
+        if strAdded or strRemoved:
+            sendEmail("BUY_OVH: added/removed", strAdded + strRemoved)
     if previousA and email_availability_monitor:
         availChanged = []
         for fqn in newA:
@@ -650,7 +645,6 @@ while True:
                             if autoBuyNum < 1:
                                 autoBuyList = []
                                 break
-                addedOrRemovedAvail(previousAvailabilities, availabilities)
                 availabilityMonitor(previousAvailabilities, availabilities)
                 catalogMonitor(previousPlans, plans)
                 if not foundAutoBuyServer:
