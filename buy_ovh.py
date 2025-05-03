@@ -340,10 +340,10 @@ def buildList(avail):
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
-    isAvailability = False
+    if not plans:
+        print(whichColor['unavailable'] + "No availability." + color.END)
     for plan in plans:
         avail = plan['availability']
-        isAvailability = True
         if avail in unavailableList:
             printcolor = whichColor[avail]
         elif avail.endswith("low") or avail.endswith('H'):
@@ -380,8 +380,6 @@ def printList(plans):
               + plan['price'].ljust(6) + "| "
               #+ plan['availability']
               + color.END)
-    if not isAvailability:
-        print(whichColor['unavailable'] + "No availability." + color.END)
     # if there has been at least one auto buy, show counters
     if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
         print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
@@ -618,7 +616,6 @@ while True:
                 os.system('cls' if os.name == 'nt' else 'clear')
                 if availabilities:
                     previousAvailabilities = availabilities
-                if plans:
                     previousPlans = plans
                 availabilities = buildAvailabilityDict()
                 plans = buildList(availabilities)
