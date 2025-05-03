@@ -28,3 +28,8 @@ The script can also show you a list of your unpaid orders and provide an URL if 
 If you end up buying a 600€ server, it's not the script fault, it's yours, because this is just a random python script you found on the internet.
 
 I have only tested with OVH France.
+
+# Donations
+If you would like to make a small donation because this script helped you get the server of your dreams, feel free: https://paypal.me/fredo1664
+
+If it has to be in crypto, here's a Monero address:  8BTX8pJYmtf6STY2s7TdTT3NATocMpMReeV6DP5Vgnfx8MWBMXoTMypDjWv4Wf639habTNTED9bXSV9pYXs8s7BCHERFUxh
