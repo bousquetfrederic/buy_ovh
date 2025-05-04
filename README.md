@@ -1,6 +1,8 @@
 # buy_ovh.py
 Python script that uses the OVH API and their Python helper. See here: https://github.com/ovh/python-ovh
 
+It could make sense to grab the latest release (see the sidebar) instead of cloning the repository (or if you do, to checkout the latest release) if you would like something potentially a tiny bit less unstable.
+
 The 'ovh' and 'PyYAML' modules must be installed.
 ```
 pip install ovh
