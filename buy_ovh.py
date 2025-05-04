@@ -254,7 +254,9 @@ def fixMem(mem):
 
 def fixSto(sto):
     fixedSto = sto
-    # I don't know of any error at the moment
+    # For SYS-01 with hybrid disks, the availabilities have 500nvme instead of 512nvme 
+    if sto.endswith("4000sa-2x512nvme") or sto.endswith("4000sa-1x512nvme"):
+        fixedSto = sto.replace("512", "500")
     return fixedSto
 
 def buildList(avail):
