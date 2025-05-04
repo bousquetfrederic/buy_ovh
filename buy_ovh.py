@@ -299,6 +299,10 @@ def buildList(avail):
                             # the API adds the name of the plan at the end of the addons, drop it
                             shortme = "-".join(me.split("-")[:-1])
                             shortst = "-".join(st.split("-")[:-1])
+                            # For 25rises011 and 021, OVH add "-rise-s" instead of the plancode at the end of the RAM
+                            # and in the availabilities there is an extra "-on-die-ecc-5200"
+                            if shortme.endswith("-rise"):
+                                shortme = shortme.removesuffix("-rise") + "-on-die-ecc-5200"
                             # filter unwanted disk types
                             # if the disk filter is set
                             # OVH seems to add sata now, like in "ssd-sata"
