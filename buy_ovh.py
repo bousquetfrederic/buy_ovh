@@ -680,9 +680,41 @@ while True:
     # stop the infinite loop, the user must press L to restart it
     loop = False
     print("(Q to quit, L for loop, O for unpaid orders, K for coupon, Toggles: U/P/C/F, Filters N/D)")
-    sChoice = input("Which one? ")
-    if not sChoice.isdigit():
-        if sChoice.lower() == 'n':
+    allChoices = input("Which one(s)? ")
+    # The user can type serveral server numbers or commands, separated by spaces
+    listChoices = allChoices.split(' ')
+    for sChoice in listChoices:
+        # when buying, the user can specify if they want an invoice or buy now, by starting with ? or !
+        # example: ?2 means an invoice for server two
+        #          !4 means buy server 4 now
+        #          3  means I want server 3 but ask me if I want an invoice or to buy now
+        if sChoice.startswith('?'):
+            # invoice, no need to ask
+            whattodo = 'i'
+            sChoice = sChoice[1:]
+        elif sChoice.startswith('!'):
+            # buy now, no need to ask
+            whattodo = 'n'
+            sChoice = sChoice[1:]
+        else:
+            # if it's a server number, we'll ask if use wants an invoice or buy now
+            whattodo = 'a'
+        # if the user entered a number, it's a server number so let's buy it or get an invoice
+        if sChoice.isdigit():
+            choice = int (sChoice)
+            if choice >= len(displayedPlans):
+                sys.exit("You had one job.")
+            if whattodo == 'a':
+                whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
+            if whattodo == 'i':
+                mybool = False
+            elif whattodo == 'n':
+                mybool = True
+            else:
+                continue
+            buyServer(displayedPlans[choice], mybool, False)
+        # not a number means command
+        elif sChoice.lower() == 'n':
             print("Current : " + ",".join(filterName))
             filterName = getListFromUser("One per line")
         elif sChoice.lower() == 'd':
@@ -707,17 +739,3 @@ while True:
             lookUpAvail(availabilities)
         elif sChoice.lower() == 'q':
             sys.exit("Bye now.")
-        continue
-    choice = int (sChoice)
-    if choice >= len(displayedPlans):
-         sys.exit("You had one job.")
-
-    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
-    if whattodo == 'i':
-        mybool = False
-    elif whattodo == 'n':
-        mybool = True
-    else:
-        continue
-
-    buyServer(displayedPlans[choice], mybool, False)
