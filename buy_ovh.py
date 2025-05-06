@@ -139,10 +139,6 @@ def endsWithList(st,li):
             return True
     return False
 
-# keys present in dict A not in dict B
-def inAnotB(A,B):
-    return [x for x in A.keys() if x not in B.keys()]
-
 # user input a list
 def getListFromUser(prompt):
     a = "a"
@@ -210,11 +206,15 @@ def sendAutoBuyEmail(string):
 # - monitor availability of some servers
 def availabilityMonitor(previousA, newA):
     strToSend = ""
+    # look for new FQN in availabilities (no filters)
     if previousA and email_added_removed:
-        for added in inAnotB(newA, previousA):
+        for added in [x for x in newA.keys() if x not in previousA.keys()]:
             strToSend += "<p>Added to availabilities: " + added + "</p>\n"
-        for removed in inAnotB(previousA, newA):
+        for removed in [x for x in previousA.keys() if x not in newA.keys()]:
             strToSend += "<p>Removed from availabilities: " + removed + "</p>\n"
+    # look for availability change (unavailable <--> available)
+    # for this there is a filter in order to not spam
+    # the filter is on the FQN
     if previousA and email_availability_monitor:
         availNow = []
         availNotAnymore = []
@@ -240,6 +240,7 @@ def availabilityMonitor(previousA, newA):
         sendEmail("BUY_OVH: availability monitor", strToSend)
 
 # ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
+# The catalog is filtered (name and disk), so the new server must pass these filters
 def catalogMonitor(previousP, newP):
     if previousP and email_catalog_monitor:
         previousFqns = [x['fqn'] for x in previousP]
@@ -522,6 +523,7 @@ def buildCart(plan):
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------
 def checkoutCart(cartId, buyNow, autoMode):
+    # 'global' because the function may change these global variables
     global autoFake, autoOK
     if fakeBuy:
         print("Fake buy! Now: " + str(buyNow) + ", Auto: " + str(autoMode))
@@ -540,6 +542,7 @@ def checkoutCart(cartId, buyNow, autoMode):
 
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow, autoMode):
+    # 'global' because the function may change this global variable
     global autoKO
     if autoMode:
         strAuto = "   -Auto Mode-"
