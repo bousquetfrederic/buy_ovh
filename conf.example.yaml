@@ -10,6 +10,7 @@ APISecret: 456
 APIConsumerKey: 789
 
 # in which datacenters are we looking for?
+# this is a list
 datacenters:
     - gra
     - rbx
@@ -19,17 +20,14 @@ datacenters:
     - waw
     - bhs
 
-# the invoice name or plan code of the servers must start with:
-filterName:
-    - "24ska"
-    - "KS-LE-B"
-    - "KS-4"
+# the invoice name or plan code of the servers must match the regular expression:
+# example for all SYS from 2025, all KS-4, and KS-LE-B
+filterName: 25sys|24sk04|KS-LE-B
 
-# type of disks we want. (ssd,nvme,sa)
+# type of disks we want, usually among ssd,nvme,sa.
+# This is a regular expression
 # don't define it if you want all types
-filterDisk:
-    - ssd
-    - nvme
+filterDisk: ssd|nvme
 
 ovhSubsidiary: FR
 
@@ -75,19 +73,14 @@ email_at_startup: False
 # (only if loop = True)
 email_added_removed: False
 
-# Monitor availability of servers whose FQN starts with a string
+# Monitor availability of servers whose FQN match the regular expression
 # This is a "super" FQN which has the datacenter at the end
 # (only if loop = True)
-email_availability_monitor:
-    # NVMe KS-4 with 32g RAM in GRA
-    - 24sk40.ram-32g-ecc-2133.softraid-2x450nvme.gra
-    # Same but any datacenter
-    - 24sk40.ram-32g-ecc-2133.softraid-2x450nvme
-    # Any KS-4
-    - 24sk40
+# Example: all KS-4 in GRA
+email_availability_monitor: 24sk40.*gra
 
 # Checks if any server was added to the catalog
-# These must pass the filters
+# These must pass the filters (name and disk)
 email_catalog_monitor: False
 
 # email server details
