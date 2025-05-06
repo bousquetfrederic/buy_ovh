@@ -621,6 +621,50 @@ def lookUpAvail(avail):
                 if eachFqn.startswith(sChoice):
                     print(eachFqn + " | " + avail[eachFqn])
 
+# ----------------- DISPLAY HELP --------------------------------------------------------------
+def showHelp():
+    print("")
+    print("Infinite Loop")
+    print("-------------")
+    print("When the loop is ON, the script updates the catalog and availabilities every " + sleepsecs + "s.")
+    print("You need to press CTRL-C to stop the loop and interact with the script.")
+    print("")
+    print("Toggles")
+    print("-------")
+    print(" U - show Unavailable servers ON/OFF")
+    print(" P - show helpful prompt ON/OFF")
+    print(" C - show CPU type ON/OFF")
+    print(" F - show FQN instead of server details ON/OFF")
+    print(" $ - fake buy ON/OFF")
+    print("")
+    print("Filters")
+    print("-------")
+    print(" N - re-enter the Name filter (invoice name or plan code)")
+    print(" D - re-enter the Disk filter (sa, nvme, ssd)")
+    print("")
+    print("Commands")
+    print("--------")
+    print(" L - (re)start the infinite loop, activating monitoring if configured")
+    print(" O - show your unpaid orders and a link to pay for one")
+    print(" K - enter a coupon (buying will fail if coupon is invalid)")
+    print(" V - look up availabilities for a specific FQN")
+    print("")
+    print("Buying")
+    print("------")
+    print("Enter the server number in the list to either get an invoice or buy it straight away.")
+    print("  Example :> 0")
+    print("Start with ! to buy it now, ? for invoice.")
+    print("  Example :> ?1")
+    print("Add * followed by a number to buy multiple time")
+    print("(this creates as many orders, each of them for one server)")
+    print("  Example :> !3*4")
+    print("")
+    print("It is possible to enter more than one command at a time.")
+    print("For example, to deactivate fake buy, buy 2 servers number 6 and get one invoice, re-activate fake buy and then restart the loop:")
+    print("  > $ !6*2 ?6 $ l")
+    print("")
+    os.system('pause') 
+
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 # send email at startup
@@ -693,8 +737,7 @@ while True:
     print("")
     # stop the infinite loop, the user must press L to restart it
     loop = False
-    print("(Q to quit, L for loop, O for unpaid orders, K for coupon, Toggles: U/P/C/F, Filters N/D)")
-    allChoices = input("Which one(s)? ")
+    allChoices = input("> ")
     # The user can type several server numbers or commands, separated by spaces
     listChoices = allChoices.split(' ')
     for sChoice in listChoices:
@@ -763,11 +806,15 @@ while True:
             showCpu = not showCpu
         elif sChoice.lower() == 'f':
             showFqn = not showFqn
+        elif sChoice == '$':
+            fakeBuy = not fakeBuy
         elif sChoice.lower() == 'l':
             loop = True
         elif sChoice.lower() == 'o':
             unpaidOrders()
         elif sChoice.lower() == 'v':
             lookUpAvail(availabilities)
+        elif sChoice.lower() == 'h':
+            showHelp()
         elif sChoice.lower() == 'q':
             sys.exit("Bye now.")
