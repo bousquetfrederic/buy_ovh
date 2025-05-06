@@ -626,7 +626,7 @@ def showHelp():
     print("")
     print("Infinite Loop")
     print("-------------")
-    print("When the loop is ON, the script updates the catalog and availabilities every " + sleepsecs + "s.")
+    print("When the loop is ON, the script updates the catalog and availabilities every " + str(sleepsecs) + "s.")
     print("You need to press CTRL-C to stop the loop and interact with the script.")
     print("")
     print("Toggles")
