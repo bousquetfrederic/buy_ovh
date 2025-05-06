@@ -695,10 +695,6 @@ while True:
                     previousAvailabilities = availabilities
                     previousPlans = plans
                 availabilities = buildAvailabilityDict()
-                # test
-                if previousAvailabilities:
-                    availabilities['25rises011.ram-64g-on-die-ecc-5200.softraid-2x512nvme.gra']='unknown'
-                    availabilities['25rises0x']='available'
                 plans = buildList(availabilities)
                 displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in unavailableList)]
                 printList(displayedPlans)
