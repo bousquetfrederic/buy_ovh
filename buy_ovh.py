@@ -355,7 +355,8 @@ def buildList(avail):
                                 myavailability = avail[myFqn]
                             else:
                                 myavailability = 'unknown'
-                            myAutoBuy = startsWithList(myFqn,autoBuyList) and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice)
+                            myAutoBuy = ((startsWithList(myFqn,autoBuyList) or startsWithList(plan['invoiceName'],autoBuyList))
+                                         and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice))
                             # Add the plan to the list
                             myPlans.append(
                                 { 'planCode' : planCode,
