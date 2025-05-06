@@ -663,7 +663,7 @@ def showHelp():
     print("For example, to deactivate fake buy, buy 2 servers number 6 and get one invoice, re-activate fake buy and then restart the loop:")
     print("  > $ !6*2 ?6 $ l")
     print("")
-    os.system('pause') 
+    dummy=input("Press ENTER.") 
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
