@@ -1,10 +1,11 @@
-import ovh
-import time
 import os
+import ovh
+import re
+import smtplib
 import sys
 import time
 import yaml
-import smtplib
+
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -22,8 +23,8 @@ except Exception as e:
     sys.exit("Bye now.")
 
 acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
-filterName = configFile['filterName'] if 'filterName' in configFile else []
-filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else []
+filterName = configFile['filterName'] if 'filterName' in configFile else ""
+filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ""
 ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
 loop = configFile['loop'] if 'loop' in configFile else False
 sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
@@ -33,12 +34,12 @@ showFqn = configFile['showFqn'] if 'showFqn' in configFile else True
 showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
 fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
 coupon = configFile['coupon'] if 'coupon' in configFile else ''
-autoBuyList = configFile['auto_buy'] if 'auto_buy' in configFile else []
+autoBuyRE = configFile['auto_buy'] if 'auto_buy' in configFile else ""
 autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
 autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
 autoBuyInvoicesNum = configFile['auto_buy_num_invoices'] if 'auto_buy_num_invoices' in configFile else 0
 if autoBuyNum == 0:
-    autoBuyList = []
+    autoBuyRE = ""
 autoBuyNumInit = autoBuyNum
 
 # counters to display how auto buy are doing
@@ -57,7 +58,7 @@ email_receiver = configFile['email_receiver'] if 'email_receiver' in configFile 
 email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
 email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
 email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
-email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else []
+email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else ""
 email_catalog_monitor = configFile['email_catalog_monitor'] if 'email_catalog_monitor' in configFile and email_on else False
 
 # --- Create the API client -----------------
@@ -125,43 +126,6 @@ whichColor = { 'unknown'     : color.CYAN,
 
 # ------------ TOOLS --------------------------------------------------------------------------------------------
 
-# startswith from a list
-def startsWithList(st,li):
-    for elem in li:
-        if st.startswith(elem):
-            return True
-    return False
-
-# endswith from a list
-def endsWithList(st,li):
-    for elem in li:
-        if st.endswith(elem):
-            return True
-    return False
-
-# user input a list
-def getListFromUser(prompt):
-    a = "a"
-    newList = []
-    while a:
-        a = input(prompt + ". Return to finish : ")
-        if a:
-            newList.append(a)
-    return newList
-
-# when ordering servers, the user can type something like "!0*3"
-# "*3" means repeat 3 times
-# this function returns the number of times
-# if no multiplier is specified, it means 1, but return 0
-def getMultiFactor(inputStr):
-    num = 0
-    if "*" in inputStr:
-        strList = inputStr.split("*")
-        if len(strList) == 2:
-            numStr = strList[-1]
-            if numStr.isdigit():
-                num = int(numStr)
-    return num
 
 # -------------- EMAILS ---------------------------------------------------------------------------------------
 
@@ -219,7 +183,7 @@ def availabilityMonitor(previousA, newA):
         availNow = []
         availNotAnymore = []
         for fqn in newA:
-            if startsWithList(fqn, email_availability_monitor):
+            if bool(re.search(email_availability_monitor, fqn)):
                 if (newA[fqn] not in unavailableList):
                     # found an available server that matches the filter
                     if (fqn not in previousA.keys()
@@ -292,10 +256,10 @@ def buildList(avail):
 
     for plan in allPlans:
         planCode = plan['planCode']
-        # only consider plans name starting with the defined filter
-        # unless the filter is empty
-        if ( filterName and not startsWithList(plan['invoiceName'], filterName)
-             and not startsWithList(plan['planCode'], filterName) ):
+        # only consider plans passing the name filter, which is a regular expression
+        # Either invoice name of plan code must match
+        if not (bool(re.search(filterName, plan['invoiceName']))
+                or bool(re.search(filterName, plan['planCode']))):
             continue
 
         # find the price
@@ -344,7 +308,7 @@ def buildList(avail):
                             # filter unwanted disk types
                             # if the disk filter is set
                             # OVH seems to add sata now, like in "ssd-sata"
-                            if filterDisk and not endsWithList(shortst.removesuffix("-sata"),filterDisk):
+                            if not bool(re.search(filterDisk,shortst)):
                                 continue
                             # try to find out the full price
                             try:
@@ -364,7 +328,8 @@ def buildList(avail):
                                 myavailability = avail[myFqn]
                             else:
                                 myavailability = 'unknown'
-                            myAutoBuy = ((startsWithList(myFqn,autoBuyList) or startsWithList(plan['invoiceName'],autoBuyList))
+                            myAutoBuy = (autoBuyRE and
+                                         (bool(re.search(autoBuyRE, myFqn)) or bool(re.search(autoBuyRE, plan['invoiceName'])))
                                          and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice))
                             # Add the plan to the list
                             myPlans.append(
@@ -434,8 +399,8 @@ def printPrompt():
     if not showPrompt:
         return
     print("- DCs : [" + ",".join(acceptable_dc)
-          + "] - Filters : [" + ",".join(filterName)
-          + "][" + ",".join(filterDisk)
+          + "] - Filters : [" + filterName
+          + "][" + filterDisk
           +"] - Coupon : [" + coupon + "]")
 
 # ----------------- SLEEP x SECONDS -----------------------------------------------------------
@@ -685,6 +650,21 @@ def showHelp():
     print("")
     dummy=input("Press ENTER.") 
 
+# ------------------ TOOL ---------------------------------------------------------------------
+# when ordering servers, the user can type something like "!0*3"
+# "*3" means repeat 3 times
+# this function returns the number of times
+# if no multiplier is specified, it means 1, but return 0
+def getMultiFactor(inputStr):
+    num = 0
+    if "*" in inputStr:
+        strList = inputStr.split("*")
+        if len(strList) == 2:
+            numStr = strList[-1]
+            if numStr.isdigit():
+                num = int(numStr)
+    return num
+
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 # send email at startup
@@ -715,6 +695,10 @@ while True:
                     previousAvailabilities = availabilities
                     previousPlans = plans
                 availabilities = buildAvailabilityDict()
+                # test
+                if previousAvailabilities:
+                    availabilities['25rises011.ram-64g-on-die-ecc-5200.softraid-2x512nvme.gra']='unknown'
+                    availabilities['25rises0x']='available'
                 plans = buildList(availabilities)
                 displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in unavailableList)]
                 printList(displayedPlans)
@@ -726,7 +710,7 @@ while True:
                 if not loop:
                     printPrompt()
                     break
-                if autoBuyList:
+                if autoBuyRE:
                     for plan in plans:
                         if autoBuyNum > 0 and plan['availability'] not in unavailableList and plan['autobuy']:
                             # auto buy
@@ -737,7 +721,7 @@ while True:
                             buyServer(plan, not autoBuyInvoice, True)
                             autoBuyNum -= 1
                             if autoBuyNum < 1:
-                                autoBuyList = []
+                                autoBuyRE = ""
                                 break
                 availabilityMonitor(previousAvailabilities, availabilities)
                 catalogMonitor(previousPlans, plans)
@@ -810,13 +794,13 @@ while True:
         # not a number means command
         # the '?', '!', and '*' have no effect here 
         elif sChoice.lower() == 'n':
-            print("Current : " + ",".join(filterName))
-            filterName = getListFromUser("One per line")
+            print("Current: " + filterName)
+            filterName = input("New filter: ")
         elif sChoice.lower() == 'd':
-            print("Current : " + ",".join(filterDisk))
-            filterDisk = getListFromUser("One per line (nvme,ssd,sa)")
+            print("Current: " + filterDisk)
+            filterDisk = input("New filter: ")
         elif sChoice.lower() == 'k':
-            print("Current : " + coupon)
+            print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
         elif sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
