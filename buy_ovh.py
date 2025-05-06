@@ -216,18 +216,26 @@ def availabilityMonitor(previousA, newA):
         for removed in inAnotB(previousA, newA):
             strToSend += "<p>Removed from availabilities: " + removed + "</p>\n"
     if previousA and email_availability_monitor:
-        availChanged = []
+        availNow = []
+        availNotAnymore = []
         for fqn in newA:
-            if (newA[fqn] not in unavailableList
-                and startsWithList(fqn, email_availability_monitor)):
-                # found an available server that matches the filter
-                if (fqn not in previousA.keys()
-                     or previousA[fqn] in unavailableList):
-                    # its availability went from unavailable to available
-                    availChanged.append(fqn)
-        if availChanged:
-            for fqn in availChanged:
-                strToSend += "<p>Available now: " + fqn + "</p>\n"
+            if startsWithList(fqn, email_availability_monitor):
+                if (newA[fqn] not in unavailableList):
+                    # found an available server that matches the filter
+                    if (fqn not in previousA.keys()
+                        or previousA[fqn] in unavailableList):
+                        # its availability went from unavailable to available
+                        availNow.append(fqn)
+                else:
+                    # found an unavailable server that matches the filter
+                    if (fqn in previousA.keys()
+                        and previousA[fqn] not in unavailableList):
+                        # its availability went from available to unavailable
+                        availNotAnymore.append(fqn)
+        for fqn in availNow:
+            strToSend += "<p>Available now: " + fqn + "</p>\n"
+        for fqn in availNotAnymore:
+            strToSend += "<p>No longer available: " + fqn + "</p>\n"
     if strToSend:
         sendEmail("BUY_OVH: availability monitor", strToSend)
 
