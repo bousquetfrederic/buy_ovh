@@ -624,6 +624,14 @@ def lookUpAvail(avail):
 # ----------------- DISPLAY HELP --------------------------------------------------------------
 def showHelp():
     print("")
+    print("Colour coding")
+    print("-------------")
+    print(whichColor['high'] + "Available HIGH")
+    print(whichColor['low'] + "Available LOW")
+    print(whichColor['unavailable'] + "Unavailable")
+    print(whichColor['comingSoon'] + "Coming Soon")
+    print(whichColor['unknown'] + "Availability unknown" + color.END)
+    print("")
     print("Infinite Loop")
     print("-------------")
     print("When the loop is ON, the script updates the catalog and availabilities every " + str(sleepsecs) + "s.")
@@ -737,7 +745,7 @@ while True:
     print("")
     # stop the infinite loop, the user must press L to restart it
     loop = False
-    allChoices = input("> ")
+    allChoices = input("(H for Help)> ")
     # The user can type several server numbers or commands, separated by spaces
     listChoices = allChoices.split(' ')
     for sChoice in listChoices:
