@@ -243,7 +243,7 @@ def catalogMonitor(previousP, newP):
             for fqn in addedFqns:
                 strChanged += "<p>New to the catalog: " + fqn + "</p>\n"
             for fqn in removedFqns:
-                strChanged += "<p>Not longer in the catalog: " + fqn + "</p>\n"
+                strChanged += "<p>No longer in the catalog: " + fqn + "</p>\n"
             sendEmail("BUY_OVH: catalog monitor", strChanged)
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
