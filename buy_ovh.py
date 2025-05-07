@@ -656,11 +656,11 @@ def showHelp():
 # this function expand these, so "!2*3" becomes "!2 !2 !2"
 # if no multiplier is specified, it means 1
 def expandMulti(line):
-    pattern = r'([?!]?\d+)\*(\d+)'
+    pattern = r'(^|\s)([?!]?\d+)\*(\d+)'
 
     def replacer(match):
-        word, count = match.groups()
-        return ' '.join([word] * int(count))
+        first, word, count = match.groups()
+        return first + ' '.join([word] * int(count))
 
     return re.sub(pattern, replacer, line)
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
