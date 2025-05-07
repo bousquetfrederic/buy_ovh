@@ -653,18 +653,16 @@ def showHelp():
 # ------------------ TOOL ---------------------------------------------------------------------
 # when ordering servers, the user can type something like "!0*3"
 # "*3" means repeat 3 times
-# this function returns the number of times
-# if no multiplier is specified, it means 1, but return 0
-def getMultiFactor(inputStr):
-    num = 0
-    if "*" in inputStr:
-        strList = inputStr.split("*")
-        if len(strList) == 2:
-            numStr = strList[-1]
-            if numStr.isdigit():
-                num = int(numStr)
-    return num
+# this function expand these, so "!2*3" becomes "!2 !2 !2"
+# if no multiplier is specified, it means 1
+def expandMulti(line):
+    pattern = r'([?!]?\d+)\*(\d+)'
 
+    def replacer(match):
+        word, count = match.groups()
+        return ' '.join([word] * int(count))
+
+    return re.sub(pattern, replacer, line)
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 # send email at startup
@@ -738,21 +736,13 @@ while True:
     # stop the infinite loop, the user must press L to restart it
     loop = False
     allChoices = input("(H for Help)> ")
-    # The user can type several server numbers or commands, separated by spaces
-    listChoices = allChoices.split(' ')
+    # The user can specify to buy a server multiple times
+    # "2*5" means buy server 2, 5 times
+    # "2" and "2*1" mean the same thing
+    # "!2*3 ?2*10" works too (see below for ! and ?)
+    allChoicesExpanded = expandMulti(allChoices)
+    listChoices = allChoicesExpanded.split(' ')
     for sChoice in listChoices:
-        # The user can specify to buy a server multiple times
-        # "2*5" means buy server 2, 5 times
-        # "2" and "2*1" mean the same thing
-        # "!2*3 ?2*10" works too (see below for ! and ?)
-        num = getMultiFactor(sChoice)
-        if num > 0:
-            # if a multiplier is specified, remove it now
-            sChoice = sChoice.split('*')[0]
-        else:
-            # if no multiplier is specified, the function returns 0
-            # but really it means 1
-            num = 1
         # when buying, the user can specify if they want an invoice or buy now, by starting with ? or !
         # example: ?2 means an invoice for server two
         #          !4 means buy server 4 now
@@ -774,10 +764,7 @@ while True:
             if choice >= len(displayedPlans):
                 sys.exit("You had one job.")
             if whattodo == 'a':
-                if num > 1:
-                    print(str(num) + " " + displayedPlans[choice]['invoiceName'])
-                else:
-                    print(displayedPlans[choice]['invoiceName'])
+                print(displayedPlans[choice]['invoiceName'])
                 whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
             if whattodo == 'i':
                 mybool = False
@@ -785,8 +772,7 @@ while True:
                 mybool = True
             else:
                 continue
-            for dummy in range(num):
-                buyServer(displayedPlans[choice], mybool, False)
+            buyServer(displayedPlans[choice], mybool, False)
         # not a number means command
         # the '?', '!', and '*' have no effect here 
         elif sChoice.lower() == 'n':
