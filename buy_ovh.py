@@ -273,6 +273,7 @@ def buildList(avail):
         allStorages = []
         allMemories = []
         allBandwidths = []
+        allVRack = []
 
         # find mandatory addons
         for family in plan['addonFamilies']:
@@ -282,6 +283,12 @@ def buildList(avail):
                 allMemories = family['addons']
             elif family['name'] == "bandwidth":
                 allBandwidths = family['addons']
+            elif family['name'] == "vrack":
+                allVRack = family['addons']
+
+        # vRack is not always present
+        if not allVRack:
+            allVRack = ['none']
 
         allDatacenters = []
 
@@ -297,58 +304,66 @@ def buildList(avail):
                 for me in allMemories:
                     for st in allStorages:
                         for ba in allBandwidths:
-                            # each config may have a different price within the same plan
-                            thisPrice = planPrice
-                            # the API adds the name of the plan at the end of the addons, drop it
-                            # (only for building the FQN)
-                            # Also there are sometimes differences between catalog and availabilities
-                            # fix these errors (only for building the FQN)
-                            shortme = fixMem("-".join(me.split("-")[:-1]))
-                            shortst = fixSto("-".join(st.split("-")[:-1]))
-                            # filter unwanted disk types
-                            # if the disk filter is set
-                            # OVH seems to add sata now, like in "ssd-sata"
-                            if not bool(re.search(filterDisk,shortst)):
-                                continue
-                            # try to find out the full price
-                            try:
-                                storagePlan = [x for x in allAddons if (x['planCode'] == st)]
-                                thisPrice = thisPrice + float(storagePlan[0]['pricings'][1]['price'])/100000000
-                            except Exception as e:
-                                print(e)
-                            try:
-                                memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
-                                thisPrice = thisPrice + float(memoryPlan[0]['pricings'][1]['price'])/100000000
-                            except Exception as e:
-                                print(e)
-                            try:
-                                bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
-                                thisPrice = thisPrice + float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
-                            except Exception as e:
-                                print(e)
-                            priceStr = "{:.2f}".format(thisPrice)
-                            # don't add plan if unavailable and not auto buy (if option selected)
-                            myFqn = planCode + "." + shortme + "." + shortst + "." + da
-                            if myFqn in avail:
-                                myavailability = avail[myFqn]
-                            else:
-                                myavailability = 'unknown'
-                            myAutoBuy = (autoBuyRE and
-                                         (bool(re.search(autoBuyRE, myFqn)) or bool(re.search(autoBuyRE, plan['invoiceName'])))
-                                         and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice))
-                            # Add the plan to the list
-                            myPlans.append(
-                                { 'planCode' : planCode,
-                                  'invoiceName' : plan['invoiceName'],
-                                  'datacenter' : da,
-                                  'storage' : st,
-                                  'memory' : me,
-                                  'bandwidth' : ba,
-                                  'fqn' : myFqn, # for auto buy
-                                  'autobuy' : myAutoBuy,
-                                  'price' : priceStr,
-                                  'availability' : myavailability
-                                })
+                            for vr in allVRack:
+                                # each config may have a different price within the same plan
+                                thisPrice = planPrice
+                                # the API adds the name of the plan at the end of the addons, drop it
+                                # (only for building the FQN)
+                                # Also there are sometimes differences between catalog and availabilities
+                                # fix these errors (only for building the FQN)
+                                shortme = fixMem("-".join(me.split("-")[:-1]))
+                                shortst = fixSto("-".join(st.split("-")[:-1]))
+                                # filter unwanted disk types
+                                # if the disk filter is set
+                                # OVH seems to add sata now, like in "ssd-sata"
+                                if not bool(re.search(filterDisk,shortst)):
+                                    continue
+                                # try to find out the full price
+                                try:
+                                    storagePlan = [x for x in allAddons if (x['planCode'] == st)]
+                                    thisPrice = thisPrice + float(storagePlan[0]['pricings'][1]['price'])/100000000
+                                except Exception as e:
+                                    print(e)
+                                try:
+                                    memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
+                                    thisPrice = thisPrice + float(memoryPlan[0]['pricings'][1]['price'])/100000000
+                                except Exception as e:
+                                    print(e)
+                                try:
+                                    bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
+                                    thisPrice = thisPrice + float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
+                                except Exception as e:
+                                    print(e)
+                                if vr != 'none':
+                                    try:
+                                        vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
+                                        thisPrice = thisPrice + float(vRackPlan[0]['pricings'][2]['price'])/100000000
+                                    except Exception as e:
+                                        print(e)
+                                priceStr = "{:.2f}".format(thisPrice)
+                                # don't add plan if unavailable and not auto buy (if option selected)
+                                myFqn = planCode + "." + shortme + "." + shortst + "." + da
+                                if myFqn in avail:
+                                    myavailability = avail[myFqn]
+                                else:
+                                    myavailability = 'unknown'
+                                myAutoBuy = (autoBuyRE and
+                                            (bool(re.search(autoBuyRE, myFqn)) or bool(re.search(autoBuyRE, plan['invoiceName'])))
+                                            and (autoBuyMaxPrice == 0 or thisPrice <= autoBuyMaxPrice))
+                                # Add the plan to the list
+                                myPlans.append(
+                                    { 'planCode' : planCode,
+                                    'invoiceName' : plan['invoiceName'],
+                                    'datacenter' : da,
+                                    'storage' : st,
+                                    'memory' : me,
+                                    'bandwidth' : ba,
+                                    'vrack' : vr,
+                                    'fqn' : myFqn, # for auto buy
+                                    'autobuy' : myAutoBuy,
+                                    'price' : priceStr,
+                                    'availability' : myavailability
+                                    })
     return myPlans
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
@@ -387,10 +402,15 @@ def printList(plans):
             fqnStr = codeStr  + "| " + modelStr + "| " + plan['datacenter'] + " | " \
                      + plan['memory'].split("-")[1].rjust(4) + " | " \
                      + "-".join(plan['storage'].split("-")[1:-1]).ljust(11)
+        if plan['vrack'] == 'none':
+            vRackStr = 'none'
+        else:
+            vRackStr = plan['vrack'].split("-")[2].rjust(4)
         print(printcolor
               + str(plans.index(plan)).ljust(4) + "| "
               + fqnStr + " | "
               + plan['bandwidth'].split("-")[1].rjust(4) + " | "
+              + vRackStr + " | "
               + plan['price'].rjust(6) + " |"
               + color.END)
     # if there has been at least one auto buy, show counters
@@ -461,6 +481,15 @@ def buildCart(plan):
                          pricingMode = "default",
                          quantity = 1
                         )
+    if plan['vrack'] != 'none':
+        result = client.post(
+                            f'/order/cart/{cartId}/eco/options',
+                            itemId = itemId,
+                            duration = "P1M",
+                            planCode = plan['vrack'],
+                            pricingMode = "default",
+                            quantity = 1
+                            )
 
     # add configuration
     result = client.post(
