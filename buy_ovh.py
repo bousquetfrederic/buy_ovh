@@ -294,9 +294,9 @@ def buildList(avail):
         for da in allDatacenters:
             # filter the unacceptable Datacenters according to the defined filter
             if not acceptable_dc or da in acceptable_dc:
-                for ba in allBandwidths:
-                    for me in allMemories:
-                        for st in allStorages:
+                for me in allMemories:
+                    for st in allStorages:
+                        for ba in allBandwidths:
                             # each config may have a different price within the same plan
                             thisPrice = planPrice
                             # the API adds the name of the plan at the end of the addons, drop it
@@ -319,6 +319,11 @@ def buildList(avail):
                             try:
                                 memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
                                 thisPrice = thisPrice + float(memoryPlan[0]['pricings'][1]['price'])/100000000
+                            except Exception as e:
+                                print(e)
+                            try:
+                                bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
+                                thisPrice = thisPrice + float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
                             except Exception as e:
                                 print(e)
                             priceStr = "{:.2f}".format(thisPrice)
@@ -376,17 +381,17 @@ def printList(plans):
         else:
             planColor = printcolor
         if showFqn:
-            fqnStr = planColor + plan['fqn'] + " " + printcolor
+            fqnStr = planColor + plan['fqn'] + printcolor
         else:
             codeStr = planColor + plan['planCode'].ljust(11) + printcolor
             fqnStr = codeStr  + "| " + modelStr + "| " + plan['datacenter'] + " | " \
-                     + plan['memory'].split("-")[1].ljust(5) + "| " \
+                     + plan['memory'].split("-")[1].rjust(4) + " | " \
                      + "-".join(plan['storage'].split("-")[1:-1]).ljust(11)
         print(printcolor
               + str(plans.index(plan)).ljust(4) + "| "
-              + fqnStr + "| "
-              + plan['price'].ljust(6) + "| "
-              #+ plan['availability']
+              + fqnStr + " | "
+              + plan['bandwidth'].split("-")[1].rjust(4) + " | "
+              + plan['price'].rjust(6) + " |"
               + color.END)
     # if there has been at least one auto buy, show counters
     if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
