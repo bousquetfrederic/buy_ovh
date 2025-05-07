@@ -149,6 +149,9 @@ def sendEmail(subject,text):
         # Attach the HTML part
         message.attach(MIMEText(html, "html"))
 
+        # if not in infinite loop, warn the user
+        if not loop:
+            print("Sending an email --> " + subject)
         # Send the email
         with smtplib.SMTP(email_server_name, email_server_port) as server:
             server.starttls()
