@@ -124,9 +124,6 @@ whichColor = { 'unknown'     : color.CYAN,
                'autobuy'     : color.PURPLE
              }
 
-# ------------ TOOLS --------------------------------------------------------------------------------------------
-
-
 # -------------- EMAILS ---------------------------------------------------------------------------------------
 
 # send an email
@@ -560,7 +557,7 @@ def unpaidOrders():
             for detailId in details:
                 orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
                 if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
-                    description = orderDetail['description'].split('|')[0]
+                    description = orderDetail['description'].split('|')[0].split(' ')[0]
                     location = orderDetail['description'].split('-')[-2][-4:]
                     theOrder = client.get("/me/order/{0}/".format(orderId))
                     orderURL = theOrder['url']
@@ -574,7 +571,7 @@ def unpaidOrders():
 
     for order in orderList:
         print (str(orderList.index(order)).ljust(4) + "| "
-            + order['description'] + "| "
+            + order['description'].ljust(10) + "| "
             + order['location']  + "| "
             + order['date'])
 
