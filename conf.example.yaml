@@ -70,12 +70,10 @@ email_at_startup: False
 
 # Send email if something is added or removed on the
 # availability endpoint during a run
-# (only if loop = True)
 email_added_removed: False
 
 # Monitor availability of servers whose FQN match the regular expression
 # This is a "super" FQN which has the datacenter at the end
-# (only if loop = True)
 # Example: all KS-4 in GRA
 email_availability_monitor: 24sk40.*gra
 

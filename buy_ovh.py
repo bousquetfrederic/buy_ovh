@@ -699,11 +699,6 @@ while True:
                 if fakeBuy:
                     print("- Fake Buy ON")
                 foundAutoBuyServer = False
-                # if the conf says no loop, don't do the auto things
-                # instead jump to the menu
-                if not loop:
-                    printPrompt()
-                    break
                 if autoBuyRE:
                     for plan in plans:
                         if autoBuyNum > 0 and plan['availability'] not in unavailableList and plan['autobuy']:
@@ -719,6 +714,10 @@ while True:
                                 break
                 availabilityMonitor(previousAvailabilities, availabilities)
                 catalogMonitor(previousPlans, plans)
+                # if the conf says no loop, jump to the menu
+                if not loop:
+                    printPrompt()
+                    break
                 if not foundAutoBuyServer:
                     printPrompt()
                     printAndSleep()
