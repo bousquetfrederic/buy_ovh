@@ -379,6 +379,28 @@ def buildList(avail):
 def printList(plans):
     if not plans:
         print(whichColor['unavailable'] + "No availability." + color.END)
+    sizeOfCol = {
+        'planCode' : 0,
+        'model' : 0,
+        'cpu' : 0,
+        'fqn' : 0,
+        'memory' : 0,
+        'storage' : 0
+    }
+    # determine column width
+    for plan in plans:
+        sizeOfCol['planCode'] = max(sizeOfCol['planCode'], len(plan['planCode']))
+        invoiceNameSplit = plan['invoiceName'].split('|')
+        sizeOfCol['model'] = max(sizeOfCol['model'], len(invoiceNameSplit[0]))
+        if len(invoiceNameSplit) > 1:
+            sizeOfCol['cpu'] = max(sizeOfCol['cpu'], len(invoiceNameSplit[1][1:])+1)
+        else:
+            sizeOfCol['cpu'] = max(sizeOfCol['cpu'], len("unknown "))
+        sizeOfCol['fqn'] = max(sizeOfCol['fqn'], len(plan['fqn']))
+        sizeOfCol['memory'] = max(sizeOfCol['memory'], len(plan['memory'].split("-")[1]))
+        sizeOfCol['storage'] = max(sizeOfCol['storage'], len("-".join(plan['storage'].split("-")[1:-1])))
+
+    # print the list
     for plan in plans:
         avail = plan['availability']
         if avail in unavailableList:
@@ -392,13 +414,13 @@ def printList(plans):
         invoiceNameSplit = plan['invoiceName'].split('|')
         model = invoiceNameSplit[0]
         if len(invoiceNameSplit) > 1:
-            cpu = invoiceNameSplit[1][1:]
+            cpu = invoiceNameSplit[1][1:] + " "
         else:
-            cpu = "unknown"
+            cpu = "unknown "
         if showCpu:
-            modelStr = model.ljust(10) + "| " + cpu.ljust(20)
+            modelStr = model.ljust(sizeOfCol['model']) + "| " + cpu.ljust(sizeOfCol['cpu'])
         else:
-            modelStr = model.ljust(10)
+            modelStr = model.ljust(sizeOfCol['model'])
         # special colour for autobuy
         if plan['autobuy']:
             planColor = whichColor['autobuy']
@@ -407,10 +429,10 @@ def printList(plans):
         if showFqn:
             fqnStr = planColor + plan['fqn'] + printcolor
         else:
-            codeStr = planColor + plan['planCode'].ljust(11) + printcolor
-            fqnStr = codeStr  + "| " + modelStr + "| " + plan['datacenter'] + " | " \
-                     + plan['memory'].split("-")[1].rjust(4) + " | " \
-                     + "-".join(plan['storage'].split("-")[1:-1]).ljust(11)
+            codeStr = planColor + plan['planCode'].ljust(sizeOfCol['planCode']) + printcolor
+            fqnStr = codeStr  + " | " + modelStr + "| " + plan['datacenter'] + " | " \
+                     + plan['memory'].split("-")[1].rjust(sizeOfCol['memory']) + " | " \
+                     + "-".join(plan['storage'].split("-")[1:-1]).ljust(sizeOfCol['storage'])
         if showBandwidth:
             if plan['vrack'] == 'none':
                 vRackStr = 'none'
@@ -769,11 +791,11 @@ while True:
                     printAndSleep()
             except KeyboardInterrupt:
                 raise
-            except Exception as e:
-                print("Exception!")
-                print(e)
-                print("Wait " + str(sleepsecs) + "s before retry.")
-                time.sleep(sleepsecs)
+            # except Exception as e:
+            #     print("Exception!")
+            #     print(e)
+            #     print("Wait " + str(sleepsecs) + "s before retry.")
+            #     time.sleep(sleepsecs)
     except KeyboardInterrupt:
         pass
 
