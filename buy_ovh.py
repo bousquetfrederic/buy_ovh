@@ -809,11 +809,11 @@ while True:
                     printAndSleep()
             except KeyboardInterrupt:
                 raise
-            # except Exception as e:
-            #     print("Exception!")
-            #     print(e)
-            #     print("Wait " + str(sleepsecs) + "s before retry.")
-            #     time.sleep(sleepsecs)
+            except Exception as e:
+                print("Exception!")
+                print(e)
+                print("Wait " + str(sleepsecs) + "s before retry.")
+                time.sleep(sleepsecs)
     except KeyboardInterrupt:
         pass
 
