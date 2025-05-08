@@ -37,6 +37,10 @@ showPrompt: True
 showCpu: False
 # show the servers even if they are unavailable
 showUnavailable: False
+# show the bandwidth, including of the vRack if available
+# if this is False, only the price for the default bandwidth is displayed
+# (in case there are bandwidth options for the server)
+showBandwidth: False
 # print the FQN instead of spliting it
 # less readeable but up to you
 showFqn: False

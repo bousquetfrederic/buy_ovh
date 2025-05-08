@@ -30,8 +30,9 @@ loop = configFile['loop'] if 'loop' in configFile else False
 sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
 showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
 showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
-showFqn = configFile['showFqn'] if 'showFqn' in configFile else True
+showFqn = configFile['showFqn'] if 'showFqn' in configFile else False
 showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
+showBandwidth = configFile['showBandwidth'] if 'showBandwidth' in configFile else True
 fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
 coupon = configFile['coupon'] if 'coupon' in configFile else ''
 autoBuyRE = configFile['auto_buy'] if 'auto_buy' in configFile else ""
@@ -331,13 +332,21 @@ def buildList(avail):
                                     print(e)
                                 try:
                                     bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
-                                    thisPrice = thisPrice + float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
+                                    bandwidthPrice = float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
+                                    # if showBandwidth is false, drop the plans with a bandwidth that costs money
+                                    if not showBandwidth and bandwidthPrice > 0.0:
+                                        continue
+                                    thisPrice = thisPrice + bandwidthPrice
                                 except Exception as e:
                                     print(e)
                                 if vr != 'none':
                                     try:
                                         vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
-                                        thisPrice = thisPrice + float(vRackPlan[0]['pricings'][2]['price'])/100000000
+                                        vRackPrice = float(vRackPlan[0]['pricings'][2]['price'])/100000000
+                                        # if showBandwidth is false, drop the plans with a vRack that costs money
+                                        if not showBandwidth and vRackPrice > 0.0:
+                                            continue
+                                        thisPrice = thisPrice + vRackPrice
                                     except Exception as e:
                                         print(e)
                                 priceStr = "{:.2f}".format(thisPrice)
@@ -402,15 +411,18 @@ def printList(plans):
             fqnStr = codeStr  + "| " + modelStr + "| " + plan['datacenter'] + " | " \
                      + plan['memory'].split("-")[1].rjust(4) + " | " \
                      + "-".join(plan['storage'].split("-")[1:-1]).ljust(11)
-        if plan['vrack'] == 'none':
-            vRackStr = 'none'
+        if showBandwidth:
+            if plan['vrack'] == 'none':
+                vRackStr = 'none'
+            else:
+                vRackStr = plan['vrack'].split("-")[2].rjust(4)
+            bandwidthStr = plan['bandwidth'].split("-")[1].rjust(4) + " | " + vRackStr + " | "
         else:
-            vRackStr = plan['vrack'].split("-")[2].rjust(4)
+            bandwidthStr = ""
         print(printcolor
               + str(plans.index(plan)).ljust(4) + "| "
               + fqnStr + " | "
-              + plan['bandwidth'].split("-")[1].rjust(4) + " | "
-              + vRackStr + " | "
+              + bandwidthStr
               + plan['price'].rjust(6) + " |"
               + color.END)
     # if there has been at least one auto buy, show counters
