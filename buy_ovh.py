@@ -379,13 +379,17 @@ def buildList(avail):
 def printList(plans):
     if not plans:
         print(whichColor['unavailable'] + "No availability." + color.END)
+    indexLength = len(str(len(plans)))
     sizeOfCol = {
         'planCode' : 0,
         'model' : 0,
         'cpu' : 0,
         'fqn' : 0,
         'memory' : 0,
-        'storage' : 0
+        'storage' : 0,
+        'bandwidth' : 0,
+        'vrack' : 0,
+        'price' : 0
     }
     # determine column width
     for plan in plans:
@@ -399,6 +403,12 @@ def printList(plans):
         sizeOfCol['fqn'] = max(sizeOfCol['fqn'], len(plan['fqn']))
         sizeOfCol['memory'] = max(sizeOfCol['memory'], len(plan['memory'].split("-")[1]))
         sizeOfCol['storage'] = max(sizeOfCol['storage'], len("-".join(plan['storage'].split("-")[1:-1])))
+        sizeOfCol['bandwidth'] = max(sizeOfCol['bandwidth'], len(plan['bandwidth'].split("-")[1]))
+        if plan['vrack'] == 'none':
+            sizeOfCol['vrack'] = max(sizeOfCol['vrack'], len('none'))
+        else:
+            sizeOfCol['vrack'] = max(sizeOfCol['vrack'], len(plan['vrack'].split("-")[2]))
+        sizeOfCol['price'] = max(sizeOfCol['price'], len(plan['price']))
 
     # print the list
     for plan in plans:
@@ -437,15 +447,15 @@ def printList(plans):
             if plan['vrack'] == 'none':
                 vRackStr = 'none'
             else:
-                vRackStr = plan['vrack'].split("-")[2].rjust(4)
-            bandwidthStr = plan['bandwidth'].split("-")[1].rjust(4) + " | " + vRackStr + " | "
+                vRackStr = plan['vrack'].split("-")[2].rjust(sizeOfCol['vrack'])
+            bandwidthStr = plan['bandwidth'].split("-")[1].rjust(sizeOfCol['bandwidth']) + " | " + vRackStr + " | "
         else:
             bandwidthStr = ""
         print(printcolor
-              + str(plans.index(plan)).ljust(4) + "| "
+              + str(plans.index(plan)).ljust(indexLength) + " | "
               + fqnStr + " | "
               + bandwidthStr
-              + plan['price'].rjust(6) + " |"
+              + plan['price'].rjust(sizeOfCol['price']) + " |"
               + color.END)
     # if there has been at least one auto buy, show counters
     if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
