@@ -437,7 +437,7 @@ def printList(plans):
         else:
             planColor = printcolor
         if showFqn:
-            fqnStr = planColor + plan['fqn'] + printcolor
+            fqnStr = planColor + plan['fqn'].ljust(sizeOfCol['fqn']) + printcolor
         else:
             codeStr = planColor + plan['planCode'].ljust(sizeOfCol['planCode']) + printcolor
             fqnStr = codeStr  + " | " + modelStr + "| " + plan['datacenter'] + " | " \
