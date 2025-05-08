@@ -694,22 +694,23 @@ def showHelp():
     print("")
     print("Toggles")
     print("-------")
-    print(" U - show Unavailable servers ON/OFF")
-    print(" P - show helpful prompt ON/OFF")
+    print(" B - show Bandwidth and vRack options ON/OFF")
     print(" C - show CPU type ON/OFF")
     print(" F - show FQN instead of server details ON/OFF")
+    print(" P - show helpful prompt ON/OFF")
+    print(" U - show Unavailable servers ON/OFF")
     print(" $ - fake buy ON/OFF")
     print("")
     print("Filters")
     print("-------")
-    print(" N - re-enter the Name filter (invoice name or plan code)")
     print(" D - re-enter the Disk filter (sa, nvme, ssd)")
+    print(" N - re-enter the Name filter (invoice name or plan code)")
     print("")
     print("Commands")
     print("--------")
+    print(" K - enter a coupon (buying will fail if coupon is invalid)")
     print(" L - (re)start the infinite loop, activating monitoring if configured")
     print(" O - show your unpaid orders and a link to pay for one")
-    print(" K - enter a coupon (buying will fail if coupon is invalid)")
     print(" V - look up availabilities for a specific FQN")
     print("")
     print("Buying")
@@ -760,8 +761,7 @@ previousPlans = []
 displayedPlans = []
 
 # do the catalog monitoring only if filters have not changed
-filterNameChanged = False
-filterDiskChanged = False
+filtersChanged = False
 
 # loop until the user wants out
 while True:
@@ -795,11 +795,10 @@ while True:
                                 break
                 availabilityMonitor(previousAvailabilities, availabilities)
                 # Don't do the catalog monitoring if the user has just changed the filters
-                if not (filterNameChanged or filterDiskChanged):
+                if not filtersChanged:
                     catalogMonitor(previousPlans, plans)
                 else:
-                    filterNameChanged = False
-                    filterDiskChanged = False
+                    filtersChanged = False
                 # if the conf says no loop, jump to the menu
                 if not loop:
                     printPrompt()
@@ -863,11 +862,11 @@ while True:
         elif sChoice.lower() == 'n':
             print("Current: " + filterName)
             filterName = input("New filter: ")
-            filterNameChanged = True
+            filtersChanged = True
         elif sChoice.lower() == 'd':
             print("Current: " + filterDisk)
             filterDisk = input("New filter: ")
-            filterDiskChanged = True
+            filtersChanged = True
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
@@ -879,6 +878,9 @@ while True:
             showCpu = not showCpu
         elif sChoice.lower() == 'f':
             showFqn = not showFqn
+        elif sChoice.lower() == 'b':
+            showBandwidth = not showBandwidth
+            filtersChanged = True
         elif sChoice == '$':
             fakeBuy = not fakeBuy
         elif sChoice.lower() == 'l':
