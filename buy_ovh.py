@@ -747,18 +747,21 @@ def expandMulti(line):
 if email_at_startup:
     sendStartupEmail()
 
+availabilities = {}
 # previous list of availabilities so we can send email if something pops up
 previousAvailabilities = {}
 
-# previous plans
-previousPlans = []
-
-availabilities = {}
 # Plans which pass the filters (name + disk)
 plans = []
+# previous plans
+previousPlans = []
 # Unavailable servers can be hidden (see conf file),
 # so we need a list of non hidden plans for display and order
 displayedPlans = []
+
+# do the catalog monitoring only if filters have not changed
+filterNameChanged = False
+filterDiskChanged = False
 
 # loop until the user wants out
 while True:
@@ -791,7 +794,12 @@ while True:
                                 autoBuyRE = ""
                                 break
                 availabilityMonitor(previousAvailabilities, availabilities)
-                catalogMonitor(previousPlans, plans)
+                # Don't do the catalog monitoring if the user has just changed the filters
+                if not (filterNameChanged or filterDiskChanged):
+                    catalogMonitor(previousPlans, plans)
+                else:
+                    filterNameChanged = False
+                    filterDiskChanged = False
                 # if the conf says no loop, jump to the menu
                 if not loop:
                     printPrompt()
@@ -855,9 +863,11 @@ while True:
         elif sChoice.lower() == 'n':
             print("Current: " + filterName)
             filterName = input("New filter: ")
+            filterNameChanged = True
         elif sChoice.lower() == 'd':
             print("Current: " + filterDisk)
             filterDisk = input("New filter: ")
+            filterDiskChanged = True
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
