@@ -379,7 +379,6 @@ def buildList(avail):
 def printList(plans):
     if not plans:
         print(whichColor['unavailable'] + "No availability." + color.END)
-    indexLength = len(str(len(plans)))
     sizeOfCol = {
         'index' : 0,
         'planCode' : 0,
