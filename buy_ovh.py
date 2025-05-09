@@ -373,7 +373,7 @@ def buildList(avail):
                                     'price' : priceStr,
                                     'availability' : myavailability
                                     })
-    return myPlans
+    return sorted(myPlans, key=lambda x: x['planCode'])
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def printList(plans):
