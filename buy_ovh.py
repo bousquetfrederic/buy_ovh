@@ -546,7 +546,7 @@ def buildCart(plan):
                          label = "dedicated_os",
                          value = "none_64.en"
                          )
-    if plan['datacenter'] == "bhs":
+    if plan['datacenter'] in ["bhs", "syd", "sgp"]:
         myregion = "canada"
     else:
         myregion = "europe"
