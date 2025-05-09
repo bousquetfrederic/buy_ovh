@@ -381,7 +381,9 @@ def printList(plans):
         print(whichColor['unavailable'] + "No availability." + color.END)
     indexLength = len(str(len(plans)))
     sizeOfCol = {
+        'index' : 0,
         'planCode' : 0,
+        'datacenter' : 0,
         'model' : 0,
         'cpu' : 0,
         'fqn' : 0,
@@ -391,28 +393,46 @@ def printList(plans):
         'vrack' : 0,
         'price' : 0
     }
-    # determine column width
+    plansForDisplay = []
+    # determine what to print
     for plan in plans:
-        sizeOfCol['planCode'] = max(sizeOfCol['planCode'], len(plan['planCode']))
         invoiceNameSplit = plan['invoiceName'].split('|')
-        sizeOfCol['model'] = max(sizeOfCol['model'], len(invoiceNameSplit[0]))
+        model = invoiceNameSplit[0]
         if len(invoiceNameSplit) > 1:
-            sizeOfCol['cpu'] = max(sizeOfCol['cpu'], len(invoiceNameSplit[1][1:])+1)
+            cpu = invoiceNameSplit[1][1:]
+            # remove extra space at the end of model name
+            model = model[:-1]
         else:
-            sizeOfCol['cpu'] = max(sizeOfCol['cpu'], len("unknown "))
-        sizeOfCol['fqn'] = max(sizeOfCol['fqn'], len(plan['fqn']))
-        sizeOfCol['memory'] = max(sizeOfCol['memory'], len(plan['memory'].split("-")[1]))
-        sizeOfCol['storage'] = max(sizeOfCol['storage'], len("-".join(plan['storage'].split("-")[1:-1])))
-        sizeOfCol['bandwidth'] = max(sizeOfCol['bandwidth'], len(plan['bandwidth'].split("-")[1]))
+            cpu = "unknown"
         if plan['vrack'] == 'none':
-            sizeOfCol['vrack'] = max(sizeOfCol['vrack'], len('none'))
+            vrack = 'none'
         else:
-            sizeOfCol['vrack'] = max(sizeOfCol['vrack'], len(plan['vrack'].split("-")[2]))
-        sizeOfCol['price'] = max(sizeOfCol['price'], len(plan['price']))
+            vrack = plan['vrack'].split("-")[2]
+        myPlanD = {
+            'index':        str(plans.index(plan)),
+            'planCode':     plan['planCode'],
+            'datacenter':   plan['datacenter'],
+            'fqn':          plan['fqn'],
+            'memory':       plan['memory'].split("-")[1],
+            'storage':      "-".join(plan['storage'].split("-")[1:-1]),
+            'bandwidth':    plan['bandwidth'].split("-")[1],
+            'vrack':        vrack,
+            'autobuy':      plan['autobuy'],
+            'availability': plan['availability'],
+            'model':        model,
+            'cpu':          cpu,
+            'price':        plan['price']
+            }
+        plansForDisplay.append(myPlanD)
+        # update the max width of each column if needed
+        for col in myPlanD.keys():
+            if col not in ['autobuy', 'availability']:
+                sizeOfCol[col]=max(sizeOfCol[col], len(myPlanD[col]))
 
     # print the list
-    for plan in plans:
-        avail = plan['availability']
+    for planD in plansForDisplay:
+        # what colour?
+        avail = planD['availability']
         if avail in unavailableList:
             printcolor = whichColor[avail]
         elif avail.endswith("low") or avail.endswith('H'):
@@ -421,42 +441,40 @@ def printList(plans):
             printcolor = whichColor['high']
         else:
             printcolor = whichColor['unknown']
-        invoiceNameSplit = plan['invoiceName'].split('|')
-        model = invoiceNameSplit[0]
-        if len(invoiceNameSplit) > 1:
-            cpu = invoiceNameSplit[1][1:] + " "
-        else:
-            cpu = "unknown "
-        if showCpu:
-            modelStr = model.ljust(sizeOfCol['model']) + "| " + cpu.ljust(sizeOfCol['cpu'])
-        else:
-            modelStr = model.ljust(sizeOfCol['model'])
         # special colour for autobuy
-        if plan['autobuy']:
+        if planD['autobuy']:
             planColor = whichColor['autobuy']
         else:
             planColor = printcolor
-        if showFqn:
-            fqnStr = planColor + plan['fqn'].ljust(sizeOfCol['fqn']) + printcolor
+        # show CPU or not?
+        if showCpu:
+            modelStr = planD['model'].ljust(sizeOfCol['model']) + " | " + planD['cpu'].ljust(sizeOfCol['cpu'])
         else:
-            codeStr = planColor + plan['planCode'].ljust(sizeOfCol['planCode']) + printcolor
-            fqnStr = codeStr  + " | " + modelStr + "| " + plan['datacenter'] + " | " \
-                     + plan['memory'].split("-")[1].rjust(sizeOfCol['memory']) + " | " \
-                     + "-".join(plan['storage'].split("-")[1:-1]).ljust(sizeOfCol['storage'])
+            modelStr = planD['model'].ljust(sizeOfCol['model'])
+        # show FQN or split info into different columns?
+        if showFqn:
+            fqnStr = planColor + planD['fqn'].ljust(sizeOfCol['fqn']) + printcolor
+        else:
+            codeStr = planColor + planD['planCode'].ljust(sizeOfCol['planCode']) + printcolor
+            fqnStr = codeStr  + " | " + modelStr + " | " + \
+                     planD['datacenter'].ljust(sizeOfCol['datacenter']) + " | " + \
+                     planD['memory'].rjust(sizeOfCol['memory']) + " | " + \
+                     planD['storage'].ljust(sizeOfCol['storage'])
+        # show bandwidth and vrack?
         if showBandwidth:
-            if plan['vrack'] == 'none':
+            if planD['vrack'] == 'none':
                 vRackStr = 'none'
             else:
-                vRackStr = plan['vrack'].split("-")[2].rjust(sizeOfCol['vrack'])
-            bandwidthStr = plan['bandwidth'].split("-")[1].rjust(sizeOfCol['bandwidth']) + " | " + vRackStr + " | "
+                vRackStr = planD['vrack'].rjust(sizeOfCol['vrack'])
+            bandwidthStr = planD['bandwidth'].rjust(sizeOfCol['bandwidth']) + " | " + vRackStr + " | "
         else:
             bandwidthStr = ""
-        print(printcolor
-              + str(plans.index(plan)).ljust(indexLength) + " | "
-              + fqnStr + " | "
-              + bandwidthStr
-              + plan['price'].rjust(sizeOfCol['price']) + " |"
-              + color.END)
+
+        colStr = printcolor + planD['index'].rjust(sizeOfCol['index']) + " | " + \
+                 fqnStr + " | " + bandwidthStr + \
+                 planD['price'].rjust(sizeOfCol['price']) + " |" + color.END
+        print(colStr)
+
     # if there has been at least one auto buy, show counters
     if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
         print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
