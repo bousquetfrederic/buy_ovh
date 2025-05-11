@@ -2,7 +2,6 @@ import ovh
 import time
 
 import m.config
-import m.email
 import m.global_variables as GV
 
 # --- Create the API client -----------------
@@ -137,8 +136,6 @@ def checkoutCart(cartId, buyNow, autoMode):
     if GV.fakeBuy:
         print("Fake buy! Now: " + str(buyNow) + ", Auto: " + str(autoMode))
         time.sleep(2)
-        if autoMode:
-            GV.autoFake += 1
         return
 
     # this is it, we checkout the cart!
@@ -146,33 +143,7 @@ def checkoutCart(cartId, buyNow, autoMode):
                          autoPayWithPreferredPaymentMethod=buyNow,
                          waiveRetractationPeriod=buyNow
                         )
-    if autoMode:
-        GV.autoOK += 1
 
-# ----------------- BUY SERVER ----------------------------------------------------------------
-def buyServer(plan, buyNow, autoMode):
-    if autoMode:
-        strAuto = "   -Auto Mode-"
-    else:
-        strAuto = ""
-    if buyNow:
-        strBuyNow = "buy now a "
-    else:
-        strBuyNow = "get an invoice for a "
-    strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
-    print("Let's " + strBuy + strAuto)
-    try:
-        checkoutCart(buildCart(plan), buyNow, autoMode)
-        if autoMode and GV.email_auto_buy:
-            m.email.sendAutoBuyEmail("SUCCESS: " + strBuy)
-    except Exception as e:
-        print("Not today.")
-        print(e)
-        if autoMode and GV.email_auto_buy:
-            m.email.sendAutoBuyEmail("FAILED: " + strBuy)
-        if autoMode:
-            GV.autoKO += 1
-        time.sleep(3)
 
 # ----------------- ORDERS --------------------------------------------------------------------
 def getUnpaidOrders(date_from, date_to):

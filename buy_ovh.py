@@ -66,6 +66,36 @@ def showHelp():
     print("")
     dummy=input("Press ENTER.") 
 
+# ----------------- BUY SERVER ----------------------------------------------------------------
+def buyServer(plan, buyNow, autoMode):
+    if autoMode:
+        strAuto = "   -Auto Mode-"
+    else:
+        strAuto = ""
+    if buyNow:
+        strBuyNow = "buy now a "
+    else:
+        strBuyNow = "get an invoice for a "
+    strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
+    print("Let's " + strBuy + strAuto)
+    try:
+        m.api.checkoutCart(m.api.buildCart(plan), buyNow, autoMode)
+        if autoMode:
+            if GV.fakeBuy:
+                GV.autoFake += 1
+            else:
+                GV.autoOK += 1
+            if GV.email_auto_buy:
+                m.email.sendAutoBuyEmail("SUCCESS: " + strBuy)
+    except Exception as e:
+        print("Not today.")
+        print(e)
+        if autoMode:
+            GV.autoKO += 1
+            if GV.email_auto_buy:
+                m.email.sendAutoBuyEmail("FAILED: " + strBuy)
+        time.sleep(3)
+
 # ------------------ TOOL ---------------------------------------------------------------------
 # when ordering servers, the user can type something like "!0*3"
 # "*3" means repeat 3 times
@@ -125,7 +155,7 @@ while True:
                             # The last x are invoices (rather than direct buy) if a number
                             # of invoices is defined in the config file
                             autoBuyInvoice = GV.autoBuyNum <= GV.autoBuyInvoicesNum
-                            m.api.buyServer(plan, not autoBuyInvoice, True)
+                            buyServer(plan, not autoBuyInvoice, True)
                             GV.autoBuyNum -= 1
                             if GV.autoBuyNum < 1:
                                 GV.autoBuyRE = ""
@@ -205,7 +235,7 @@ while True:
                 mybool = True
             else:
                 continue
-            m.api.buyServer(displayedPlans[choice], mybool, False)
+            buyServer(displayedPlans[choice], mybool, False)
         # not a number means command
         # the '?', '!', and '*' have no effect here 
         elif sChoice.lower() == 'n':
