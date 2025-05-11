@@ -143,3 +143,11 @@ def printAndSleep():
         if GV.showPrompt:
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
+
+# ----------------- PRINT LIST OF ORDERS -------------------------------------------------------
+def printOrders(orderList):
+    for order in orderList:
+        print (str(orderList.index(order)).ljust(4) + "| "
+            + order['description'].ljust(10) + "| "
+            + order['location']  + "| "
+            + order['date'])

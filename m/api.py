@@ -174,3 +174,30 @@ def buyServer(plan, buyNow, autoMode):
             GV.autoKO += 1
         time.sleep(3)
 
+# ----------------- ORDERS --------------------------------------------------------------------
+def getUnpaidOrders(date_from, date_to):
+    params = {}
+    params['date.from'] = date_from.strftime('%Y-%m-%d')
+    params['date.to'] = date_to.strftime('%Y-%m-%d')
+    API_orders = client.get("/me/order/", **params)
+    orderList = []
+    print("Building list of unpaid orders. Please wait.")
+    for orderId in API_orders:
+        print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
+        if client.get("/me/order/{0}/status/".format(orderId)) == 'notPaid':
+            details = client.get("/me/order/{0}/details/".format(orderId))
+            for detailId in details:
+                orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
+                if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
+                    description = orderDetail['description'].split('|')[0].split(' ')[0]
+                    location = orderDetail['description'].split('-')[-2][-4:]
+                    theOrder = client.get("/me/order/{0}/".format(orderId))
+                    orderURL = theOrder['url']
+                    orderDate = theOrder['expirationDate'].split('T')[0]
+                    orderList.append({
+                                    'orderId' : orderId,
+                                    'description' : description,
+                                    'location' : location,
+                                    'url' : orderURL,
+                                    'date' : orderDate})
+    return orderList
