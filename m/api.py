@@ -1,60 +1,46 @@
+__all__ = ['buildCart', 'checkoutCart', 'getUnpaidOrders', 'login', 'isLoggedIn']
+
 import ovh
 import time
 
-import m.config
-import m.global_variables as GV
+# --- Exceptions ----------------------------
+class NotLoggedIn(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
-# --- Create the API client -----------------
-if 'APIEndpoint' not in m.config.configFile:
-    print("APIEndpoint is mandatory in config file.")
-    print("It should look like 'ovh-eu', 'ovh-us', 'ovh-ca'")
-    print("See https://github.com/ovh/python-ovh?tab=readme-ov-file#1-create-an-application")
-    sys.exit("Bye now.")
-else:
-    api_endpoint = m.config.configFile['APIEndpoint']
+# --- Variables -----------------------------
+client = None
 
-if 'APIKey' not in m.config.configFile or 'APISecret' not in m.config.configFile:
-    print("APIKey and APISecret are mandatory in config file.")
-    print("You need to create an application key!")
-    print("See https://github.com/ovh/python-ovh?tab=readme-ov-file#1-create-an-application")
-    print("Once you have the key and secret for your endpoint, fill APIKey and APISecret.")
-    sys.exit("Bye now.")
-else:
-    api_key = m.config.configFile['APIKey']
-    api_secret = m.config.configFile['APISecret']
+# ---------------- ARE WE LOGGED IN? -----------------------------------------------------------
+def isLoggedIn():
+    return client != None
 
-if 'APIConsumerKey' not in m.config.configFile:
-    print("You need a consumer key in the config file.")
-    print("Let's try to get you one with full access.")
-    ck_client = ovh.Client(endpoint=api_endpoint,
-                           application_key=api_key,
-                           application_secret=api_secret)
-    ck = ck_client.new_consumer_key_request()
-    ck.add_recursive_rules(ovh.API_READ_WRITE, "/")
-    validation = ck.request()
-    print("Please visit %s to authenticate" % validation['validationUrl'])
-    input("and press Enter to continue...")
-    print("Ok", ck_client.get('/me')['firstname'])
-    print("Your APIConsumerKey is '%s'" % validation['consumerKey'])
-    print("Add it to the config file and try again.")
-    sys.exit("Bye now.")        
-else:
-    api_ck = m.config.configFile['APIConsumerKey']
-
-client = ovh.Client(endpoint=api_endpoint,
-                    application_key=api_key,
-                    application_secret=api_secret,
-                    consumer_key=api_ck)
+# ---------------- LOGIN TO THE API ------------------------------------------------------------
+def login(endpoint, application_key, application_secret, consumer_key):
+    global client
+    try:
+        client = ovh.Client(endpoint=endpoint,
+                            application_key=application_key,
+                            application_secret=application_secret,
+                            consumer_key=consumer_key)
+        return True
+    except Exception as e:
+        print("Failed to login.")
+        print(e)
+        return False
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
-def buildCart(plan):
-    if GV.fakeBuy:
+def buildCart(plan, ovhSubsidiary, coupon, fake=False):
+    if fake:
         print("Fake cart!")
         time.sleep(1)
         return 0
+    elif client == None:
+        raise NotLoggedIn("Need to be logged in to build the cart.")
 
     # make a cart
-    cart = client.post("/order/cart", ovhSubsidiary=GV.ovhSubsidiary)
+    cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
     cartId = cart.get("cartId")
     client.post("/order/cart/{0}/assign".format(cartId))
     # add the server
@@ -124,7 +110,7 @@ def buildCart(plan):
                          )
 
     # add coupon
-    if GV.coupon:
+    if coupon:
         result = client.post(f'/order/cart/{cartId}/coupon',
                              label = "coupon",
                              value = coupon)
@@ -132,11 +118,13 @@ def buildCart(plan):
     return cartId
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------
-def checkoutCart(cartId, buyNow, autoMode):
-    if GV.fakeBuy:
-        print("Fake buy! Now: " + str(buyNow) + ", Auto: " + str(autoMode))
+def checkoutCart(cartId, buyNow, fake=False):
+    if fake:
+        print("Fake buy! Now: " + str(buyNow))
         time.sleep(2)
         return
+    elif client == None:
+        raise NotLoggedIn("Need to be logged in to check out the cart.")
 
     # this is it, we checkout the cart!
     result = client.post(f'/order/cart/{cartId}/checkout',
@@ -147,28 +135,33 @@ def checkoutCart(cartId, buyNow, autoMode):
 
 # ----------------- ORDERS --------------------------------------------------------------------
 def getUnpaidOrders(date_from, date_to):
+    if client == None:
+        raise NotLoggedIn("Need to be logged in to get unpaid orders.")
     params = {}
     params['date.from'] = date_from.strftime('%Y-%m-%d')
     params['date.to'] = date_to.strftime('%Y-%m-%d')
     API_orders = client.get("/me/order/", **params)
     orderList = []
     print("Building list of unpaid orders. Please wait.")
-    for orderId in API_orders:
-        print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
-        if client.get("/me/order/{0}/status/".format(orderId)) == 'notPaid':
-            details = client.get("/me/order/{0}/details/".format(orderId))
-            for detailId in details:
-                orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
-                if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
-                    description = orderDetail['description'].split('|')[0].split(' ')[0]
-                    location = orderDetail['description'].split('-')[-2][-4:]
-                    theOrder = client.get("/me/order/{0}/".format(orderId))
-                    orderURL = theOrder['url']
-                    orderDate = theOrder['expirationDate'].split('T')[0]
-                    orderList.append({
-                                    'orderId' : orderId,
-                                    'description' : description,
-                                    'location' : location,
-                                    'url' : orderURL,
-                                    'date' : orderDate})
+    try:
+        for orderId in API_orders:
+            print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
+            if client.get("/me/order/{0}/status/".format(orderId)) == 'notPaid':
+                details = client.get("/me/order/{0}/details/".format(orderId))
+                for detailId in details:
+                    orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
+                    if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
+                        description = orderDetail['description'].split('|')[0].split(' ')[0]
+                        location = orderDetail['description'].split('-')[-2][-4:]
+                        theOrder = client.get("/me/order/{0}/".format(orderId))
+                        orderURL = theOrder['url']
+                        orderDate = theOrder['expirationDate'].split('T')[0]
+                        orderList.append({
+                                        'orderId' : orderId,
+                                        'description' : description,
+                                        'location' : location,
+                                        'url' : orderURL,
+                                        'date' : orderDate})
+    except KeyboardInterrupt:
+        pass
     return orderList

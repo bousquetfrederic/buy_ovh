@@ -13,6 +13,17 @@ import m.monitor
 import m.orders
 import m.print
 
+# ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
+if ('APIEndpoint' in m.config.configFile and
+    'APIKey' in m.config.configFile and
+    'APISecret' in m.config.configFile):
+    # if the customer key is there too, we can connect
+    if 'APIConsumerKey' in m.config.configFile:
+        m.api.login(m.config.configFile['APIEndpoint'],
+                    m.config.configFile['APIKey'],
+                    m.config.configFile['APISecret'],
+                    m.config.configFile['APIConsumerKey'])
+
 # ----------------- DISPLAY HELP --------------------------------------------------------------
 def showHelp():
     print("")
@@ -79,7 +90,7 @@ def buyServer(plan, buyNow, autoMode):
     strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
     print("Let's " + strBuy + strAuto)
     try:
-        m.api.checkoutCart(m.api.buildCart(plan), buyNow, autoMode)
+        m.api.checkoutCart(m.api.buildCart(plan, GV.ovhSubsidiary, GV.coupon, GV.fakeBuy), buyNow, GV.fakeBuy)
         if autoMode:
             if GV.fakeBuy:
                 GV.autoFake += 1
@@ -146,6 +157,8 @@ while True:
                 m.print.printList(displayedPlans)
                 if GV.fakeBuy:
                     print("- Fake Buy ON")
+                if not m.api.isLoggedIn():
+                    print("- Not logged in")
                 foundAutoBuyServer = False
                 if GV.autoBuyRE:
                     for plan in plans:
