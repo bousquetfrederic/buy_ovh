@@ -151,7 +151,7 @@ while True:
                 if availabilities:
                     previousAvailabilities = availabilities
                     previousPlans = plans
-                availabilities = m.availability.buildAvailabilityDict()
+                availabilities = m.availability.buildAvailabilityDict(GV.acceptable_dc)
                 plans = m.catalog.buildList(availabilities)
                 displayedPlans = [ x for x in plans if (GV.showUnavailable or x['autobuy'] or x['availability'] not in GV.unavailableList)]
                 m.print.printList(displayedPlans)

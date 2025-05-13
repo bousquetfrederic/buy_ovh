@@ -11,7 +11,10 @@ def unpaidOrders():
     # Calculate the date 14 days ago
     date_14_days_ago = today - timedelta(days=14)
 
-    unpaidOrderList = m.api.getUnpaidOrders(date_14_days_ago, tomorrow)
+    try:
+        unpaidOrderList = m.api.getUnpaidOrders(date_14_days_ago, tomorrow)
+    except KeyboardInterrupt:
+        pass
     m.print.printOrders(unpaidOrderList)
 
     while True:

@@ -1,11 +1,12 @@
 import requests
 
-import m.global_variables as GV
-
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
-def buildAvailabilityDict():
+def buildAvailabilityDict(datacenters=[]):
     myAvail = {}
-    response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(GV.acceptable_dc))
+    if datacenters:
+        response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
+    else:
+        response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities")
     for avail in response.json():
         myFqn = avail['fqn']
         for da in avail['datacenters']:
