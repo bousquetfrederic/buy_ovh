@@ -190,8 +190,8 @@ while True:
             except Exception as e:
                 print("Exception!")
                 print(e)
-                print("Wait " + str(sleepsecs) + "s before retry.")
-                time.sleep(sleepsecs)
+                print("Wait " + str(GV.sleepsecs) + "s before retry.")
+                time.sleep(GV.sleepsecs)
     except KeyboardInterrupt:
         pass
 
