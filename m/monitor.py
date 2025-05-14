@@ -1,7 +1,6 @@
 import re
 
 import m.availability
-import m.global_variables as GV
 
 # ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
 # - detect new servers appearing in availabilities (or leaving)
