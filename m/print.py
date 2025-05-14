@@ -69,7 +69,7 @@ def printList(plans):
             'availability': plan['availability'],
             'model':        model,
             'cpu':          cpu,
-            'price':        plan['price']
+            'price':        "{:.2f}".format(plan['price'])
             }
         plansForDisplay.append(myPlanD)
         # update the max width of each column if needed

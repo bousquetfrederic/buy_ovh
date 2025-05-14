@@ -1,9 +1,7 @@
 import re
 import requests
 
-import m.global_variables as GV
-
-__all__ = ['added_removed', 'buildList']
+__all__ = ['added_removed', 'build_list']
 
 # Here we fix errors in the catalog to match the FQN listed in the availabilities
 def fixMem(mem):
@@ -22,9 +20,11 @@ def fixSto(sto):
     return fixedSto
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
-def buildList(avail):
+def build_list(avail, ovhSubsidiary,
+               filterName, filterDisk, acceptable_dc,
+               bandwidthAndVRack):
 
-    response = requests.get("https://eu.api.ovh.com/v1/order/catalog/public/eco?ovhSubsidiary=" + GV.ovhSubsidiary)
+    response = requests.get("https://eu.api.ovh.com/v1/order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
 
     allPlans = API_catalog['plans']
@@ -36,8 +36,8 @@ def buildList(avail):
         planCode = plan['planCode']
         # only consider plans passing the name filter, which is a regular expression
         # Either invoice name of plan code must match
-        if not (bool(re.search(GV.filterName, plan['invoiceName']))
-                or bool(re.search(GV.filterName, plan['planCode']))):
+        if not (bool(re.search(filterName, plan['invoiceName']))
+                or bool(re.search(filterName, plan['planCode']))):
             continue
 
         # find the price
@@ -78,7 +78,7 @@ def buildList(avail):
         # build a list of all possible combinations
         for da in allDatacenters:
             # filter the unacceptable Datacenters according to the defined filter
-            if not GV.acceptable_dc or da in GV.acceptable_dc:
+            if not acceptable_dc or da in acceptable_dc:
                 for me in allMemories:
                     for st in allStorages:
                         for ba in allBandwidths:
@@ -94,7 +94,7 @@ def buildList(avail):
                                 # filter unwanted disk types
                                 # if the disk filter is set
                                 # OVH seems to add sata now, like in "ssd-sata"
-                                if not bool(re.search(GV.filterDisk,shortst)):
+                                if not bool(re.search(filterDisk,shortst)):
                                     continue
                                 # try to find out the full price
                                 try:
@@ -111,7 +111,7 @@ def buildList(avail):
                                     bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
                                     bandwidthPrice = float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
                                     # if showBandwidth is false, drop the plans with a bandwidth that costs money
-                                    if not GV.showBandwidth and bandwidthPrice > 0.0:
+                                    if not bandwidthAndVRack and bandwidthPrice > 0.0:
                                         continue
                                     thisPrice = thisPrice + bandwidthPrice
                                 except Exception as e:
@@ -121,21 +121,16 @@ def buildList(avail):
                                         vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
                                         vRackPrice = float(vRackPlan[0]['pricings'][2]['price'])/100000000
                                         # if showBandwidth is false, drop the plans with a vRack that costs money
-                                        if not GV.showBandwidth and vRackPrice > 0.0:
+                                        if bandwidthAndVRack and vRackPrice > 0.0:
                                             continue
                                         thisPrice = thisPrice + vRackPrice
                                     except Exception as e:
                                         print(e)
-                                priceStr = "{:.2f}".format(thisPrice)
-                                # don't add plan if unavailable and not auto buy (if option selected)
                                 myFqn = planCode + "." + shortme + "." + shortst + "." + da
                                 if myFqn in avail:
                                     myavailability = avail[myFqn]
                                 else:
                                     myavailability = 'unknown'
-                                myAutoBuy = (GV.autoBuyRE and
-                                            (bool(re.search(GV.autoBuyRE, myFqn)) or bool(re.search(GV.autoBuyRE, plan['invoiceName'])))
-                                            and (GV.autoBuyMaxPrice == 0 or thisPrice <= GV.autoBuyMaxPrice))
                                 # Add the plan to the list
                                 myPlans.append(
                                     { 'planCode' : planCode,
@@ -146,11 +141,17 @@ def buildList(avail):
                                     'bandwidth' : ba,
                                     'vrack' : vr,
                                     'fqn' : myFqn, # for auto buy
-                                    'autobuy' : myAutoBuy,
-                                    'price' : priceStr,
+                                    'price' : thisPrice,
                                     'availability' : myavailability
                                     })
     return sorted(myPlans, key=lambda x: x['planCode'])
+
+# -------------- ADD AUTO BUY INFO TO PLAN LIST ---------------------------------------------
+def add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice):
+    for plan in plans:
+        plan['autobuy'] = (autoBuyRE and
+                           (bool(re.search(autoBuyRE, plan['fqn'])) or bool(re.search(autoBuyRE, plan['invoiceName'])))
+                            and (autoBuyMaxPrice == 0 or plan['price'] <= autoBuyMaxPrice))        
 
 # -------------- CHECK IF A SERVER WAS ADDED OR REMOVED -------------------------------------
 def added_removed(previousP, newP):

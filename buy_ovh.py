@@ -152,7 +152,11 @@ while True:
                     previousAvailabilities = availabilities
                     previousPlans = plans
                 availabilities = m.availability.buildAvailabilityDict(GV.acceptable_dc)
-                plans = m.catalog.buildList(availabilities)
+                plans = m.catalog.build_list(availabilities,
+                                             GV.ovhSubsidiary,
+                                             GV.filterName, GV.filterDisk, GV.acceptable_dc,
+                                             GV.showBandwidth)
+                m.catalog.add_auto_buy(plans, GV.autoBuyRE, GV.autoBuyMaxPrice)
                 displayedPlans = [ x for x in plans if (GV.showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
                 m.print.printList(displayedPlans)
                 if GV.fakeBuy:
