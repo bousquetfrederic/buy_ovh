@@ -153,7 +153,7 @@ while True:
                     previousPlans = plans
                 availabilities = m.availability.buildAvailabilityDict(GV.acceptable_dc)
                 plans = m.catalog.buildList(availabilities)
-                displayedPlans = [ x for x in plans if (GV.showUnavailable or x['autobuy'] or x['availability'] not in GV.unavailableList)]
+                displayedPlans = [ x for x in plans if (GV.showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
                 m.print.printList(displayedPlans)
                 if GV.fakeBuy:
                     print("- Fake Buy ON")
@@ -162,7 +162,7 @@ while True:
                 foundAutoBuyServer = False
                 if GV.autoBuyRE:
                     for plan in plans:
-                        if GV.autoBuyNum > 0 and plan['availability'] not in GV.unavailableList and plan['autobuy']:
+                        if GV.autoBuyNum > 0 and plan['availability'] not in m.availability.unavailableList and plan['autobuy']:
                             # auto buy
                             foundAutoBuyServer = True
                             # The last x are invoices (rather than direct buy) if a number
@@ -176,17 +176,18 @@ while True:
                 # availability and catalog monitor if configured
                 strAvailMonitor = ""
                 if GV.email_added_removed:
-                    strAvailMonitor = m.monitor.avail_added_removed(previousAvailabilities, availabilities)
+                    strAvailMonitor = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities, "<p>", "</p>")
                 if GV.email_availability_monitor:
                     strAvailMonitor = strAvailMonitor + \
-                                      m.monitor.avail_changed(previousAvailabilities,
-                                                              availabilities,
-                                                              GV.email_availability_monitor)
+                                      m.monitor.avail_changed_Str(previousAvailabilities,
+                                                                  availabilities,
+                                                                  GV.email_availability_monitor,
+                                                                  "<p>", "</p>")
                 if strAvailMonitor:
                     m.email.sendEmail("BUY_OVH: availabilities", strAvailMonitor)
                 # Don't do the catalog monitoring if the user has just changed the filters
                 if not filtersChanged:
-                    strCatalogMonitor = m.monitor.catalog_added_removed(previousPlans, plans)
+                    strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "<p>", "</p>")
                     if strCatalogMonitor:
                         m.email.sendEmail("BUY_OVH: catalog", strCatalogMonitor)
                 else:
@@ -200,11 +201,11 @@ while True:
                     m.print.printAndSleep()
             except KeyboardInterrupt:
                 raise
-            except Exception as e:
-                print("Exception!")
-                print(e)
-                print("Wait " + str(GV.sleepsecs) + "s before retry.")
-                time.sleep(GV.sleepsecs)
+            # except Exception as e:
+            #     print("Exception!")
+            #     print(e)
+            #     print("Wait " + str(GV.sleepsecs) + "s before retry.")
+            #     time.sleep(GV.sleepsecs)
     except KeyboardInterrupt:
         pass
 

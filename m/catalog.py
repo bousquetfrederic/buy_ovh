@@ -3,6 +3,8 @@ import requests
 
 import m.global_variables as GV
 
+__all__ = ['added_removed', 'buildList']
+
 # Here we fix errors in the catalog to match the FQN listed in the availabilities
 def fixMem(mem):
     fixedMem = mem
@@ -149,3 +151,14 @@ def buildList(avail):
                                     'availability' : myavailability
                                     })
     return sorted(myPlans, key=lambda x: x['planCode'])
+
+# -------------- CHECK IF A SERVER WAS ADDED OR REMOVED -------------------------------------
+def added_removed(previousP, newP):
+    addedFqns = []
+    removedFqns = []
+    if previousP:
+        previousFqns = [x['fqn'] for x in previousP]
+        newFqns = [x['fqn'] for x in newP]
+        addedFqns = [ x for x in newFqns if x not in previousFqns]
+        removedFqns = [ x for x in previousFqns if x not in newFqns]
+    return (addedFqns, removedFqns)

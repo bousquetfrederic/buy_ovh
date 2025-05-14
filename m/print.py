@@ -1,5 +1,6 @@
 import time
 
+import m.availability
 import m.global_variables as GV
 
 # --- Coloring stuff ------------------------
@@ -80,7 +81,7 @@ def printList(plans):
     for planD in plansForDisplay:
         # what colour?
         avail = planD['availability']
-        if avail in GV.unavailableList:
+        if avail in m.availability.unavailableList:
             printcolor = whichColor[avail]
         elif avail.endswith("low") or avail.endswith('H'):
             printcolor = whichColor['low']

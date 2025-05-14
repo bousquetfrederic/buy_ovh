@@ -1,59 +1,41 @@
 import re
 
+import m.availability
 import m.global_variables as GV
 
 # ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
 # - detect new servers appearing in availabilities (or leaving)
 # - monitor availability of some servers
-def avail_added_removed(previousA, newA):
+def avail_added_removed_Str(previousA, newA, preStr="", postStr=""):
     strToSend = ""
     # look for new FQN in availabilities (no filters)
+    addedFqns, removedFqns = m.availability.added_removed(previousA, newA)
     if previousA:
-        for added in [x for x in newA.keys() if x not in previousA.keys()]:
-            strToSend += "<p>Added to availabilities: " + added + "</p>\n"
-        for removed in [x for x in previousA.keys() if x not in newA.keys()]:
-            strToSend += "<p>Removed from availabilities: " + removed + "</p>\n"
+        for added in addedFqns:
+            strToSend += preStr + "Added to availabilities: " + added + postStr + "\n"
+        for removed in removedFqns:
+            strToSend += preStr + "Removed from availabilities: " + removed + postStr + "\n"
     return strToSend
 
-def avail_changed(previousA, newA, regex):
+def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
     # look for availability change (unavailable <--> available)
     # for this there is a filter in order to not spam
     # the filter is on the FQN
     strToSend = ""
-    if previousA:
-        availNow = []
-        availNotAnymore = []
-        for fqn in newA:
-            if bool(re.search(regex, fqn)):
-                if (newA[fqn] not in GV.unavailableList):
-                    # found an available server that matches the filter
-                    if (fqn not in previousA.keys()
-                        or previousA[fqn] in GV.unavailableList):
-                        # its availability went from unavailable to available
-                        availNow.append(fqn)
-                else:
-                    # found an unavailable server that matches the filter
-                    if (fqn in previousA.keys()
-                        and previousA[fqn] not in GV.unavailableList):
-                        # its availability went from available to unavailable
-                        availNotAnymore.append(fqn)
-        for fqn in availNow:
-            strToSend += "<p>Available now: " + fqn + "</p>\n"
-        for fqn in availNotAnymore:
-            strToSend += "<p>No longer available: " + fqn + "</p>\n"
+    availNow, availNotAnymore = m.availability.changed(previousA, newA, regex)
+    for fqn in availNow:
+        strToSend += preStr + "Available now: " + fqn + postStr + "\n"
+    for fqn in availNotAnymore:
+        strToSend += preStr + "No longer available: " + fqn + postStr + "\n"
     return strToSend
 
 # ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
 # The catalog is filtered (name and disk), so the new server must pass these filters
-def catalog_added_removed(previousP, newP):
+def catalog_added_removed_Str(previousP, newP, preStr="", postStr=""):
     strChanged = ""
-    if previousP:
-        previousFqns = [x['fqn'] for x in previousP]
-        newFqns = [x['fqn'] for x in newP]
-        addedFqns = [ x for x in newFqns if x not in previousFqns]
-        removedFqns = [ x for x in previousFqns if x not in newFqns]
-        for fqn in addedFqns:
-            strChanged += "<p>New to the catalog: " + fqn + "</p>\n"
-        for fqn in removedFqns:
-            strChanged += "<p>No longer in the catalog: " + fqn + "</p>\n"
+    addedFqns, removedFqns = m.catalog.added_removed(previousP, newP)
+    for fqn in addedFqns:
+        strChanged += preStr + "New to the catalog: " + fqn + postStr + "\n"
+    for fqn in removedFqns:
+        strChanged += preStr + "No longer in the catalog: " + fqn + postStr + "\n"
     return strChanged

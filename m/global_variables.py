@@ -1,7 +1,5 @@
 from m.config import configFile
 
-unavailableList = ['comingSoon', 'unavailable', 'unknown']
-
 acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
 filterName = configFile['filterName'] if 'filterName' in configFile else ""
 filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ""
