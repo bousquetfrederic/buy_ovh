@@ -11,6 +11,8 @@ pip install ovh
 pip install PyYAML
 ```
 
+The main program is buy_ovh.py. There is also a small program availability_monitor which just does the availability monitoring.
+
 There is a conf file that you need to make, conf.yaml, where you can define stuff. There is an example file provided. The file explains all the parameters.
 
 In there you at least need the following for the connection to the API: endpoint, api key and secret, and a consumer key. The script will guide you if you don't know what they are. You can also read about them at the python-ovh repo (above).
