@@ -97,14 +97,14 @@ def buyServer(plan, buyNow, autoMode):
                 GV.autoFake += 1
             else:
                 GV.autoOK += 1
-            if GV.email_auto_buy:
+            if GV.email_auto_buy and GV.loop:
                 m.email.sendAutoBuyEmail("SUCCESS: " + strBuy)
     except Exception as e:
         print("Not today.")
         print(e)
         if autoMode:
             GV.autoKO += 1
-            if GV.email_auto_buy:
+            if GV.email_auto_buy  and GV.loop:
                 m.email.sendAutoBuyEmail("FAILED: " + strBuy)
         time.sleep(3)
 
@@ -189,12 +189,12 @@ while True:
                                                                   GV.email_availability_monitor,
                                                                   "<p>", "</p>")
                 if strAvailMonitor:
-                    m.email.sendEmail("BUY_OVH: availabilities", strAvailMonitor)
+                    m.email.sendEmail("BUY_OVH: availabilities", strAvailMonitor, not GV.loop)
                 # Don't do the catalog monitoring if the user has just changed the filters
                 if not filtersChanged:
                     strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "<p>", "</p>")
                     if strCatalogMonitor:
-                        m.email.sendEmail("BUY_OVH: catalog", strCatalogMonitor)
+                        m.email.sendEmail("BUY_OVH: catalog", strCatalogMonitor, not GV.loop)
                 else:
                     filtersChanged = False
                 # if the conf says no loop, jump to the menu

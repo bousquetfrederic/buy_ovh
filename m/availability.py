@@ -1,3 +1,4 @@
+import re
 import requests
 
 __all__ = ['unavailableList', 'added_removed', 'buildAvailabilityDict', 'changed', 'lookUpAvail']
