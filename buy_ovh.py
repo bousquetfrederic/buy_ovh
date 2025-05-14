@@ -8,6 +8,7 @@ import m.global_variables as GV
 import m.api
 import m.availability
 import m.catalog
+import m.config
 import m.email
 import m.monitor
 import m.orders
