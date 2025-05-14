@@ -4,15 +4,16 @@ import m.api
 import m.print
 
 # ----------------- SHOW UNPAID ORDERS --------------------------------------------------------
-def unpaidOrders():
+def unpaidOrders(printMessage=False):
     # Get today's date
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
     # Calculate the date 14 days ago
     date_14_days_ago = today - timedelta(days=14)
 
+    unpaidOrderList = []
     try:
-        unpaidOrderList = m.api.getUnpaidOrders(date_14_days_ago, tomorrow)
+        unpaidOrderList = m.api.getUnpaidOrders(date_14_days_ago, tomorrow, printMessage)
     except KeyboardInterrupt:
         pass
     m.print.printOrders(unpaidOrderList)

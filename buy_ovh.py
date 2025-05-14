@@ -284,7 +284,7 @@ while True:
         elif sChoice.lower() == 'l':
             GV.loop = True
         elif sChoice.lower() == 'o':
-            m.orders.unpaidOrders()
+            m.orders.unpaidOrders(True)
         elif sChoice.lower() == 'v':
             m.availability.lookUpAvail(availabilities)
         elif sChoice.lower() == 'h':
