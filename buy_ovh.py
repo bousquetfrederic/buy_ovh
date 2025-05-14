@@ -206,11 +206,11 @@ while True:
                     m.print.printAndSleep()
             except KeyboardInterrupt:
                 raise
-            # except Exception as e:
-            #     print("Exception!")
-            #     print(e)
-            #     print("Wait " + str(GV.sleepsecs) + "s before retry.")
-            #     time.sleep(GV.sleepsecs)
+            except Exception as e:
+                print("Exception!")
+                print(e)
+                print("Wait " + str(GV.sleepsecs) + "s before retry.")
+                time.sleep(GV.sleepsecs)
     except KeyboardInterrupt:
         pass
 
