@@ -39,6 +39,7 @@ email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile 
 email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
 email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else ""
 email_catalog_monitor = configFile['email_catalog_monitor'] if 'email_catalog_monitor' in configFile and email_on else False
+email_exception = configFile['email_exception'] if 'email_exception' in configFile and email_on else False
 
 # Auto Buy
 if autoBuyNum == 0:
@@ -253,6 +254,8 @@ while True:
             except Exception as e:
                 print("Exception!")
                 print(e)
+                if loop and email_exception:
+                    m.email.send_email("BUY_OVH: Exception",str(e))
                 print("Wait " + str(sleepsecs) + "s before retry.")
                 time.sleep(sleepsecs)
     except KeyboardInterrupt:

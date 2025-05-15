@@ -85,6 +85,9 @@ email_availability_monitor: 24sk40.*gra
 # These must pass the filters (name and disk)
 email_catalog_monitor: False
 
+# For debug, send an email when an exception is raised during infinite loop
+email_exception: False
+
 # email server details
 email_server_port: 587
 email_server_name: "my.server.com"
