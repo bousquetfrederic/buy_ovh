@@ -3,8 +3,10 @@ from datetime import datetime, timedelta
 import m.api
 import m.print
 
+__all__ = ['unpaid_orders']
+
 # ----------------- SHOW UNPAID ORDERS --------------------------------------------------------
-def unpaidOrders(printMessage=False):
+def unpaid_orders(printMessage=False):
     # Get today's date
     today = datetime.now()
     tomorrow = today + timedelta(days=1)
@@ -16,7 +18,7 @@ def unpaidOrders(printMessage=False):
         unpaidOrderList = m.api.getUnpaidOrders(date_14_days_ago, tomorrow, printMessage)
     except KeyboardInterrupt:
         pass
-    m.print.printOrders(unpaidOrderList)
+    m.print.print_orders(unpaidOrderList)
 
     while True:
         sChoice = input("Which one? ")

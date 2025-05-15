@@ -6,6 +6,8 @@ from email.mime.multipart import MIMEMultipart
 
 import m.config
 
+__all__ = ['send_email', 'send_startup_email']
+
 # from the conf file
 email_server_port = m.config.configFile['email_server_port'] if 'email_server_port' in m.config.configFile else 0
 email_server_name = m.config.configFile['email_server_name'] if 'email_server_name' in m.config.configFile else ""
@@ -15,7 +17,7 @@ email_sender = m.config.configFile['email_sender'] if 'email_sender' in m.config
 email_receiver = m.config.configFile['email_receiver'] if 'email_receiver' in m.config.configFile else ""
 
 # send an email
-def sendEmail(subject, text, warnUser=False):
+def send_email(subject, text, warnUser=False):
 
     html = """\
 <html>
@@ -47,8 +49,8 @@ def sendEmail(subject, text, warnUser=False):
         print(e)
         time.sleep(2)
 
-def sendStartupEmail():
+def send_startup_email():
     sendEmail("BUY_OVH: startup", "<p>BUY_OVH has started</p>")
 
-def sendAutoBuyEmail(string):
+def send_auto_buy_email(string):
     sendEmail("BUY_OVH: autobuy", "<p>" + string + "</p>")

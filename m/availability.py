@@ -1,12 +1,12 @@
 import re
 import requests
 
-__all__ = ['unavailableList', 'added_removed', 'buildAvailabilityDict', 'changed', 'lookUpAvail']
+__all__ = ['unavailableList', 'added_removed', 'build_availability_dict', 'changed', 'look_up_avail']
 
 unavailableList = ['comingSoon', 'unavailable', 'unknown']
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
-def buildAvailabilityDict(datacenters=[]):
+def build_availability_dict(datacenters=[]):
     myAvail = {}
     if datacenters:
         response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
@@ -52,7 +52,7 @@ def changed(previousA, newA, regex):
     return (availNow, availNotAnymore)
 
 # ----------------- LOOK UP AVAILABILITIES ----------------------------------------------------
-def lookUpAvail(avail):
+def look_up_avail(avail):
 
     sChoice = 'a'
     while sChoice:

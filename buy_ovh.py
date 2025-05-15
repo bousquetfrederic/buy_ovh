@@ -4,15 +4,50 @@ import sys
 import time
 
 # modules
-import m.global_variables as GV
 import m.api
 import m.availability
 import m.catalog
-import m.config
 import m.email
 import m.monitor
 import m.orders
 import m.print
+
+from m.config import configFile
+
+# ----------------- GLOBAL VARIABLES ----------------------------------------------------------
+acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
+filterName = configFile['filterName'] if 'filterName' in configFile else ""
+filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ""
+ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
+loop = configFile['loop'] if 'loop' in configFile else False
+sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
+showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
+showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
+showFqn = configFile['showFqn'] if 'showFqn' in configFile else False
+showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
+showBandwidth = configFile['showBandwidth'] if 'showBandwidth' in configFile else True
+fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
+coupon = configFile['coupon'] if 'coupon' in configFile else ''
+autoBuyRE = configFile['auto_buy'] if 'auto_buy' in configFile else ""
+autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
+autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
+autoBuyInvoicesNum = configFile['auto_buy_num_invoices'] if 'auto_buy_num_invoices' in configFile else 0
+
+email_on = configFile['email_on'] if 'email_on' in configFile else False
+email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
+email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
+email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
+email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else ""
+email_catalog_monitor = configFile['email_catalog_monitor'] if 'email_catalog_monitor' in configFile and email_on else False
+
+# Auto Buy
+if autoBuyNum == 0:
+    autoBuyRE = ""
+autoBuyNumInit = autoBuyNum
+# counters to display how auto buy are doing
+autoOK = 0
+autoKO = 0
+autoFake = 0
 
 # ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
 if ('APIEndpoint' in m.config.configFile and
@@ -38,7 +73,7 @@ def showHelp():
     print("")
     print("Infinite Loop")
     print("-------------")
-    print("When the loop is ON, the script updates the catalog and availabilities every " + str(GV.sleepsecs) + "s.")
+    print("When the loop is ON, the script updates the catalog and availabilities every " + str(sleepsecs) + "s.")
     print("You need to press CTRL-C to stop the loop and interact with the script.")
     print("")
     print("Toggles")
@@ -91,21 +126,21 @@ def buyServer(plan, buyNow, autoMode):
     strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
     print("Let's " + strBuy + strAuto)
     try:
-        m.api.checkoutCart(m.api.buildCart(plan, GV.ovhSubsidiary, GV.coupon, GV.fakeBuy), buyNow, GV.fakeBuy)
+        m.api.checkoutCart(m.api.buildCart(plan, ovhSubsidiary, coupon, fakeBuy), buyNow, fakeBuy)
         if autoMode:
-            if GV.fakeBuy:
-                GV.autoFake += 1
+            if fakeBuy:
+                autoFake += 1
             else:
-                GV.autoOK += 1
-            if GV.email_auto_buy and GV.loop:
-                m.email.sendAutoBuyEmail("SUCCESS: " + strBuy)
+                autoOK += 1
+            if email_auto_buy and loop:
+                m.email.send_auto_buy_email("SUCCESS: " + strBuy)
     except Exception as e:
         print("Not today.")
         print(e)
         if autoMode:
-            GV.autoKO += 1
-            if GV.email_auto_buy  and GV.loop:
-                m.email.sendAutoBuyEmail("FAILED: " + strBuy)
+            autoKO += 1
+            if email_auto_buy  and loop:
+                m.email.send_auto_buy_email("FAILED: " + strBuy)
         time.sleep(3)
 
 # ------------------ TOOL ---------------------------------------------------------------------
@@ -124,8 +159,8 @@ def expandMulti(line):
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 # send email at startup
-if GV.email_at_startup:
-    m.email.sendStartupEmail()
+if email_at_startup:
+    m.email.send_startup_email()
 
 availabilities = {}
 # previous list of availabilities so we can send email if something pops up
@@ -152,71 +187,80 @@ while True:
                 if availabilities:
                     previousAvailabilities = availabilities
                     previousPlans = plans
-                availabilities = m.availability.buildAvailabilityDict(GV.acceptable_dc)
+                availabilities = m.availability.build_availability_dict(acceptable_dc)
                 plans = m.catalog.build_list(availabilities,
-                                             GV.ovhSubsidiary,
-                                             GV.filterName, GV.filterDisk, GV.acceptable_dc,
-                                             GV.showBandwidth)
-                m.catalog.add_auto_buy(plans, GV.autoBuyRE, GV.autoBuyMaxPrice)
-                displayedPlans = [ x for x in plans if (GV.showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
-                m.print.printList(displayedPlans)
-                if GV.fakeBuy:
+                                             ovhSubsidiary,
+                                             filterName, filterDisk, acceptable_dc,
+                                             showBandwidth)
+                m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
+                displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
+                m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth)
+                if fakeBuy:
                     print("- Fake Buy ON")
                 if not m.api.isLoggedIn():
                     print("- Not logged in")
                 foundAutoBuyServer = False
-                if GV.autoBuyRE:
+                if autoBuyRE:
                     for plan in plans:
-                        if GV.autoBuyNum > 0 and plan['availability'] not in m.availability.unavailableList and plan['autobuy']:
+                        if autoBuyNum > 0 and plan['availability'] not in m.availability.unavailableList and plan['autobuy']:
                             # auto buy
                             foundAutoBuyServer = True
                             # The last x are invoices (rather than direct buy) if a number
                             # of invoices is defined in the config file
-                            autoBuyInvoice = GV.autoBuyNum <= GV.autoBuyInvoicesNum
+                            autoBuyInvoice = autoBuyNum <= autoBuyInvoicesNum
                             buyServer(plan, not autoBuyInvoice, True)
-                            GV.autoBuyNum -= 1
-                            if GV.autoBuyNum < 1:
-                                GV.autoBuyRE = ""
+                            autoBuyNum -= 1
+                            if autoBuyNum < 1:
+                                autoBuyRE = ""
                                 break
                 # availability and catalog monitor if configured
                 strAvailMonitor = ""
-                if GV.email_added_removed:
+                if email_added_removed:
                     strAvailMonitor = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities, "<p>", "</p>")
-                if GV.email_availability_monitor:
+                if email_availability_monitor:
                     strAvailMonitor = strAvailMonitor + \
                                       m.monitor.avail_changed_Str(previousAvailabilities,
                                                                   availabilities,
-                                                                  GV.email_availability_monitor,
+                                                                  email_availability_monitor,
                                                                   "<p>", "</p>")
                 if strAvailMonitor:
-                    m.email.sendEmail("BUY_OVH: availabilities", strAvailMonitor, not GV.loop)
+                    m.email.send_email("BUY_OVH: availabilities", strAvailMonitor, not loop)
                 # Don't do the catalog monitoring if the user has just changed the filters
                 if not filtersChanged:
                     strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "<p>", "</p>")
                     if strCatalogMonitor:
-                        m.email.sendEmail("BUY_OVH: catalog", strCatalogMonitor, not GV.loop)
+                        m.email.send_email("BUY_OVH: catalog", strCatalogMonitor, not loop)
                 else:
                     filtersChanged = False
                 # if the conf says no loop, jump to the menu
-                if not GV.loop:
-                    m.print.printPrompt()
+                if not loop:
+                    if showPrompt:
+                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, coupon)
+                        # if there has been at least one auto buy, show counters
+                        if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
+                            m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
+                                                   autoOK, autoKO, autoFake)
                     break
                 if not foundAutoBuyServer:
-                    m.print.printPrompt()
-                    m.print.printAndSleep()
+                    if showPrompt:
+                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, coupon)
+                        if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
+                            m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
+                                                   autoOK, autoKO, autoFake)
+                    m.print.print_and_sleep(showPrompt, sleepsecs)
             except KeyboardInterrupt:
                 raise
             except Exception as e:
                 print("Exception!")
                 print(e)
-                print("Wait " + str(GV.sleepsecs) + "s before retry.")
-                time.sleep(GV.sleepsecs)
+                print("Wait " + str(sleepsecs) + "s before retry.")
+                time.sleep(sleepsecs)
     except KeyboardInterrupt:
         pass
 
     print("")
     # stop the infinite loop, the user must press L to restart it
-    GV.loop = False
+    loop = False
     allChoices = input("(H for Help)> ")
     # The user can specify to buy a server multiple times
     # "2*5" means buy server 2, 5 times
@@ -258,35 +302,35 @@ while True:
         # not a number means command
         # the '?', '!', and '*' have no effect here 
         elif sChoice.lower() == 'n':
-            print("Current: " + GV.filterName)
-            GV.filterName = input("New filter: ")
+            print("Current: " + filterName)
+            filterName = input("New filter: ")
             filtersChanged = True
         elif sChoice.lower() == 'd':
-            print("Current: " + GV.filterDisk)
-            GV.filterDisk = input("New filter: ")
+            print("Current: " + filterDisk)
+            filterDisk = input("New filter: ")
             filtersChanged = True
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
-            GV.coupon = input("Enter Coupon: ")
+            coupon = input("Enter Coupon: ")
         elif sChoice.lower() == 'u':
-            GV.showUnavailable = not GV.showUnavailable
+            showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
-            GV.showPrompt = not GV.showPrompt
+            showPrompt = not showPrompt
         elif sChoice.lower() == 'c':
-            GV.showCpu = not GV.showCpu
+            showCpu = not showCpu
         elif sChoice.lower() == 'f':
-            GV.showFqn = not GV.showFqn
+            showFqn = not showFqn
         elif sChoice.lower() == 'b':
-            GV.showBandwidth = not GV.showBandwidth
+            showBandwidth = not showBandwidth
             filtersChanged = True
         elif sChoice == '$':
-            GV.fakeBuy = not GV.fakeBuy
+            fakeBuy = not fakeBuy
         elif sChoice.lower() == 'l':
-            GV.loop = True
+            loop = True
         elif sChoice.lower() == 'o':
-            m.orders.unpaidOrders(True)
+            m.orders.unpaid_orders(True)
         elif sChoice.lower() == 'v':
-            m.availability.lookUpAvail(availabilities)
+            m.availability.look_up_avail(availabilities)
         elif sChoice.lower() == 'h':
             showHelp()
         elif sChoice.lower() == 'q':

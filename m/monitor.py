@@ -2,6 +2,8 @@ import re
 
 import m.availability
 
+__all__ = ['avail_added_removed_Str', 'avail_changed_Str', 'catalog_added_removed_Str']
+
 # ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
 # - detect new servers appearing in availabilities (or leaving)
 # - monitor availability of some servers

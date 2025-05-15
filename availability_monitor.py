@@ -11,7 +11,7 @@ while True:
     try:
         if availabilities:
             previousAvailabilities = availabilities
-        availabilities = m.availability.buildAvailabilityDict(sys.argv[1:])
+        availabilities = m.availability.build_availability_dict(sys.argv[1:])
         strChanged = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities)
         if strChanged:
             current_time = datetime.datetime.now()

@@ -1,7 +1,6 @@
 import time
 
 import m.availability
-import m.global_variables as GV
 
 # --- Coloring stuff ------------------------
 class color:
@@ -25,7 +24,8 @@ whichColor = { 'unknown'     : color.CYAN,
              }
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
-def printList(plans):
+def print_plan_list(plans,
+                    showCpu, showFqn, showBandwidth):
     if not plans:
         print(whichColor['unavailable'] + "No availability." + color.END)
     sizeOfCol = {
@@ -95,12 +95,12 @@ def printList(plans):
         else:
             planColor = printcolor
         # show CPU or not?
-        if GV.showCpu:
+        if showCpu:
             modelStr = planD['model'].ljust(sizeOfCol['model']) + " | " + planD['cpu'].ljust(sizeOfCol['cpu'])
         else:
             modelStr = planD['model'].ljust(sizeOfCol['model'])
         # show FQN or split info into different columns?
-        if GV.showFqn:
+        if showFqn:
             fqnStr = planColor + planD['fqn'].ljust(sizeOfCol['fqn']) + printcolor
         else:
             codeStr = planColor + planD['planCode'].ljust(sizeOfCol['planCode']) + printcolor
@@ -109,7 +109,7 @@ def printList(plans):
                      planD['memory'].rjust(sizeOfCol['memory']) + " | " + \
                      planD['storage'].ljust(sizeOfCol['storage'])
         # show bandwidth and vrack?
-        if GV.showBandwidth:
+        if showBandwidth:
             if planD['vrack'] == 'none':
                 vRackStr = 'none'
             else:
@@ -123,30 +123,27 @@ def printList(plans):
                  planD['price'].rjust(sizeOfCol['price']) + " |" + color.END
         print(colStr)
 
-    # if there has been at least one auto buy, show counters
-    if GV.autoBuyNumInit > 0 and GV.autoBuyNum < GV.autoBuyNumInit:
-        print("Auto buy left: " + str(GV.autoBuyNum) + "/" + str(GV.autoBuyNumInit)
-              + " - OK: " + str(GV.autoOK) + ", NOK: " + str(GV.autoKO) + ", Fake: " + str(GV.autoFake))
-
-
 # ----------------- PRINT PROMPT --------------------------------------------------------------
-def printPrompt():
-    if not GV.showPrompt:
-        return
-    print("- DCs : [" + ",".join(GV.acceptable_dc)
-          + "] - Filters : [" + GV.filterName
-          + "][" + GV.filterDisk
-          +"] - Coupon : [" + GV.coupon + "]")
+def print_prompt(acceptable_dc, filterName, filterDisk, coupon):
+    print("- DCs : [" + ",".join(acceptable_dc)
+          + "] - Filters : [" + filterName
+          + "][" + filterDisk
+          +"] - Coupon : [" + coupon + "]")
 
 # ----------------- SLEEP x SECONDS -----------------------------------------------------------
-def printAndSleep():
-    for i in range(GV.sleepsecs,0,-1):
-        if GV.showPrompt:
+def print_and_sleep(showMessage, sleepsecs):
+    for i in range(sleepsecs,0,-1):
+        if showMessage:
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
+# ----------------- PRINT AUTO BUY STATS -------------------------------------------------------
+def print_auto_buy(autoBuyNum, autoBuyNumInit, autoOK, autoKO, autoFake):
+    print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
+            + " - OK: " + str(autoOK) + ", NOK: " + str(autoKO) + ", Fake: " + str(autoFake))
+
 # ----------------- PRINT LIST OF ORDERS -------------------------------------------------------
-def printOrders(orderList):
+def print_orders(orderList):
     for order in orderList:
         print (str(orderList.index(order)).ljust(4) + "| "
             + order['description'].ljust(10) + "| "
