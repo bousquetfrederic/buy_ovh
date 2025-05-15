@@ -15,7 +15,7 @@ def unpaid_orders(printMessage=False):
 
     unpaidOrderList = []
     try:
-        unpaidOrderList = m.api.getUnpaidOrders(date_14_days_ago, tomorrow, printMessage)
+        unpaidOrderList = m.api.get_unpaid_orders(date_14_days_ago, tomorrow, printMessage)
     except KeyboardInterrupt:
         pass
     m.print.print_orders(unpaidOrderList)

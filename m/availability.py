@@ -58,6 +58,13 @@ def look_up_avail(avail):
     while sChoice:
         sChoice = input("FQN starts with: ")
         if sChoice:
+            fqnsToShow = []
+            # size of column
+            sizeCol = 0
             for eachFqn in avail.keys():
                 if eachFqn.startswith(sChoice):
-                    print(eachFqn + " | " + avail[eachFqn])
+                    fqnsToShow.append(eachFqn)
+                    sizeCol = max(sizeCol, len(eachFqn))
+            for eachFqn in fqnsToShow:
+                if eachFqn.startswith(sChoice):
+                    print(eachFqn.ljust(sizeCol) + " | " + avail[eachFqn])

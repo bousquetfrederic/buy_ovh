@@ -1,6 +1,8 @@
 import sys
 import yaml
 
+__all__ = ['configFile']
+
 configFile = {}
 try:
     configFile = yaml.safe_load(open('conf.yaml', 'r'))

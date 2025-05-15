@@ -127,7 +127,7 @@ def buyServer(plan, buyNow, autoMode):
     strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
     print("Let's " + strBuy + strAuto)
     try:
-        m.api.checkoutCart(m.api.buildCart(plan, ovhSubsidiary, coupon, fakeBuy), buyNow, fakeBuy)
+        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy), buyNow, fakeBuy)
         if autoMode:
             if fakeBuy:
                 autoFake += 1
@@ -198,7 +198,7 @@ while True:
                 m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth)
                 if fakeBuy:
                     print("- Fake Buy ON")
-                if not m.api.isLoggedIn():
+                if not m.api.is_logged_in():
                     print("- Not logged in")
                 foundAutoBuyServer = False
                 if autoBuyRE:

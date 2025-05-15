@@ -1,7 +1,7 @@
-__all__ = ['buildCart', 'checkoutCart', 'getUnpaidOrders', 'login', 'isLoggedIn']
-
 import ovh
 import time
+
+__all__ = ['build_cart', 'checkout_cart', 'get_unpaid_orders', 'login', 'is_logged_in']
 
 # --- Exceptions ----------------------------
 class NotLoggedIn(Exception):
@@ -13,7 +13,7 @@ class NotLoggedIn(Exception):
 client = None
 
 # ---------------- ARE WE LOGGED IN? -----------------------------------------------------------
-def isLoggedIn():
+def is_logged_in():
     return client != None
 
 # ---------------- LOGIN TO THE API ------------------------------------------------------------
@@ -31,7 +31,7 @@ def login(endpoint, application_key, application_secret, consumer_key):
         return False
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
-def buildCart(plan, ovhSubsidiary, coupon, fake=False):
+def build_cart(plan, ovhSubsidiary, coupon, fake=False):
     if fake:
         print("Fake cart!")
         time.sleep(1)
@@ -118,7 +118,7 @@ def buildCart(plan, ovhSubsidiary, coupon, fake=False):
     return cartId
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------
-def checkoutCart(cartId, buyNow, fake=False):
+def checkout_cart(cartId, buyNow, fake=False):
     if fake:
         print("Fake buy! Now: " + str(buyNow))
         time.sleep(2)
@@ -134,7 +134,7 @@ def checkoutCart(cartId, buyNow, fake=False):
 
 
 # ----------------- ORDERS --------------------------------------------------------------------
-def getUnpaidOrders(date_from, date_to, printMessage=False):
+def get_unpaid_orders(date_from, date_to, printMessage=False):
     if client == None:
         raise NotLoggedIn("Need to be logged in to get unpaid orders.")
     params = {}

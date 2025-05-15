@@ -2,6 +2,8 @@ import time
 
 import m.availability
 
+__all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep', 'print_orders']
+
 # --- Coloring stuff ------------------------
 class color:
    PURPLE = '\033[0;35;48m'
