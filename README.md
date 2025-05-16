@@ -15,7 +15,7 @@ The main program is buy_ovh.py. There is also a small program availability_monit
 
 There is a conf file that you need to make, conf.yaml, where you can define stuff. There is an example file provided. The file explains all the parameters.
 
-In there you at least need the following for the connection to the API: endpoint, api key and secret, and a consumer key. The script will guide you if you don't know what they are. You can also read about them at the python-ovh repo (above).
+In there you at least need the following for the connection to the API: endpoint, api key and secret, and a consumer key. You can read about them at the python-ovh repo (above).
 To know what parameter does what, read the code.
 
 It's recommended to have at least a filter on the server name (or plan code) otherwise the list will be huge.
