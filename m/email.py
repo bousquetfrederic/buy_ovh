@@ -50,7 +50,7 @@ def send_email(subject, text, warnUser=False):
         time.sleep(2)
 
 def send_startup_email():
-    sendEmail("BUY_OVH: startup", "<p>BUY_OVH has started</p>")
+    send_email("BUY_OVH: startup", "<p>BUY_OVH has started</p>")
 
 def send_auto_buy_email(string):
-    sendEmail("BUY_OVH: autobuy", "<p>" + string + "</p>")
+    send_email("BUY_OVH: autobuy", "<p>" + string + "</p>")
