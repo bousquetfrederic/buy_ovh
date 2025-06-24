@@ -60,6 +60,13 @@ if ('APIEndpoint' in m.config.configFile and
                     m.config.configFile['APIKey'],
                     m.config.configFile['APISecret'],
                     m.config.configFile['APIConsumerKey'])
+    else:
+        ck = m.api.get_consumer_key(m.config.configFile['APIEndpoint'],
+                                    m.config.configFile['APIKey'],
+                                    m.config.configFile['APISecret'])
+        print("Add this to your conf.yaml file:")
+        print("APIConsumerKey = " + ck)
+        input("Press Enter to continue...")
 
 # ----------------- DISPLAY HELP --------------------------------------------------------------
 def showHelp():
