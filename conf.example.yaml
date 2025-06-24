@@ -2,8 +2,6 @@
 
 # API stuff
 # They are explained here: https://github.com/ovh/python-ovh
-# Comment them if you still don't know
-# The script will tell you what to do
 APIEndpoint: ovh-eu
 APIKey: 123
 APISecret: 456
