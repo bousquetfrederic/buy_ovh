@@ -5,7 +5,7 @@
 APIEndpoint: ovh-eu
 APIKey: 123
 APISecret: 456
-APIConsumerKey: 789
+#APIConsumerKey: 789
 
 # in which datacenters are we looking for?
 # this is a list
