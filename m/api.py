@@ -1,7 +1,7 @@
 import ovh
 import time
 
-__all__ = ['build_cart', 'checkout_cart', 'get_unpaid_orders', 'login', 'is_logged_in']
+__all__ = ['build_cart', 'checkout_cart', 'get_unpaid_orders', 'get_consumer_key', 'login', 'is_logged_in']
 
 # --- Exceptions ----------------------------
 class NotLoggedIn(Exception):
@@ -29,6 +29,27 @@ def login(endpoint, application_key, application_secret, consumer_key):
         print("Failed to login.")
         print(e)
         return False
+
+# ---------------- GET A CONSUMER KEY ----------------------------------------------------------
+def get_consumer_key(endpoint, application_key, application_secret):
+    global client
+    try:
+        client = ovh.Client(endpoint=endpoint,
+                            application_key=application_key,
+                            application_secret=application_secret)
+
+        ck = client.new_consumer_key_request()
+        ck.add_recursive_rules(ovh.API_READ_WRITE, '/')
+        validation = ck.request()
+
+        print("Please visit %s to authenticate" % validation['validationUrl'])
+        input("and press Enter to continue...")
+
+        return validation['consumerKey']
+    except Exception as e:
+        print("Failed to get consumer key.")
+        print(e)
+        return "nokey"
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def build_cart(plan, ovhSubsidiary, coupon, fake=False):
