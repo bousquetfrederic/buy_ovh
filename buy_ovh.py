@@ -15,40 +15,86 @@ import m.print
 from m.config import configFile
 
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
-acceptable_dc = configFile['datacenters'] if 'datacenters' in configFile else []
-filterName = configFile['filterName'] if 'filterName' in configFile else ""
-filterDisk = configFile['filterDisk'] if 'filterDisk' in configFile else ""
-ovhSubsidiary = configFile['ovhSubsidiary'] if 'ovhSubsidiary' in configFile else "FR"
-loop = configFile['loop'] if 'loop' in configFile else False
-sleepsecs = configFile['sleepsecs'] if 'sleepsecs' in configFile else 60    
-showPrompt = configFile['showPrompt'] if 'showPrompt' in configFile else True
-showCpu = configFile['showCpu'] if 'showCpu' in configFile else True
-showFqn = configFile['showFqn'] if 'showFqn' in configFile else False
-showUnavailable = configFile['showUnavailable'] if 'showUnavailable' in configFile else True
-showBandwidth = configFile['showBandwidth'] if 'showBandwidth' in configFile else True
-fakeBuy = configFile['fakeBuy'] if 'fakeBuy' in configFile else True
-coupon = configFile['coupon'] if 'coupon' in configFile else ''
-autoBuyRE = configFile['auto_buy'] if 'auto_buy' in configFile else ""
-autoBuyNum = configFile['auto_buy_num'] if 'auto_buy_num' in configFile else 1
-autoBuyMaxPrice = configFile['auto_buy_max_price'] if 'auto_buy_max_price' in configFile else 0
-autoBuyInvoicesNum = configFile['auto_buy_num_invoices'] if 'auto_buy_num_invoices' in configFile else 0
 
-email_on = configFile['email_on'] if 'email_on' in configFile else False
-email_at_startup = configFile['email_at_startup'] if 'email_at_startup' in configFile and email_on else False
-email_auto_buy = configFile['email_auto_buy'] if 'email_auto_buy' in configFile and email_on else False
-email_added_removed = configFile['email_added_removed'] if 'email_added_removed' in configFile and email_on else False
-email_availability_monitor = configFile['email_availability_monitor'] if 'email_availability_monitor' in configFile and email_on else ""
-email_catalog_monitor = configFile['email_catalog_monitor'] if 'email_catalog_monitor' in configFile and email_on else False
-email_exception = configFile['email_exception'] if 'email_exception' in configFile and email_on else False
+def loadConfigMain(cf):
+    global acceptable_dc, filterName, filterDisk, ovhSubsidiary, \
+           loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
+           showBandwidth, fakeBuy, coupon
+    acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
+    filterName = cf['filterName'] if 'filterName' in cf else filterName
+    filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
+    ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
+    loop = cf['loop'] if 'loop' in cf else loop
+    sleepsecs = cf['sleepsecs'] if 'sleepsecs' in cf else sleepsecs    
+    showPrompt = cf['showPrompt'] if 'showPrompt' in cf else showPrompt
+    showCpu = cf['showCpu'] if 'showCpu' in cf else showCpu
+    showFqn = cf['showFqn'] if 'showFqn' in cf else showFqn
+    showUnavailable = cf['showUnavailable'] if 'showUnavailable' in cf else showUnavailable
+    showBandwidth = cf['showBandwidth'] if 'showBandwidth' in cf else showBandwidth
+    fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
+    coupon = cf['coupon'] if 'coupon' in cf else coupon
+
+def loadConfigEmail(cf):
+    global email_on, email_at_startup, email_auto_buy, email_added_removed, \
+           email_availability_monitor, email_catalog_monitor, email_exception
+    email_on = cf['email_on'] if 'email_on' in cf else email_on
+    email_at_startup = cf['email_at_startup'] if 'email_at_startup' in cf and email_on else email_at_startup
+    email_auto_buy = cf['email_auto_buy'] if 'email_auto_buy' in cf and email_on else email_auto_buy
+    email_added_removed = cf['email_added_removed'] if 'email_added_removed' in cf and email_on else email_added_removed
+    email_availability_monitor = cf['email_availability_monitor'] if 'email_availability_monitor' in cf and email_on else email_availability_monitor
+    email_catalog_monitor = cf['email_catalog_monitor'] if 'email_catalog_monitor' in cf and email_on else email_catalog_monitor
+    email_exception = cf['email_exception'] if 'email_exception' in cf and email_on else email_exception
+
+def loadConfigAutoBuy(cf):
+    global autoBuyRE, autoBuyNum, autoBuyMaxPrice, autoBuyInvoicesNum, \
+           autoBuyNumInit, autoOK, autoKO, autoFake
+    autoBuyRE = cf['auto_buy'] if 'auto_buy' in cf else autoBuyRE
+    autoBuyNum = cf['auto_buy_num'] if 'auto_buy_num' in cf else autoBuyNum
+    autoBuyMaxPrice = cf['auto_buy_max_price'] if 'auto_buy_max_price' in cf else autoBuyMaxPrice
+    autoBuyInvoicesNum = cf['auto_buy_num_invoices'] if 'auto_buy_num_invoices' in cf else autoBuyInvoicesNum
+    if autoBuyNum == 0:
+        autoBuyRE = ""
+    autoBuyNumInit = autoBuyNum
+    autoOK = 0
+    autoKO = 0
+    autoFake = 0
+
+acceptable_dc = []
+filterName = ""
+filterDisk = ""
+ovhSubsidiary = "FR"
+loop = False
+sleepsecs = 60    
+showPrompt = True
+showCpu = True
+showFqn = False
+showUnavailable = True
+showBandwidth = True
+fakeBuy = True
+coupon = ''
+
+loadConfigMain(configFile)
+
+email_on = False
+email_at_startup = False
+email_auto_buy = False
+email_added_removed = False
+email_availability_monitor = ""
+email_catalog_monitor = False
+email_exception = False
+loadConfigEmail(configFile)
 
 # Auto Buy
-if autoBuyNum == 0:
-    autoBuyRE = ""
-autoBuyNumInit = autoBuyNum
+autoBuyRE = ""
+autoBuyNum = 1
+autoBuyMaxPrice = 0
+autoBuyInvoicesNum = 0
+autoBuyNumInit = 0
 # counters to display how auto buy are doing
 autoOK = 0
 autoKO = 0
 autoFake = 0
+loadConfigAutoBuy(configFile)
 
 # ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
 if ('APIEndpoint' in m.config.configFile and
@@ -103,6 +149,7 @@ def showHelp():
     print(" K - enter a coupon (buying will fail if coupon is invalid)")
     print(" L - (re)start the infinite loop, activating monitoring if configured")
     print(" O - show your unpaid orders and a link to pay for one")
+    print(" R - reload the configuration file")
     print(" V - look up availabilities for a specific FQN")
     print("")
     print("Buying")
@@ -339,6 +386,15 @@ while True:
             loop = True
         elif sChoice.lower() == 'o':
             m.orders.unpaid_orders(True)
+        elif sChoice.lower() == 'r':
+            # reload conf
+            loadConfigMain(configFile)
+            filtersChanged = True
+        elif sChoice.lower() == 'rr':
+            # reload conf including autobuy
+            loadConfigMain(configFile)
+            loadConfigAutoBuy(configFile)
+            filtersChanged = True
         elif sChoice.lower() == 'v':
             m.availability.look_up_avail(availabilities)
         elif sChoice.lower() == 'h':
