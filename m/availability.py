@@ -13,10 +13,11 @@ def build_availability_dict(datacenters=[]):
     else:
         response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities")
     for avail in response.json():
-        myFqn = avail['fqn']
-        for da in avail['datacenters']:
-            myLongFqn = myFqn + "." + da['datacenter']
-            myAvail[myLongFqn] = da['availability']
+        if 'fqn' in avail:
+            myFqn = avail['fqn']
+            for da in avail['datacenters']:
+                myLongFqn = myFqn + "." + da['datacenter']
+                myAvail[myLongFqn] = da['availability']
     return myAvail
 
 # -------------- CHECK IF FQNS HAVE BEEN ADDED OR REMOVED -------------------------------------
