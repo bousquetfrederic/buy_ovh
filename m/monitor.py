@@ -11,7 +11,7 @@ def avail_added_removed_Str(previousA, newA, preStr="", postStr=""):
     strToSend = ""
     # look for new FQN in availabilities (no filters)
     addedFqns, removedFqns = m.availability.added_removed(previousA, newA)
-    if previousA:
+    if previousA and newA:
         for added in addedFqns:
             strToSend += preStr + "Added to availabilities: " + added + postStr + "\n"
         for removed in removedFqns:
