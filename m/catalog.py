@@ -44,7 +44,7 @@ def build_list(avail, ovhSubsidiary,
         allPrices = plan['pricings']
         # let's just take the first one for the moment
         if allPrices:
-            planPrice = float(allPrices[0]['price'])/100000000
+            planPrice = float(allPrices[1]['price'])/100000000
         else:
             planPrice = 0.0
 
