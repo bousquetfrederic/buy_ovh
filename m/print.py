@@ -46,14 +46,6 @@ def print_plan_list(plans,
     plansForDisplay = []
     # determine what to print
     for plan in plans:
-        invoiceNameSplit = plan['invoiceName'].split('|')
-        model = invoiceNameSplit[0]
-        if len(invoiceNameSplit) > 1:
-            cpu = invoiceNameSplit[1][1:]
-            # remove extra space at the end of model name
-            model = model[:-1]
-        else:
-            cpu = "unknown"
         if plan['vrack'] == 'none':
             vrack = 'none'
         else:
@@ -69,8 +61,8 @@ def print_plan_list(plans,
             'vrack':        vrack,
             'autobuy':      plan['autobuy'],
             'availability': plan['availability'],
-            'model':        model,
-            'cpu':          cpu,
+            'model':        plan['model'],
+            'cpu':          plan['cpu'],
             'price':        "{:.2f}".format(plan['price'])
             }
         plansForDisplay.append(myPlanD)

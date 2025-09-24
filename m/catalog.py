@@ -34,9 +34,17 @@ def build_list(avail, ovhSubsidiary,
 
     for plan in allPlans:
         planCode = plan['planCode']
+        invoiceNameSplit = plan['invoiceName'].split('|')
+        model = invoiceNameSplit[0]
+        if len(invoiceNameSplit) > 1:
+            cpu = invoiceNameSplit[1][1:]
+            # remove extra space at the end of the model name
+            model = model[:-1]
+        else:
+            cpu = "unknown"
         # only consider plans passing the name filter, which is a regular expression
-        # Either invoice name of plan code must match
-        if not (bool(re.search(filterName, plan['invoiceName']))
+        # Either model (from invoice name) of plan code must match
+        if not (bool(re.search(filterName, model))
                 or bool(re.search(filterName, plan['planCode']))):
             continue
 
@@ -138,7 +146,8 @@ def build_list(avail, ovhSubsidiary,
                             # Add the plan to the list
                             myPlans.append(
                                 { 'planCode' : planCode,
-                                'invoiceName' : plan['invoiceName'],
+                                'model' : model,
+                                'cpu' : cpu,
                                 'datacenter' : da,
                                 'storage' : st,
                                 'memory' : me,
@@ -154,7 +163,7 @@ def build_list(avail, ovhSubsidiary,
 def add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice):
     for plan in plans:
         plan['autobuy'] = (autoBuyRE and
-                           (bool(re.search(autoBuyRE, plan['fqn'])) or bool(re.search(autoBuyRE, plan['invoiceName'])))
+                           (bool(re.search(autoBuyRE, plan['fqn'])) or bool(re.search(autoBuyRE, plan['model'])))
                             and (autoBuyMaxPrice == 0 or plan['price'] <= autoBuyMaxPrice))        
 
 # -------------- CHECK IF A SERVER WAS ADDED OR REMOVED -------------------------------------

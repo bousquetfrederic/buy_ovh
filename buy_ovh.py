@@ -178,7 +178,7 @@ def buyServer(plan, buyNow, autoMode):
         strBuyNow = "buy now a "
     else:
         strBuyNow = "get an invoice for a "
-    strBuy = strBuyNow + plan['invoiceName'] + " in " + plan['datacenter'] + "."
+    strBuy = strBuyNow + plan['model'] + " in " + plan['datacenter'] + "."
     print("Let's " + strBuy + strAuto)
     try:
         m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy), buyNow, fakeBuy)
@@ -347,7 +347,7 @@ while True:
             if choice >= len(displayedPlans):
                 sys.exit("You had one job.")
             if whattodo == 'a':
-                print(displayedPlans[choice]['invoiceName'])
+                print(displayedPlans[choice]['model'])
                 whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
             if whattodo == 'i':
                 mybool = False
