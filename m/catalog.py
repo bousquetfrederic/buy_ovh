@@ -21,7 +21,7 @@ def fixSto(sto):
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def build_list(avail, ovhSubsidiary,
-               filterName, filterDisk, acceptable_dc,
+               filterName, filterDisk, acceptable_dc, maxPrice,
                bandwidthAndVRack):
 
     response = requests.get("https://eu.api.ovh.com/v1/order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
@@ -138,6 +138,9 @@ def build_list(avail, ovhSubsidiary,
                                     thisPrice = thisPrice + vRackPrice
                                 except Exception as e:
                                     print(e)
+                            # apply the max price filter if different from 0
+                            if maxPrice > 0 and thisPrice > maxPrice:
+                                continue
                             myFqn = planCode + "." + shortme + "." + shortst + "." + da
                             if myFqn in avail:
                                 myavailability = avail[myFqn]

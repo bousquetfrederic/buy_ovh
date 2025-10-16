@@ -118,11 +118,15 @@ def print_plan_list(plans,
         print(colStr)
 
 # ----------------- PRINT PROMPT --------------------------------------------------------------
-def print_prompt(acceptable_dc, filterName, filterDisk, coupon):
+def print_prompt(acceptable_dc, filterName, filterDisk, maxPrice, coupon):
+    if maxPrice > 0:
+        strPrice = "[" + str(maxPrice) + "]"
+    else:
+        strPrice = ""
     print("- DCs : [" + ",".join(acceptable_dc)
           + "] - Filters : [" + filterName
           + "][" + filterDisk
-          +"] - Coupon : [" + coupon + "]")
+          + "]" + strPrice + " - Coupon : [" + coupon + "]")
 
 # ----------------- SLEEP x SECONDS -----------------------------------------------------------
 def print_and_sleep(showMessage, sleepsecs):

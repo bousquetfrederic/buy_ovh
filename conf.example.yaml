@@ -27,6 +27,9 @@ filterName: 25sys|24sk04|KS-LE-B
 # don't define it if you want all types
 filterDisk: ssd|nvme
 
+# max price for a server
+maxPrice: 100
+
 ovhSubsidiary: FR
 
 # show a helpful prompt after the list of server

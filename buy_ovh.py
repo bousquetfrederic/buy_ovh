@@ -17,12 +17,13 @@ from m.config import configFile
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
 def loadConfigMain(cf):
-    global acceptable_dc, filterName, filterDisk, ovhSubsidiary, \
+    global acceptable_dc, filterName, filterDisk, maxPrice, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
            showBandwidth, fakeBuy, coupon
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
     filterName = cf['filterName'] if 'filterName' in cf else filterName
     filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
+    maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
     ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
     loop = cf['loop'] if 'loop' in cf else loop
     sleepsecs = cf['sleepsecs'] if 'sleepsecs' in cf else sleepsecs    
@@ -62,6 +63,7 @@ def loadConfigAutoBuy(cf):
 acceptable_dc = []
 filterName = ""
 filterDisk = ""
+maxPrice = 0
 ovhSubsidiary = "FR"
 loop = False
 sleepsecs = 60    
@@ -245,7 +247,7 @@ while True:
                 availabilities = m.availability.build_availability_dict(acceptable_dc)
                 plans = m.catalog.build_list(availabilities,
                                              ovhSubsidiary,
-                                             filterName, filterDisk, acceptable_dc,
+                                             filterName, filterDisk, acceptable_dc, maxPrice,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
                 displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
@@ -290,7 +292,7 @@ while True:
                 # if the conf says no loop, jump to the menu
                 if not loop:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, coupon)
+                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, maxPrice, coupon)
                         # if there has been at least one auto buy, show counters
                         if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
                             m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
@@ -298,7 +300,7 @@ while True:
                     break
                 if not foundAutoBuyServer:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, coupon)
+                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, maxPrice, coupon)
                         if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
                             m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
                                                    autoOK, autoKO, autoFake)
@@ -369,6 +371,17 @@ while True:
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
+        elif sChoice.lower() == 'm':
+            if maxPrice > 0:
+                print("Current:" + str(maxPrice))
+            else:
+                print("Current: None")
+            tmpMaxPrice = input("New Max Price: ")
+            if tmpMaxPrice == "":
+                maxPrice = 0
+            else:
+                maxPrice = float(tmpMaxPrice)
+            filtersChanged = True
         elif sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
