@@ -10,6 +10,9 @@ def fixMem(mem):
     # and in the availabilities there is an extra "-on-die-ecc-5200"
     if mem.endswith("-rise"):
         fixedMem = mem.removesuffix("-rise") + "-on-die-ecc-5200"
+    elif mem.endswith("-16g"):
+    # For KS-STOR they don't have the ECC part at the end of the mem in the catalog
+        fixedMem = mem + "-ecc-2133"
     return fixedMem
 
 def fixSto(sto):
