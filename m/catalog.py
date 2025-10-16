@@ -13,8 +13,6 @@ def fixMem(mem):
     elif mem.endswith("-16g"):
     # For KS-STOR and SYS-STOR they don't have the ECC part at the end of the mem in the catalog
         fixedMem = mem + "-ecc-2133"
-    elif mem.endswith("-32g"):
-        fixedMem = mem + "-ecc-2933"
     return fixedMem
 
 def fixSto(sto):
