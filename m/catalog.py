@@ -22,6 +22,7 @@ def fixSto(sto):
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def build_list(avail, ovhSubsidiary,
                filterName, filterDisk, acceptable_dc, maxPrice,
+               percentVAT,
                bandwidthAndVRack):
 
     response = requests.get("https://eu.api.ovh.com/v1/order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
@@ -138,6 +139,8 @@ def build_list(avail, ovhSubsidiary,
                                     thisPrice = thisPrice + vRackPrice
                                 except Exception as e:
                                     print(e)
+                            # apply the VAT to the price
+                            thisPrice = thisPrice * round(1+percentVAT/100, 2)
                             # apply the max price filter if different from 0
                             if maxPrice > 0 and thisPrice > maxPrice:
                                 continue

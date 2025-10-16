@@ -32,6 +32,9 @@ maxPrice: 100
 
 ovhSubsidiary: FR
 
+# VAT in percents
+percentVAT: 20
+
 # show a helpful prompt after the list of server
 showPrompt: True
 # show the CPU type if available (unless showFqn=true)

@@ -17,13 +17,14 @@ from m.config import configFile
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
 def loadConfigMain(cf):
-    global acceptable_dc, filterName, filterDisk, maxPrice, ovhSubsidiary, \
+    global acceptable_dc, filterName, filterDisk, maxPrice, percentVAT, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
            showBandwidth, fakeBuy, coupon
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
     filterName = cf['filterName'] if 'filterName' in cf else filterName
     filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
     maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
+    percentVAT = cf['percentVAT'] if 'percentVAT' in cf else percentVAT
     ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
     loop = cf['loop'] if 'loop' in cf else loop
     sleepsecs = cf['sleepsecs'] if 'sleepsecs' in cf else sleepsecs    
@@ -64,6 +65,7 @@ acceptable_dc = []
 filterName = ""
 filterDisk = ""
 maxPrice = 0
+percentVAT = 0
 ovhSubsidiary = "FR"
 loop = False
 sleepsecs = 60    
@@ -248,6 +250,7 @@ while True:
                 plans = m.catalog.build_list(availabilities,
                                              ovhSubsidiary,
                                              filterName, filterDisk, acceptable_dc, maxPrice,
+                                             percentVAT,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
                 displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
