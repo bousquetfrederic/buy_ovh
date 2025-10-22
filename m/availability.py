@@ -8,7 +8,6 @@ unavailableList = ['comingSoon', 'unavailable', 'unknown']
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def build_availability_dict(url, datacenters=[]):
     myAvail = {}
-    print (url + "dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
     if datacenters:
         response = requests.get(url + "dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
     else:

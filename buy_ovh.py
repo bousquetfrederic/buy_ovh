@@ -311,13 +311,13 @@ while True:
                     m.print.print_and_sleep(showPrompt, sleepsecs)
             except KeyboardInterrupt:
                 raise
-            # except Exception as e:
-            #     print("Exception!")
-            #     print(e)
-            #     if loop and email_exception:
-            #         m.email.send_email("BUY_OVH: Exception",str(e))
-            #     print("Wait " + str(sleepsecs) + "s before retry.")
-            #     time.sleep(sleepsecs)
+            except Exception as e:
+                print("Exception!")
+                print(e)
+                if loop and email_exception:
+                    m.email.send_email("BUY_OVH: Exception",str(e))
+                print("Wait " + str(sleepsecs) + "s before retry.")
+                time.sleep(sleepsecs)
     except KeyboardInterrupt:
         pass
 
