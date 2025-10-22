@@ -1,6 +1,7 @@
 import datetime
 import sys
 
+import m.api
 import m.availability
 import m.monitor
 
@@ -11,7 +12,7 @@ while True:
     try:
         if availabilities:
             previousAvailabilities = availabilities
-        availabilities = m.availability.build_availability_dict(sys.argv[1:])
+        availabilities = m.availability.build_availability_dict(m.api.api_url("ovh-eu"), sys.argv[1:])
         strChanged = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities)
         if strChanged:
             current_time = datetime.datetime.now()
