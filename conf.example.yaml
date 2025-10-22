@@ -27,6 +27,9 @@ filterName: 25sys|24sk04|KS-LE-B
 # don't define it if you want all types
 filterDisk: ssd|nvme
 
+# memory filter, regular expression as well
+#filterMemory: 32g
+
 # max price for a server
 maxPrice: 100
 

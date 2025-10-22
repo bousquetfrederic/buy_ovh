@@ -25,7 +25,7 @@ def fixSto(sto):
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def build_list(url,
                avail, ovhSubsidiary,
-               filterName, filterDisk, acceptable_dc, maxPrice,
+               filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                percentVAT,
                bandwidthAndVRack):
     response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
@@ -111,6 +111,9 @@ def build_list(url,
                             # if the disk filter is set
                             # OVH seems to add sata now, like in "ssd-sata"
                             if not bool(re.search(filterDisk,shortst)):
+                                continue
+                            # filter the memory as well
+                            if not bool(re.search(filterMemory,shortme)):
                                 continue
                             # try to find out the full price
                             try:

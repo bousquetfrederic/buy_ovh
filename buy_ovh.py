@@ -17,12 +17,13 @@ from m.config import configFile
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
 def loadConfigMain(cf):
-    global acceptable_dc, filterName, filterDisk, maxPrice, percentVAT, APIEndpoint, ovhSubsidiary, \
+    global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, percentVAT, APIEndpoint, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
            showBandwidth, fakeBuy, coupon
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
     filterName = cf['filterName'] if 'filterName' in cf else filterName
     filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
+    filterMemory = cf['filterMemory'] if 'filterMemory' in cf else filterMemory
     maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
     percentVAT = cf['percentVAT'] if 'percentVAT' in cf else percentVAT
     ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
@@ -65,6 +66,7 @@ def loadConfigAutoBuy(cf):
 acceptable_dc = []
 filterName = ""
 filterDisk = ""
+filterMemory = ""
 maxPrice = 0
 percentVAT = 0
 ovhSubsidiary = "FR"
@@ -251,7 +253,7 @@ while True:
                 plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                              availabilities,
                                              ovhSubsidiary,
-                                             filterName, filterDisk, acceptable_dc, maxPrice,
+                                             filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                                              percentVAT,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
