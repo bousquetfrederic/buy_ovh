@@ -23,12 +23,13 @@ def fixSto(sto):
     return fixedSto
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
-def build_list(avail, ovhSubsidiary,
+def build_list(url,
+               avail, ovhSubsidiary,
                filterName, filterDisk, acceptable_dc, maxPrice,
                percentVAT,
                bandwidthAndVRack):
 
-    response = requests.get("https://eu.api.ovh.com/v1/order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
+    response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
 
     allPlans = API_catalog['plans']

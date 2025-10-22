@@ -246,8 +246,9 @@ while True:
                 if availabilities:
                     previousAvailabilities = availabilities
                     previousPlans = plans
-                availabilities = m.availability.build_availability_dict(acceptable_dc)
-                plans = m.catalog.build_list(availabilities,
+                availabilities = m.availability.build_availability_dict(m.api.api_url(ovhSubsidiary),acceptable_dc)
+                plans = m.catalog.build_list(m.api.api_url(ovhSubsidiary),
+                                             availabilities,
                                              ovhSubsidiary,
                                              filterName, filterDisk, acceptable_dc, maxPrice,
                                              percentVAT,
@@ -310,13 +311,13 @@ while True:
                     m.print.print_and_sleep(showPrompt, sleepsecs)
             except KeyboardInterrupt:
                 raise
-            except Exception as e:
-                print("Exception!")
-                print(e)
-                if loop and email_exception:
-                    m.email.send_email("BUY_OVH: Exception",str(e))
-                print("Wait " + str(sleepsecs) + "s before retry.")
-                time.sleep(sleepsecs)
+            # except Exception as e:
+            #     print("Exception!")
+            #     print(e)
+            #     if loop and email_exception:
+            #         m.email.send_email("BUY_OVH: Exception",str(e))
+            #     print("Wait " + str(sleepsecs) + "s before retry.")
+            #     time.sleep(sleepsecs)
     except KeyboardInterrupt:
         pass
 

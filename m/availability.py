@@ -6,12 +6,13 @@ __all__ = ['unavailableList', 'added_removed', 'build_availability_dict', 'chang
 unavailableList = ['comingSoon', 'unavailable', 'unknown']
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
-def build_availability_dict(datacenters=[]):
+def build_availability_dict(url, datacenters=[]):
     myAvail = {}
+    print (url + "dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
     if datacenters:
-        response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
+        response = requests.get(url + "dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
     else:
-        response = requests.get("https://eu.api.ovh.com/v1/dedicated/server/datacenter/availabilities")
+        response = requests.get(url + "dedicated/server/datacenter/availabilities")
     for avail in response.json():
         if 'fqn' in avail:
             myFqn = avail['fqn']

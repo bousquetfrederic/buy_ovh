@@ -1,7 +1,7 @@
 import ovh
 import time
 
-__all__ = ['build_cart', 'checkout_cart', 'get_unpaid_orders', 'get_consumer_key', 'login', 'is_logged_in']
+__all__ = ['api_url','build_cart', 'checkout_cart', 'get_unpaid_orders', 'get_consumer_key', 'login', 'is_logged_in']
 
 # --- Exceptions ----------------------------
 class NotLoggedIn(Exception):
@@ -11,6 +11,15 @@ class NotLoggedIn(Exception):
 
 # --- Variables -----------------------------
 client = None
+
+# --- What is the URL of the API? --------------------------------------------------------------
+def api_url(subsidiary):
+    if subsidiary == 'CA':
+        return "https://ca.api.ovh.com/v1/"
+    elif subsidiary == 'US':
+        return "https://api.us.ovhcloud.com/v1/"
+    else:
+        return "https://eu.api.ovh.com/v1/"
 
 # ---------------- ARE WE LOGGED IN? -----------------------------------------------------------
 def is_logged_in():
