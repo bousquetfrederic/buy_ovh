@@ -13,10 +13,10 @@ class NotLoggedIn(Exception):
 client = None
 
 # --- What is the URL of the API? --------------------------------------------------------------
-def api_url(subsidiary):
-    if subsidiary == 'CA':
+def api_url(endpoint):
+    if endpoint == 'ovh-ca':
         return "https://ca.api.ovh.com/v1/"
-    elif subsidiary == 'US':
+    elif endpoint == 'ovh-us':
         return "https://api.us.ovhcloud.com/v1/"
     else:
         return "https://eu.api.ovh.com/v1/"

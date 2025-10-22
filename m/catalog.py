@@ -28,7 +28,6 @@ def build_list(url,
                filterName, filterDisk, acceptable_dc, maxPrice,
                percentVAT,
                bandwidthAndVRack):
-
     response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
 

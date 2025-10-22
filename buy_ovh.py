@@ -17,7 +17,7 @@ from m.config import configFile
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
 def loadConfigMain(cf):
-    global acceptable_dc, filterName, filterDisk, maxPrice, percentVAT, ovhSubsidiary, \
+    global acceptable_dc, filterName, filterDisk, maxPrice, percentVAT, APIEndpoint, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
            showBandwidth, fakeBuy, coupon
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
@@ -26,6 +26,7 @@ def loadConfigMain(cf):
     maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
     percentVAT = cf['percentVAT'] if 'percentVAT' in cf else percentVAT
     ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
+    APIEndpoint = cf['APIEndpoint'] if 'APIEndpoint' in cf else APIEndpoint
     loop = cf['loop'] if 'loop' in cf else loop
     sleepsecs = cf['sleepsecs'] if 'sleepsecs' in cf else sleepsecs    
     showPrompt = cf['showPrompt'] if 'showPrompt' in cf else showPrompt
@@ -67,6 +68,7 @@ filterDisk = ""
 maxPrice = 0
 percentVAT = 0
 ovhSubsidiary = "FR"
+APIEndpoint = "ovh-eu"
 loop = False
 sleepsecs = 60    
 showPrompt = True
@@ -101,17 +103,16 @@ autoFake = 0
 loadConfigAutoBuy(configFile)
 
 # ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
-if ('APIEndpoint' in m.config.configFile and
-    'APIKey' in m.config.configFile and
+if ('APIKey' in m.config.configFile and
     'APISecret' in m.config.configFile):
     # if the customer key is there too, we can connect
     if 'APIConsumerKey' in m.config.configFile:
-        m.api.login(m.config.configFile['APIEndpoint'],
+        m.api.login(APIEndpoint,
                     m.config.configFile['APIKey'],
                     m.config.configFile['APISecret'],
                     m.config.configFile['APIConsumerKey'])
     else:
-        ck = m.api.get_consumer_key(m.config.configFile['APIEndpoint'],
+        ck = m.api.get_consumer_key(APIEndpoint,
                                     m.config.configFile['APIKey'],
                                     m.config.configFile['APISecret'])
         print("To add the generated consumer key to your conf.yaml file:")
@@ -246,8 +247,8 @@ while True:
                 if availabilities:
                     previousAvailabilities = availabilities
                     previousPlans = plans
-                availabilities = m.availability.build_availability_dict(m.api.api_url(ovhSubsidiary),acceptable_dc)
-                plans = m.catalog.build_list(m.api.api_url(ovhSubsidiary),
+                availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint),acceptable_dc)
+                plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                              availabilities,
                                              ovhSubsidiary,
                                              filterName, filterDisk, acceptable_dc, maxPrice,
