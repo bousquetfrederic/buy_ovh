@@ -148,8 +148,10 @@ def showHelp():
     print("")
     print("Filters")
     print("-------")
-    print(" D - re-enter the Disk filter (sa, nvme, ssd)")
-    print(" N - re-enter the Name filter (invoice name or plan code)")
+    print(" FD - re-enter the Disk filter (sa, nvme, ssd)")
+    print(" FM - re-enter the Memory filter (ex: 32g)")
+    print(" FN - re-enter the Name filter (invoice name or plan code)")
+    print(" FP - set maximum price")
     print("")
     print("Commands")
     print("--------")
@@ -299,7 +301,7 @@ while True:
                 # if the conf says no loop, jump to the menu
                 if not loop:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, maxPrice, coupon)
+                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon)
                         # if there has been at least one auto buy, show counters
                         if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
                             m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
@@ -307,7 +309,7 @@ while True:
                     break
                 if not foundAutoBuyServer:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterName, filterDisk, maxPrice, coupon)
+                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon)
                         if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
                             m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
                                                    autoOK, autoKO, autoFake)
@@ -367,18 +369,19 @@ while True:
             buyServer(displayedPlans[choice], mybool, False)
         # not a number means command
         # the '?', '!', and '*' have no effect here 
-        elif sChoice.lower() == 'n':
-            print("Current: " + filterName)
-            filterName = input("New filter: ")
-            filtersChanged = True
-        elif sChoice.lower() == 'd':
+        elif sChoice.lower() == 'fd':
             print("Current: " + filterDisk)
             filterDisk = input("New filter: ")
             filtersChanged = True
-        elif sChoice.lower() == 'k':
-            print("Current: " + coupon)
-            coupon = input("Enter Coupon: ")
-        elif sChoice.lower() == 'm':
+        elif sChoice.lower() == 'fm':
+            print("Current: " + filterMemory)
+            filterMemory = input("New filter: ")
+            filtersChanged = True
+        elif sChoice.lower() == 'fn':
+            print("Current: " + filterName)
+            filterName = input("New filter: ")
+            filtersChanged = True
+        elif sChoice.lower() == 'fp':
             if maxPrice > 0:
                 print("Current:" + str(maxPrice))
             else:
@@ -389,6 +392,9 @@ while True:
             else:
                 maxPrice = float(tmpMaxPrice)
             filtersChanged = True
+        elif sChoice.lower() == 'k':
+            print("Current: " + coupon)
+            coupon = input("Enter Coupon: ")
         elif sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
