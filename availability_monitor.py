@@ -1,5 +1,6 @@
 import datetime
 import sys
+import time
 
 import m.api
 import m.availability
@@ -18,5 +19,6 @@ while True:
             current_time = datetime.datetime.now()
             print(datetime.datetime.now(), " :")
             print(strChanged)
+        time.sleep(30)
     except KeyboardInterrupt:
         break
