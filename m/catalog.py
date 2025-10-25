@@ -96,25 +96,23 @@ def build_list(url,
         # build a list of all possible combinations
         for da in sortedDatacenters:
             for me in allMemories:
+                # the API adds the name of the plan at the end of the addons, drop it
+                # (only for building the FQN)
+                # Also there are sometimes differences between catalog and availabilities
+                # fix these errors (only for building the FQN)
+                shortme = fixMem("-".join(me.split("-")[:-1]))
+                # apply the memory filter
+                if not bool(re.search(filterMemory,shortme)):
+                    continue
                 for st in allStorages:
+                    shortst = fixSto("-".join(st.split("-")[:-1]))
+                    # apply the disk filter
+                    if not bool(re.search(filterDisk,shortst)):
+                        continue
                     for ba in allBandwidths:
                         for vr in allVRack:
                             # each config may have a different price within the same plan
                             thisPrice = planPrice
-                            # the API adds the name of the plan at the end of the addons, drop it
-                            # (only for building the FQN)
-                            # Also there are sometimes differences between catalog and availabilities
-                            # fix these errors (only for building the FQN)
-                            shortme = fixMem("-".join(me.split("-")[:-1]))
-                            shortst = fixSto("-".join(st.split("-")[:-1]))
-                            # filter unwanted disk types
-                            # if the disk filter is set
-                            # OVH seems to add sata now, like in "ssd-sata"
-                            if not bool(re.search(filterDisk,shortst)):
-                                continue
-                            # filter the memory as well
-                            if not bool(re.search(filterMemory,shortme)):
-                                continue
                             # try to find out the full price
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
