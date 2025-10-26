@@ -17,7 +17,7 @@ from m.config import configFile
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
 def loadConfigMain(cf):
-    global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, percentVAT, APIEndpoint, ovhSubsidiary, \
+    global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, addVAT, APIEndpoint, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
            showBandwidth, fakeBuy, coupon
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
@@ -25,7 +25,7 @@ def loadConfigMain(cf):
     filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
     filterMemory = cf['filterMemory'] if 'filterMemory' in cf else filterMemory
     maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
-    percentVAT = cf['percentVAT'] if 'percentVAT' in cf else percentVAT
+    addVAT = cf['addVAT'] if 'addVAT' in cf else addVAT
     ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
     APIEndpoint = cf['APIEndpoint'] if 'APIEndpoint' in cf else APIEndpoint
     loop = cf['loop'] if 'loop' in cf else loop
@@ -68,7 +68,7 @@ filterName = ""
 filterDisk = ""
 filterMemory = ""
 maxPrice = 0
-percentVAT = 0
+addVAT = False
 ovhSubsidiary = "FR"
 APIEndpoint = "ovh-eu"
 loop = False
@@ -144,6 +144,7 @@ def showHelp():
     print(" F - show FQN instead of server details ON/OFF")
     print(" P - show helpful prompt ON/OFF")
     print(" U - show Unavailable servers ON/OFF")
+    print(" T - add Tax (VAT) to the price ON/OFF")
     print(" $ - fake buy ON/OFF")
     print("")
     print("Filters")
@@ -256,7 +257,7 @@ while True:
                                              availabilities,
                                              ovhSubsidiary,
                                              filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
-                                             percentVAT,
+                                             addVAT,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
                 displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
@@ -421,6 +422,8 @@ while True:
             loadConfigMain(configFile)
             loadConfigAutoBuy(configFile)
             filtersChanged = True
+        elif sChoice.lower() == 't':
+            addVAT = not addVAT
         elif sChoice.lower() == 'v':
             m.availability.look_up_avail(availabilities)
         elif sChoice.lower() == 'h':

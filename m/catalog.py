@@ -26,7 +26,7 @@ def fixSto(sto):
 def build_list(url,
                avail, ovhSubsidiary,
                filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
-               percentVAT,
+               addVAT,
                bandwidthAndVRack):
     response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
@@ -35,6 +35,13 @@ def build_list(url,
     myPlans = []
 
     allAddons = API_catalog['addons']
+
+    try:
+        vatRate = 1 + (API_catalog['locale']['taxRate']) / 100
+    except:
+        if addVAT:
+            print("Could not read VAT from the catalog")
+        vatRate = 1
 
     for plan in allPlans:
         planCode = plan['planCode']
@@ -143,8 +150,9 @@ def build_list(url,
                                     thisPrice = thisPrice + vRackPrice
                                 except Exception as e:
                                     print(e)
-                            # apply the VAT to the price
-                            thisPrice = thisPrice * round(1+percentVAT/100, 2)
+                            if addVAT:
+                                # apply the VAT to the price
+                                thisPrice = round(thisPrice * vatRate, 2)
                             # apply the max price filter if different from 0
                             if maxPrice > 0 and thisPrice > maxPrice:
                                 continue
