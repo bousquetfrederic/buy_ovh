@@ -117,8 +117,11 @@ if ('APIKey' in m.config.configFile and
         ck = m.api.get_consumer_key(APIEndpoint,
                                     m.config.configFile['APIKey'],
                                     m.config.configFile['APISecret'])
-        print("To add the generated consumer key to your conf.yaml file:")
-        print("APIConsumerKey: " + ck)
+        if ck != "nokey":
+            print("To add the generated consumer key to your conf.yaml file:")
+            print("APIConsumerKey: " + ck)
+        else:
+            print("Failed to get a consumer key, did you authenticate?")
         input("Press Enter to continue...")
 
 # ----------------- DISPLAY HELP --------------------------------------------------------------

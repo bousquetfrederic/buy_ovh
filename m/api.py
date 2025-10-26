@@ -29,14 +29,15 @@ def is_logged_in():
 def login(endpoint, application_key, application_secret, consumer_key):
     global client
     try:
-        client = ovh.Client(endpoint=endpoint,
-                            application_key=application_key,
-                            application_secret=application_secret,
-                            consumer_key=consumer_key)
+        tmpClient = ovh.Client(endpoint=endpoint,
+                               application_key=application_key,
+                               application_secret=application_secret,
+                               consumer_key=consumer_key)
+        # if the API credential are incorrect, this will fail
+        tmpClient.get('/me')
+        client = tmpClient
         return True
     except Exception as e:
-        print("Failed to login.")
-        print(e)
         return False
 
 # ---------------- GET A CONSUMER KEY ----------------------------------------------------------
@@ -54,10 +55,12 @@ def get_consumer_key(endpoint, application_key, application_secret):
         print("Please visit %s to authenticate" % validation['validationUrl'])
         input("and press Enter to continue...")
 
+        # this will fail if they did not authenticate
+        client.get('/me')
+
         return validation['consumerKey']
     except Exception as e:
-        print("Failed to get consumer key.")
-        print(e)
+        client = None
         return "nokey"
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
