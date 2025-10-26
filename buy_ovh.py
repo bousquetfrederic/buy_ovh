@@ -424,6 +424,10 @@ while True:
             filtersChanged = True
         elif sChoice.lower() == 't':
             addVAT = not addVAT
+            # VAT increases the price which could no longer pass the max price filter
+            # so a server could "disappear" or "appear" in the catalog
+            # triggering the catalog monitor
+            filtersChanged = True
         elif sChoice.lower() == 'v':
             m.availability.look_up_avail(availabilities)
         elif sChoice.lower() == 'h':
