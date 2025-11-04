@@ -15,6 +15,8 @@ def fixMem(mem):
         fixedMem = mem + "-ecc-2133"
     elif mem.endswith("-26skleb01"):
         fixedMem = mem.removesuffix("-26skleb01")
+    elif mem.endswith("-26sklee01"):
+        fixedMem = mem.removesuffix("-26sklee01")
     return fixedMem
 
 def fixSto(sto):
@@ -24,6 +26,8 @@ def fixSto(sto):
         fixedSto = sto.replace("512", "500")
     elif sto.endswith("-26skleb01"):
         fixedSto = sto.removesuffix("-26skleb01")
+    elif sto.endswith("-26sklee01"):
+        fixedSto = sto.removesuffix("-26sklee01")
     return fixedSto
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
