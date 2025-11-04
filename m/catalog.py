@@ -13,10 +13,16 @@ def fixMem(mem):
     elif mem.endswith("-16g"):
     # For KS-STOR and SYS-STOR they don't have the ECC part at the end of the mem in the catalog
         fixedMem = mem + "-ecc-2133"
+    elif mem.endswith("-26sklea01"):
+        fixedMem = mem.removesuffix("-26sklea01")
+    elif mem.endswith("-26sklec01"):
+        fixedMem = mem.removesuffix("-26sklec01")
     elif mem.endswith("-26skleb01"):
         fixedMem = mem.removesuffix("-26skleb01")
     elif mem.endswith("-26sklee01"):
         fixedMem = mem.removesuffix("-26sklee01")
+    elif mem.endswith("-26skled01"):
+        fixedMem = mem.removesuffix("-26skled01")
     return fixedMem
 
 def fixSto(sto):
@@ -28,6 +34,12 @@ def fixSto(sto):
         fixedSto = sto.removesuffix("-26skleb01")
     elif sto.endswith("-26sklee01"):
         fixedSto = sto.removesuffix("-26sklee01")
+    elif sto.endswith("-26sklea01"):
+        fixedSto = sto.removesuffix("-26sklea01")
+    elif sto.endswith("-26sklec01"):
+        fixedSto = sto.removesuffix("-26sklec01")
+    elif sto.endswith("-26skled01"):
+        fixedSto = sto.removesuffix("-26skled01")
     return fixedSto
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
