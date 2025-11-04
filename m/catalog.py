@@ -13,16 +13,6 @@ def fixMem(mem):
     elif mem.endswith("-16g"):
     # For KS-STOR and SYS-STOR they don't have the ECC part at the end of the mem in the catalog
         fixedMem = mem + "-ecc-2133"
-    elif mem.endswith("-26sklea01"):
-        fixedMem = mem.removesuffix("-26sklea01")
-    elif mem.endswith("-26sklec01"):
-        fixedMem = mem.removesuffix("-26sklec01")
-    elif mem.endswith("-26skleb01"):
-        fixedMem = mem.removesuffix("-26skleb01")
-    elif mem.endswith("-26sklee01"):
-        fixedMem = mem.removesuffix("-26sklee01")
-    elif mem.endswith("-26skled01"):
-        fixedMem = mem.removesuffix("-26skled01")
     return fixedMem
 
 def fixSto(sto):
@@ -30,16 +20,6 @@ def fixSto(sto):
     # For SYS-01 with hybrid disks, the availabilities have 500nvme instead of 512nvme 
     if sto.endswith("4000sa-2x512nvme") or sto.endswith("4000sa-1x512nvme"):
         fixedSto = sto.replace("512", "500")
-    elif sto.endswith("-26skleb01"):
-        fixedSto = sto.removesuffix("-26skleb01")
-    elif sto.endswith("-26sklee01"):
-        fixedSto = sto.removesuffix("-26sklee01")
-    elif sto.endswith("-26sklea01"):
-        fixedSto = sto.removesuffix("-26sklea01")
-    elif sto.endswith("-26sklec01"):
-        fixedSto = sto.removesuffix("-26sklec01")
-    elif sto.endswith("-26skled01"):
-        fixedSto = sto.removesuffix("-26skled01")
     return fixedSto
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
@@ -125,14 +105,21 @@ def build_list(url,
             for me in allMemories:
                 # the API adds the name of the plan at the end of the addons, drop it
                 # (only for building the FQN)
+                # for KS-LE-* they also add the v1 at the end which needs to go
                 # Also there are sometimes differences between catalog and availabilities
                 # fix these errors (only for building the FQN)
-                shortme = fixMem("-".join(me.split("-")[:-1]))
+                if me.split("-")[-1] == "v1":
+                    shortme = fixMem("-".join(me.split("-")[:-2]))
+                else:
+                    shortme = fixMem("-".join(me.split("-")[:-1]))
                 # apply the memory filter
                 if not bool(re.search(filterMemory,shortme)):
                     continue
                 for st in allStorages:
-                    shortst = fixSto("-".join(st.split("-")[:-1]))
+                    if st.split("-")[-1] == "v1":
+                        shortst = fixSto("-".join(st.split("-")[:-2]))
+                    else:
+                        shortst = fixSto("-".join(st.split("-")[:-1]))
                     # apply the disk filter
                     if not bool(re.search(filterDisk,shortst)):
                         continue
