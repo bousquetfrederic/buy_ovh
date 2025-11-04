@@ -13,6 +13,8 @@ def fixMem(mem):
     elif mem.endswith("-16g"):
     # For KS-STOR and SYS-STOR they don't have the ECC part at the end of the mem in the catalog
         fixedMem = mem + "-ecc-2133"
+    elif mem.endswith("-26skleb01"):
+        fixedMem = mem.removesuffix("-26skleb01")
     return fixedMem
 
 def fixSto(sto):
@@ -20,6 +22,8 @@ def fixSto(sto):
     # For SYS-01 with hybrid disks, the availabilities have 500nvme instead of 512nvme 
     if sto.endswith("4000sa-2x512nvme") or sto.endswith("4000sa-1x512nvme"):
         fixedSto = sto.replace("512", "500")
+    elif sto.endswith("-26skleb01"):
+        fixedSto = sto.removesuffix("-26skleb01")
     return fixedSto
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
