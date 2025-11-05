@@ -183,6 +183,7 @@ def showHelp():
 
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow, autoMode):
+    global autoFake, autoOK, autoKO
     if autoMode:
         strAuto = "   -Auto Mode-"
     else:
