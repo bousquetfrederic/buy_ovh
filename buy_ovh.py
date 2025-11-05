@@ -166,6 +166,7 @@ def showHelp():
     print(" L - (re)start the infinite loop, activating monitoring if configured")
     print(" O - show your unpaid orders and a link to pay for one")
     print(" R - reload the configuration file")
+    print(" S - print a list of your servers with some specs")
     print(" V - look up availabilities for a specific FQN")
     print("")
     print("Buying")
