@@ -50,12 +50,13 @@ def loadConfigEmail(cf):
     email_exception = cf['email_exception'] if 'email_exception' in cf and email_on else email_exception
 
 def loadConfigAutoBuy(cf):
-    global autoBuyRE, autoBuyNum, autoBuyMaxPrice, autoBuyInvoicesNum, \
+    global autoBuyRE, autoBuyNum, autoBuyMaxPrice, autoBuyInvoicesNum, autoBuyUnknown, \
            autoBuyNumInit, autoOK, autoKO, autoFake
     autoBuyRE = cf['auto_buy'] if 'auto_buy' in cf else autoBuyRE
     autoBuyNum = cf['auto_buy_num'] if 'auto_buy_num' in cf else autoBuyNum
     autoBuyMaxPrice = cf['auto_buy_max_price'] if 'auto_buy_max_price' in cf else autoBuyMaxPrice
     autoBuyInvoicesNum = cf['auto_buy_num_invoices'] if 'auto_buy_num_invoices' in cf else autoBuyInvoicesNum
+    autoBuyUnknown = cf['auto_buy_unknown'] if 'auto_buy_unknown' in cf else autoBuyUnknown
     if autoBuyNum == 0:
         autoBuyRE = ""
     autoBuyNumInit = autoBuyNum
@@ -98,6 +99,7 @@ autoBuyNum = 1
 autoBuyMaxPrice = 0
 autoBuyInvoicesNum = 0
 autoBuyNumInit = 0
+autoBuyUnknown = False
 # counters to display how auto buy are doing
 autoOK = 0
 autoKO = 0
@@ -273,7 +275,10 @@ while True:
                 foundAutoBuyServer = False
                 if autoBuyRE:
                     for plan in plans:
-                        if autoBuyNum > 0 and plan['availability'] not in m.availability.unavailableList and plan['autobuy']:
+                        if autoBuyNum > 0 and \
+                        (plan['availability'] not in m.availability.unavailableList
+                         or (plan['availability'] == 'unknown' and autoBuyUnknown)) \
+                        and plan['autobuy']:
                             # auto buy
                             foundAutoBuyServer = True
                             # The last x are invoices (rather than direct buy) if a number
