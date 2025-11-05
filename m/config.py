@@ -11,6 +11,6 @@ try:
     print(f"Loading config from {config_path}")
     configFile = yaml.safe_load(open(config_path, 'r'))
 except Exception as e:
-    print("Error with config.yaml")
+    print("Error with config file")
     print(e)
     sys.exit("Bye now.")
