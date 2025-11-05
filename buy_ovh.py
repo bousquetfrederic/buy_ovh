@@ -11,6 +11,7 @@ import m.email
 import m.monitor
 import m.orders
 import m.print
+import m.servers
 
 from m.config import configFile
 
@@ -431,6 +432,8 @@ while True:
             loadConfigMain(configFile)
             loadConfigAutoBuy(configFile)
             filtersChanged = True
+        elif sChoice.lower() == 's':
+            m.servers.servers_specs(True)
         elif sChoice.lower() == 't':
             addVAT = not addVAT
             # VAT increases the price which could no longer pass the max price filter

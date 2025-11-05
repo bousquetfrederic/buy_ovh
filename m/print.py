@@ -2,7 +2,7 @@ import time
 
 import m.availability
 
-__all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep', 'print_orders']
+__all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep', 'print_orders', 'print_servers']
 
 # --- Coloring stuff ------------------------
 class color:
@@ -148,3 +148,13 @@ def print_orders(orderList):
             + order['description'].ljust(10) + "| "
             + order['location']  + "| "
             + order['date'])
+
+# ------------------ PRINT SERVER SPECS ----------------------------------------------------------
+def print_servers(server_list):
+    for server in server_list:
+        print ("NAME:  " + server['name'])
+        print ("DC:    " + server['datacenter'])
+        print ("CPU:   " + server['cpu'])
+        print ("RAM:   " + server['memory'])
+        print ("DISKS: " + " + ".join(server['disks']))
+        print ()

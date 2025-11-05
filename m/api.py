@@ -1,7 +1,7 @@
 import ovh
 import time
 
-__all__ = ['api_url','build_cart', 'checkout_cart', 'get_unpaid_orders', 'get_consumer_key', 'login', 'is_logged_in']
+__all__ = ['api_url','build_cart', 'checkout_cart', 'get_unpaid_orders', 'get_consumer_key', 'get_servers_list', 'login', 'is_logged_in']
 
 # --- Exceptions ----------------------------
 class NotLoggedIn(Exception):
@@ -197,3 +197,28 @@ def get_unpaid_orders(date_from, date_to, printMessage=False):
                                     'url' : orderURL,
                                     'date' : orderDate})
     return orderList
+
+# ---------------- SERVERS -----------------------------------------------------------------------
+def get_servers_list(printMessage=False):
+    if client == None:
+        raise NotLoggedIn("Need to be logged in to see the servers.")
+    API_servers = client.get("/dedicated/server")
+    servers_list = []
+    if printMessage:
+        print("Building list of servers. Please wait.")    
+    for server_name in API_servers:
+        if printMessage:
+            print("(" + str(API_servers.index(server_name)+1) + "/" + str(len(API_servers)) + ")", end="\r", flush=True)
+        # don't take expired or suspended ones
+        server_info = client.get("/dedicated/server/"+server_name)
+        if server_info['iam']['state']=="OK":
+            server_hw = client.get("/dedicated/server/"+server_name+"/specifications/hardware")
+            disk_groups = [x['description'] for x in server_hw['diskGroups']]
+            servers_list.append({'id': server_name,
+                                 'name': server_info['iam']['displayName'],
+                                 'datacenter' : server_info['datacenter'],
+                                 'cpu' : server_hw['processorName'],
+                                 'memory': str(server_hw['memorySize']['value'])+" "+server_hw['memorySize']['unit'],
+                                 'disks': disk_groups
+                                   })
+    return servers_list
