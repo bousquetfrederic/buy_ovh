@@ -180,7 +180,8 @@ def get_unpaid_orders(date_from, date_to, printMessage=False):
     for orderId in API_orders:
         if printMessage:
             print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
-        if client.get("/me/order/{0}/status/".format(orderId)) == 'notPaid':
+        orderStatus = client.get("/me/order/{0}/status/".format(orderId))
+        if orderStatus in ['notPaid', 'delivering']:
             details = client.get("/me/order/{0}/details/".format(orderId))
             for detailId in details:
                 orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
@@ -195,7 +196,8 @@ def get_unpaid_orders(date_from, date_to, printMessage=False):
                                     'description' : description,
                                     'location' : location,
                                     'url' : orderURL,
-                                    'date' : orderDate})
+                                    'date' : orderDate
+                                    'status' : oderStatus})
     return orderList
 
 # ---------------- SERVERS -----------------------------------------------------------------------
