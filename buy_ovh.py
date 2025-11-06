@@ -165,6 +165,7 @@ def showHelp():
     print(" K - enter a coupon (buying will fail if coupon is invalid)")
     print(" L - (re)start the infinite loop, activating monitoring if configured")
     print(" O - show your unpaid orders and a link to pay for one")
+    print(" D - show your undelivered orders and a link to see your bill for one")
     print(" R - reload the configuration file")
     print(" S - print a list of your servers with some specs")
     print(" V - look up availabilities for a specific FQN")
@@ -423,6 +424,8 @@ while True:
         elif sChoice.lower() == 'l':
             loop = True
         elif sChoice.lower() == 'o':
+            m.orders.unpaid_orders(True)
+        elif sChoice.lower() == 'd':
             m.orders.unpaid_orders(True)
         elif sChoice.lower() == 'r':
             # reload conf

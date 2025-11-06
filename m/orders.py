@@ -26,3 +26,25 @@ def unpaid_orders(printMessage=False):
             break
         choice = int (sChoice)
         print ("URL: " + unpaidOrderList[choice]['url'])
+
+# ----------------- SHOW UNDELIVERED ORDERS --------------------------------------------------------
+def undelivered_orders(printMessage=False):
+    # Get today's date
+    today = datetime.now()
+    tomorrow = today + timedelta(days=1)
+    # Calculate the date 14 days ago
+    date_30_days_ago = today - timedelta(days=30)
+
+    undeliveredOrderList = []
+    try:
+        undeliveredOrderList = m.api.get_undelivered_orders(date_30_days_ago, tomorrow, printMessage)
+    except KeyboardInterrupt:
+        pass
+    m.print.print_orders(undeliveredOrderList)
+
+    while True:
+        sChoice = input("Which one? ")
+        if not sChoice.isdigit() or int (sChoice) >= len(undeliveredOrderList):
+            break
+        choice = int (sChoice)
+        print ("URL: " + undeliveredOrderList[choice]['url'])
