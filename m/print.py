@@ -147,7 +147,8 @@ def print_orders(orderList):
         print (str(orderList.index(order)).ljust(4) + "| "
             + order['description'].ljust(10) + "| "
             + order['location']  + "| "
-            + order['date'])
+            + order['date'] + "| "
+            + order['status'])
 
 # ------------------ PRINT SERVER SPECS ----------------------------------------------------------
 def print_servers(server_list):
