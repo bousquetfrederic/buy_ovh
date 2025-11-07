@@ -426,7 +426,7 @@ while True:
         elif sChoice.lower() == 'o':
             m.orders.unpaid_orders(True)
         elif sChoice.lower() == 'd':
-            m.orders.unpaid_orders(True)
+            m.orders.undelivered_orders(True)
         elif sChoice.lower() == 'r':
             # reload conf
             loadConfigMain(configFile)
