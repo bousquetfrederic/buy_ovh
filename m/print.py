@@ -142,12 +142,14 @@ def print_auto_buy(autoBuyNum, autoBuyNumInit, autoOK, autoKO, autoFake):
             + " - OK: " + str(autoOK) + ", NOK: " + str(autoKO) + ", Fake: " + str(autoFake))
 
 # ----------------- PRINT LIST OF ORDERS -------------------------------------------------------
-def print_orders(orderList):
+def print_orders(orderList, printDate=False):
     for order in orderList:
-        print (str(orderList.index(order)).ljust(4) + "| "
-            + order['description'].ljust(10) + "| "
-            + order['location']  + "| "
-            + order['date'])
+        strOrder = str(orderList.index(order)).ljust(4) + "| " \
+                       + order['description'].ljust(10) + "| " \
+                       + order['location']
+        if printDate:
+            strOrder = strOrder + "| " + order['date']
+        print (strOrder)
 
 # ------------------ PRINT SERVER SPECS ----------------------------------------------------------
 def print_servers(server_list):

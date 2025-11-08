@@ -1,7 +1,8 @@
 import ovh
 import time
 
-__all__ = ['api_url','build_cart', 'checkout_cart', 'get_unpaid_orders', 'get_consumer_key', 'get_servers_list', 'login', 'is_logged_in']
+__all__ = ['api_url','build_cart', 'checkout_cart', 'get_orders_per_status',
+           'get_consumer_key', 'get_servers_list', 'login', 'is_logged_in']
 
 # --- Exceptions ----------------------------
 class NotLoggedIn(Exception):
@@ -165,9 +166,7 @@ def checkout_cart(cartId, buyNow, fake=False):
                          waiveRetractationPeriod=buyNow
                         )
 
-
-# ----------------- UNPAID ORDERS -------------------------------------------------------------
-def get_unpaid_orders(date_from, date_to, printMessage=False):
+def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
     if client == None:
         raise NotLoggedIn("Need to be logged in to get unpaid orders.")
     params = {}
@@ -176,11 +175,11 @@ def get_unpaid_orders(date_from, date_to, printMessage=False):
     API_orders = client.get("/me/order/", **params)
     orderList = []
     if printMessage:
-        print("Building list of unpaid orders. Please wait.")
+        print("Building list of orders. Please wait.")
     for orderId in API_orders:
         if printMessage:
             print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
-        if client.get("/me/order/{0}/status/".format(orderId)) == 'notPaid':
+        if client.get("/me/order/{0}/status/".format(orderId)) in status_list:
             details = client.get("/me/order/{0}/details/".format(orderId))
             for detailId in details:
                 orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
@@ -197,39 +196,6 @@ def get_unpaid_orders(date_from, date_to, printMessage=False):
                                     'url' : orderURL,
                                     'date' : orderDate})
     return orderList
-
-# ----------------- UNDELIVERED ORDERS -------------------------------------------------------------
-def get_undelivered_orders(date_from, date_to, printMessage=False):
-    if client == None:
-        raise NotLoggedIn("Need to be logged in to get undelivered orders.")
-    params = {}
-    params['date.from'] = date_from.strftime('%Y-%m-%d')
-    params['date.to'] = date_to.strftime('%Y-%m-%d')
-    API_orders = client.get("/me/order/", **params)
-    orderList = []
-    if printMessage:
-        print("Building list of outstanding deliveries. Please wait.")
-    for orderId in API_orders:
-        if printMessage:
-            print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
-        if client.get("/me/order/{0}/status/".format(orderId)) == 'delivering':
-            details = client.get("/me/order/{0}/details/".format(orderId))
-            for detailId in details:
-                orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
-                if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
-                    description = orderDetail['description'].split('|')[0].split(' ')[0]
-                    location = orderDetail['description'].split('-')[-2][-4:]
-                    theOrder = client.get("/me/order/{0}/".format(orderId))
-                    orderURL = theOrder['url']
-                    orderDate = theOrder['expirationDate'].split('T')[0]
-                    orderList.append({
-                                    'orderId' : orderId,
-                                    'description' : description,
-                                    'location' : location,
-                                    'url' : orderURL,
-                                    'date' : orderDate})
-    return orderList
-
 
 # ---------------- SERVERS -----------------------------------------------------------------------
 def get_servers_list(printMessage=False):

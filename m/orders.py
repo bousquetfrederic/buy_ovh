@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 import m.api
 import m.print
 
-__all__ = ['unpaid_orders']
+__all__ = ['unpaid_orders', 'undelivered_orders']
 
 # ----------------- SHOW UNPAID ORDERS --------------------------------------------------------
 def unpaid_orders(printMessage=False):
@@ -15,10 +15,10 @@ def unpaid_orders(printMessage=False):
 
     unpaidOrderList = []
     try:
-        unpaidOrderList = m.api.get_unpaid_orders(date_14_days_ago, tomorrow, printMessage)
+        unpaidOrderList = m.api.get_orders_per_status(date_14_days_ago, tomorrow, ['notPaid'], printMessage)
     except KeyboardInterrupt:
         pass
-    m.print.print_orders(unpaidOrderList)
+    m.print.print_orders(unpaidOrderList, True)
 
     while True:
         sChoice = input("Which one? ")
@@ -37,7 +37,7 @@ def undelivered_orders(printMessage=False):
 
     undeliveredOrderList = []
     try:
-        undeliveredOrderList = m.api.get_undelivered_orders(date_30_days_ago, tomorrow, printMessage)
+        undeliveredOrderList = m.api.get_orders_per_status(date_30_days_ago, tomorrow, ['delivering'], printMessage)
     except KeyboardInterrupt:
         pass
     m.print.print_orders(undeliveredOrderList)
