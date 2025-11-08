@@ -1,9 +1,11 @@
 import re
 import requests
 
-__all__ = ['unavailableList', 'added_removed', 'build_availability_dict', 'changed', 'look_up_avail']
+__all__ = ['unavailableList', 'unavailableAndUnknownList', 'added_removed', 'build_availability_dict', 'changed', 'look_up_avail']
 
-unavailableList = ['comingSoon', 'unavailable', 'unknown']
+# below lists are useful for 'if' statements
+unavailableList = ['comingSoon', 'unavailable']
+unavailableAndUnknownList = ['comingSoon', 'unavailable', 'unknown']
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def build_availability_dict(url, datacenters=[]):
@@ -38,16 +40,16 @@ def changed(previousA, newA, regex):
     if previousA:
         for fqn in newA:
             if bool(re.search(regex, fqn)):
-                if (newA[fqn] not in unavailableList):
+                if (newA[fqn] not in unavailableAndUnknownList):
                     # found an available server that matches the filter
                     if (fqn not in previousA.keys()
-                        or previousA[fqn] in unavailableList):
+                        or previousA[fqn] in unavailableAndUnknownList):
                         # its availability went from unavailable to available
                         availNow.append(fqn)
                 else:
                     # found an unavailable server that matches the filter
                     if (fqn in previousA.keys()
-                        and previousA[fqn] not in unavailableList):
+                        and previousA[fqn] not in unavailableAndUnknownList):
                         # its availability went from available to unavailable
                         availNotAnymore.append(fqn)
     return (availNow, availNotAnymore)

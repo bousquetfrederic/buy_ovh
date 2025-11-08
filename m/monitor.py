@@ -1,6 +1,7 @@
 import re
 
 import m.availability
+import m.catalog
 
 __all__ = ['avail_added_removed_Str', 'avail_changed_Str', 'catalog_added_removed_Str']
 

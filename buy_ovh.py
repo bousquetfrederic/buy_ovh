@@ -19,7 +19,7 @@ from m.config import configFile
 
 def loadConfigMain(cf):
     global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, addVAT, APIEndpoint, ovhSubsidiary, \
-           loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, \
+           loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, showUnknown, \
            showBandwidth, fakeBuy, coupon
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
     filterName = cf['filterName'] if 'filterName' in cf else filterName
@@ -35,6 +35,7 @@ def loadConfigMain(cf):
     showCpu = cf['showCpu'] if 'showCpu' in cf else showCpu
     showFqn = cf['showFqn'] if 'showFqn' in cf else showFqn
     showUnavailable = cf['showUnavailable'] if 'showUnavailable' in cf else showUnavailable
+    showUnknown = cf['showUnknown'] if 'showUnknown' in cf else showUnknown
     showBandwidth = cf['showBandwidth'] if 'showBandwidth' in cf else showBandwidth
     fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
     coupon = cf['coupon'] if 'coupon' in cf else coupon
@@ -79,6 +80,7 @@ showPrompt = True
 showCpu = True
 showFqn = False
 showUnavailable = True
+showUnknown = True
 showBandwidth = True
 fakeBuy = True
 coupon = ''
@@ -269,7 +271,11 @@ while True:
                                              addVAT,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
-                displayedPlans = [ x for x in plans if (showUnavailable or x['autobuy'] or x['availability'] not in m.availability.unavailableList)]
+                displayedPlans = [ x for x in plans \
+                                   if (x['availability'] not in m.availability.unavailableAndUnknownList or
+                                       (x['availability'] in m.availability.unavailableList and showUnavailable) or
+                                       (x['availability'] == 'unknown' and showUnknown) or
+                                       x['autobuy'])]
                 m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth)
                 if fakeBuy:
                     print("- Fake Buy ON")
@@ -278,10 +284,11 @@ while True:
                 foundAutoBuyServer = False
                 if autoBuyRE:
                     for plan in plans:
-                        if autoBuyNum > 0 and \
-                        (plan['availability'] not in m.availability.unavailableList
-                         or (plan['availability'] == 'unknown' and autoBuyUnknown)) \
-                        and plan['autobuy']:
+                        if (plan['autobuy'] and
+                            autoBuyNum > 0 and
+                            (plan['availability'] not in m.availability.unavailableAndUnknownList or
+                             (plan['availability'] == 'unknown' and autoBuyUnknown))
+                        ):
                             # auto buy
                             foundAutoBuyServer = True
                             # The last x are invoices (rather than direct buy) if a number
@@ -408,7 +415,9 @@ while True:
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
-        elif sChoice.lower() == 'u':
+        elif sChoice.lower() == 'sk':
+            showUnknown = not showUnknown
+        elif sChoice.lower() == 'su':
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
             showPrompt = not showPrompt

@@ -44,6 +44,9 @@ showPrompt: True
 showCpu: False
 # show the servers even if they are unavailable
 showUnavailable: False
+# show the servers even if they have an unknown availability
+# (most probably there is a discrepancy between OVH's catalog and availabilities)
+showUnknown: False
 # show the bandwidth, including of the vRack if available
 # if this is False, only the price for the default bandwidth is displayed
 # (in case there are bandwidth options for the server)
