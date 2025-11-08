@@ -152,6 +152,7 @@ def showHelp():
     print(" F - show FQN instead of server details ON/OFF")
     print(" P - show helpful prompt ON/OFF")
     print(" U - show Unavailable servers ON/OFF")
+    print(" UK - show servers with Unknown availability ON/OFF")
     print(" T - add Tax (VAT) to the price ON/OFF")
     print(" $ - fake buy ON/OFF")
     print("")
@@ -415,9 +416,9 @@ while True:
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
-        elif sChoice.lower() == 'sk':
+        elif sChoice.lower() == 'uk':
             showUnknown = not showUnknown
-        elif sChoice.lower() == 'su':
+        elif sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
             showPrompt = not showPrompt
