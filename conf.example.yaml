@@ -92,7 +92,7 @@ email_added_removed: False
 email_availability_monitor: 24sk40.*gra
 
 # Checks if any server was added to the catalog
-# These must pass the filters (name and disk)
+# These must pass the filters (name, disk and memory)
 email_catalog_monitor: False
 
 # For debug, send an email when an exception is raised during infinite loop
