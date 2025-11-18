@@ -1,5 +1,6 @@
 import ovh
 import time
+from datetime import datetime, timezone
 
 __all__ = ['api_url','build_cart', 'checkout_cart', 'get_orders_per_status',
            'get_consumer_key', 'get_servers_list', 'login', 'is_logged_in']
@@ -184,17 +185,22 @@ def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
             for detailId in details:
                 orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
                 if orderDetail['domain'] == '*001' and orderDetail['detailType'] == "DURATION":
-                    description = orderDetail['description'].split('|')[0].split(' ')[0]
-                    location = orderDetail['description'].split('-')[-2][-4:]
                     theOrder = client.get("/me/order/{0}/".format(orderId))
-                    orderURL = theOrder['url']
-                    orderDate = theOrder['expirationDate'].split('T')[0]
-                    orderList.append({
-                                    'orderId' : orderId,
-                                    'description' : description,
-                                    'location' : location,
-                                    'url' : orderURL,
-                                    'date' : orderDate})
+                    # check if the order has expired
+                    dt = datetime.fromisoformat(theOrder['expirationDate'])
+                    # Current time in UTC
+                    now = datetime.now(timezone.utc)
+                    if now < dt:
+                        description = orderDetail['description'].split('|')[0].split(' ')[0]
+                        location = orderDetail['description'].split('-')[-2][-4:]
+                        orderURL = theOrder['url']
+                        orderDate = theOrder['expirationDate'].split('T')[0]
+                        orderList.append({
+                                        'orderId' : orderId,
+                                        'description' : description,
+                                        'location' : location,
+                                        'url' : orderURL,
+                                        'date' : orderDate})
     return orderList
 
 # ---------------- SERVERS -----------------------------------------------------------------------
