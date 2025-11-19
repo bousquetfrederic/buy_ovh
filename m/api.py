@@ -201,6 +201,7 @@ def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
                                         'location' : location,
                                         'url' : orderURL,
                                         'date' : orderDate})
+                    break
     return orderList
 
 # ---------------- SERVERS -----------------------------------------------------------------------
