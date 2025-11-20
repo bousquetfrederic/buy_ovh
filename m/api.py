@@ -180,7 +180,8 @@ def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
     for orderId in API_orders:
         if printMessage:
             print("(" + str(API_orders.index(orderId)+1) + "/" + str(len(API_orders)) + ")", end="\r", flush=True)
-        if client.get("/me/order/{0}/status/".format(orderId)) in status_list:
+        orderStatus = client.get("/me/order/{0}/status/".format(orderId))
+        if orderStatus in status_list:
             details = client.get("/me/order/{0}/details/".format(orderId))
             for detailId in details:
                 orderDetail = client.get("/me/order/{0}/details/{1}".format(orderId, detailId))
@@ -190,7 +191,8 @@ def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
                     dt = datetime.fromisoformat(theOrder['expirationDate'])
                     # Current time in UTC
                     now = datetime.now(timezone.utc)
-                    if now < dt:
+                    # order awaiting delivery don't expire
+                    if now < dt or orderStatus == 'delivering':
                         description = orderDetail['description'].split('|')[0].split(' ')[0]
                         location = orderDetail['description'].split('-')[-2][-4:]
                         orderURL = theOrder['url']
