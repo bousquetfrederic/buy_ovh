@@ -41,7 +41,9 @@ def print_plan_list(plans,
         'storage' : 0,
         'bandwidth' : 0,
         'vrack' : 0,
-        'price' : 0
+        'price' : 0,
+        'fee' : 0,
+        'total' : 0
     }
     plansForDisplay = []
     # determine what to print
@@ -63,7 +65,9 @@ def print_plan_list(plans,
             'availability': plan['availability'],
             'model':        plan['model'],
             'cpu':          plan['cpu'],
-            'price':        "{:.2f}".format(plan['price'])
+            'price':        "{:.2f}".format(plan['price']),
+            'fee':          "{:.2f}".format(plan['fee']),
+            'total':        "{:.2f}".format(plan['fee']+plan['price'])
             }
         plansForDisplay.append(myPlanD)
         # update the max width of each column if needed
@@ -114,7 +118,9 @@ def print_plan_list(plans,
 
         colStr = printcolor + planD['index'].rjust(sizeOfCol['index']) + " | " + \
                  fqnStr + " | " + bandwidthStr + \
-                 planD['price'].rjust(sizeOfCol['price']) + " |" + color.END
+                 planD['price'].rjust(sizeOfCol['price']) + " | " + \
+                 planD['fee'].rjust(sizeOfCol['fee']) + " | " + \
+                 planD['total'].rjust(sizeOfCol['total'])+ color.END
         print(colStr)
 
 # ----------------- PRINT PROMPT --------------------------------------------------------------

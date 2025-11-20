@@ -61,10 +61,13 @@ def build_list(url,
 
         # find the price
         allPrices = plan['pricings']
-        # let's just take the first one for the moment
+        # first pricing is the setup fee, second is the monthly price
+        # (1 month commitment)
         if allPrices:
+            planFee = float(allPrices[0]['price'])/100000000
             planPrice = float(allPrices[1]['price'])/100000000
         else:
+            planFee = 0.0
             planPrice = 0.0
 
         allStorages = []
@@ -127,14 +130,17 @@ def build_list(url,
                         for vr in allVRack:
                             # each config may have a different price within the same plan
                             thisPrice = planPrice
+                            thisFee = planFee
                             # try to find out the full price
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
+                                thisFee = thisFee + float(storagePlan[0]['pricings'][0]['price'])/100000000
                                 thisPrice = thisPrice + float(storagePlan[0]['pricings'][1]['price'])/100000000
                             except Exception as e:
                                 print(e)
                             try:
                                 memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
+                                thisFee = thisFee + float(memoryPlan[0]['pricings'][0]['price'])/100000000
                                 thisPrice = thisPrice + float(memoryPlan[0]['pricings'][1]['price'])/100000000
                             except Exception as e:
                                 print(e)
@@ -144,6 +150,7 @@ def build_list(url,
                                 # if showBandwidth is false, drop the plans with a bandwidth that costs money
                                 if not bandwidthAndVRack and bandwidthPrice > 0.0:
                                     continue
+                                # not sure if there is setup fee for the bandwidth?
                                 thisPrice = thisPrice + bandwidthPrice
                             except Exception as e:
                                 print(e)
@@ -154,11 +161,13 @@ def build_list(url,
                                     # if showBandwidth is false, drop the plans with a vRack that costs money
                                     if bandwidthAndVRack and vRackPrice > 0.0:
                                         continue
+                                    # not sure if there is setup fee for the vRack?
                                     thisPrice = thisPrice + vRackPrice
                                 except Exception as e:
                                     print(e)
                             if addVAT:
                                 # apply the VAT to the price
+                                thisFee = round(thisFee * vatRate, 2)
                                 thisPrice = round(thisPrice * vatRate, 2)
                             # apply the max price filter if different from 0
                             if maxPrice > 0 and thisPrice > maxPrice:
@@ -180,6 +189,7 @@ def build_list(url,
                                 'vrack' : vr,
                                 'fqn' : myFqn, # for auto buy
                                 'price' : thisPrice,
+                                'fee' : thisFee,
                                 'availability' : myavailability
                                 })
     return sorted(myPlans, key=lambda x: x['planCode'])
