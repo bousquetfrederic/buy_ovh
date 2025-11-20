@@ -40,7 +40,7 @@ def undelivered_orders(printMessage=False):
         undeliveredOrderList = m.api.get_orders_per_status(date_30_days_ago, tomorrow, ['delivering'], printMessage)
     except KeyboardInterrupt:
         pass
-    m.print.print_orders(undeliveredOrderList)
+    m.print.print_orders(undeliveredOrderList, True)
 
     while True:
         sChoice = input("Which one? ")
