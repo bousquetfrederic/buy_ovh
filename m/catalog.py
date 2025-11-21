@@ -22,6 +22,21 @@ def fixSto(sto):
         fixedSto = sto.replace("512", "500")
     return fixedSto
 
+# -------------- EXTRACT THE PRICE INCLUDING PROMOTION -----------------------------------------------------------
+def getPrice(price):
+    myPrice = float(price['price'])/100000000
+    allPromo = price['promotions']
+    if allPromo:
+        allPercentPromo = [x for x in allPromo if x['type']=='percentage']
+        # take only the first one
+        if allPercentPromo:
+            myPromo = float(100-allPercentPromo[0]['value'])/100
+        else:
+            myPromo = 1
+    else:
+        myPromo = 1
+    return myPrice * myPromo
+
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def build_list(url,
                avail, ovhSubsidiary,
@@ -64,8 +79,8 @@ def build_list(url,
         # first pricing is the setup fee, second is the monthly price
         # (1 month commitment)
         if allPrices:
-            planFee = float(allPrices[0]['price'])/100000000
-            planPrice = float(allPrices[1]['price'])/100000000
+            planFee = getPrice(allPrices[0])
+            planPrice = getPrice(allPrices[1])
         else:
             planFee = 0.0
             planPrice = 0.0
@@ -134,19 +149,19 @@ def build_list(url,
                             # try to find out the full price
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
-                                thisFee = thisFee + float(storagePlan[0]['pricings'][0]['price'])/100000000
-                                thisPrice = thisPrice + float(storagePlan[0]['pricings'][1]['price'])/100000000
+                                thisFee = thisFee + getPrice(storagePlan[0]['pricings'][0])
+                                thisPrice = thisPrice + getPrice(storagePlan[0]['pricings'][1])
                             except Exception as e:
                                 print(e)
                             try:
                                 memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
-                                thisFee = thisFee + float(memoryPlan[0]['pricings'][0]['price'])/100000000
-                                thisPrice = thisPrice + float(memoryPlan[0]['pricings'][1]['price'])/100000000
+                                thisFee = thisFee + getPrice(memoryPlan[0]['pricings'][0])
+                                thisPrice = thisPrice + getPrice(memoryPlan[0]['pricings'][1])
                             except Exception as e:
                                 print(e)
                             try:
                                 bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
-                                bandwidthPrice = float(bandwidthPlan[0]['pricings'][1]['price'])/100000000
+                                bandwidthPrice = getPrice(bandwidthPlan[0]['pricings'][1])
                                 # if showBandwidth is false, drop the plans with a bandwidth that costs money
                                 if not bandwidthAndVRack and bandwidthPrice > 0.0:
                                     continue
@@ -157,7 +172,7 @@ def build_list(url,
                             if vr != 'none':
                                 try:
                                     vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
-                                    vRackPrice = float(vRackPlan[0]['pricings'][2]['price'])/100000000
+                                    vRackPrice = getPrice(vRackPlan[0]['pricings'][2])
                                     # if showBandwidth is false, drop the plans with a vRack that costs money
                                     if bandwidthAndVRack and vRackPrice > 0.0:
                                         continue
