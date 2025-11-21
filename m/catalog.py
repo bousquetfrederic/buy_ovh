@@ -174,7 +174,7 @@ def build_list(url,
                                     vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
                                     vRackPrice = getPrice(vRackPlan[0]['pricings'][2])
                                     # if showBandwidth is false, drop the plans with a vRack that costs money
-                                    if bandwidthAndVRack and vRackPrice > 0.0:
+                                    if not bandwidthAndVRack and vRackPrice > 0.0:
                                         continue
                                     # not sure if there is setup fee for the vRack?
                                     thisPrice = thisPrice + vRackPrice
