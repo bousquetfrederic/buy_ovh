@@ -20,7 +20,8 @@ from m.config import configFile
 def loadConfigMain(cf):
     global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, addVAT, APIEndpoint, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, showUnknown, \
-           showBandwidth, fakeBuy, coupon
+           showBandwidth, fakeBuy, coupon, \
+           showPrice, showFee, showTotalPrice
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
     filterName = cf['filterName'] if 'filterName' in cf else filterName
     filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
@@ -37,6 +38,9 @@ def loadConfigMain(cf):
     showUnavailable = cf['showUnavailable'] if 'showUnavailable' in cf else showUnavailable
     showUnknown = cf['showUnknown'] if 'showUnknown' in cf else showUnknown
     showBandwidth = cf['showBandwidth'] if 'showBandwidth' in cf else showBandwidth
+    showPrice = cf['showPrice'] if 'showPrice' in cf else showPrice
+    showFee = cf['showFee'] if 'showFee' in cf else showFee
+    showTotalPrice = cf['showTotalPrice'] if 'showTotalPrice' in cf else showTotalPrice
     fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
     coupon = cf['coupon'] if 'coupon' in cf else coupon
 
@@ -82,6 +86,9 @@ showFqn = False
 showUnavailable = True
 showUnknown = True
 showBandwidth = True
+showPrice = True
+showFee = False
+showTotalPrice = False
 fakeBuy = True
 coupon = ''
 
@@ -147,14 +154,17 @@ def showHelp():
     print("")
     print("Toggles")
     print("-------")
-    print(" B - show Bandwidth and vRack options ON/OFF")
-    print(" C - show CPU type ON/OFF")
-    print(" F - show FQN instead of server details ON/OFF")
-    print(" P - show helpful prompt ON/OFF")
-    print(" U - show Unavailable servers ON/OFF")
+    print(" B  - show Bandwidth and vRack options ON/OFF")
+    print(" C  - show CPU type ON/OFF")
+    print(" F  - show FQN instead of server details ON/OFF")
+    print(" P  - show helpful prompt ON/OFF")
+    print(" PP - show the monthly price ON/OFF")
+    print(" PF - show the installation fee ON/OFF")
+    print(" PT - show the total price ON/OFF")
+    print(" U  - show Unavailable servers ON/OFF")
     print(" UK - show servers with Unknown availability ON/OFF")
-    print(" T - add Tax (VAT) to the price ON/OFF")
-    print(" $ - fake buy ON/OFF")
+    print(" T  - add Tax (VAT) to the price ON/OFF")
+    print(" $  - fake buy ON/OFF")
     print("")
     print("Filters")
     print("-------")
@@ -165,13 +175,13 @@ def showHelp():
     print("")
     print("Commands")
     print("--------")
-    print(" D - show your undelivered orders and a link to see your bill for one")
-    print(" K - enter a coupon (buying will fail if coupon is invalid)")
-    print(" L - (re)start the infinite loop, activating monitoring if configured")
-    print(" O - show your unpaid orders and a link to pay for one")
-    print(" R - reload the configuration file")
-    print(" S - print a list of your servers with some specs")
-    print(" V - look up availabilities for a specific FQN")
+    print(" D  - show your undelivered orders and a link to see your bill for one")
+    print(" K  - enter a coupon (buying will fail if coupon is invalid)")
+    print(" L  - (re)start the infinite loop, activating monitoring if configured")
+    print(" O  - show your unpaid orders and a link to pay for one")
+    print(" R  - reload the configuration file")
+    print(" S  - print a list of your servers with some specs")
+    print(" V  - look up availabilities for a specific FQN")
     print("")
     print("Buying")
     print("------")
@@ -277,7 +287,8 @@ while True:
                                        (x['availability'] in m.availability.unavailableList and showUnavailable) or
                                        (x['availability'] == 'unknown' and showUnknown) or
                                        x['autobuy'])]
-                m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth)
+                m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
+                                        showPrice, showFee, showTotalPrice)
                 if fakeBuy:
                     print("- Fake Buy ON")
                 if not m.api.is_logged_in():
@@ -422,6 +433,12 @@ while True:
             showUnavailable = not showUnavailable
         elif sChoice.lower() == 'p':
             showPrompt = not showPrompt
+        elif sChoice.lower() == 'pp':
+            showPrice = not showPrice
+        elif sChoice.lower() == 'pf':
+            showFee = not showFee
+        elif sChoice.lower() == 'pt':
+            showTotalPrice = not showTotalPrice
         elif sChoice.lower() == 'c':
             showCpu = not showCpu
         elif sChoice.lower() == 'f':

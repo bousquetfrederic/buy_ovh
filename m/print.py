@@ -27,7 +27,8 @@ whichColor = { 'unknown'     : color.CYAN,
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def print_plan_list(plans,
-                    showCpu, showFqn, showBandwidth):
+                    showCpu, showFqn, showBandwidth,
+                    showPrice, showFee, showTotalPrice):
     if not plans:
         print(whichColor['unavailable'] + "No availability." + color.END)
     sizeOfCol = {
@@ -117,10 +118,14 @@ def print_plan_list(plans,
             bandwidthStr = ""
 
         colStr = printcolor + planD['index'].rjust(sizeOfCol['index']) + " | " + \
-                 fqnStr + " | " + bandwidthStr + \
-                 planD['price'].rjust(sizeOfCol['price']) + " | " + \
-                 planD['fee'].rjust(sizeOfCol['fee']) + " | " + \
-                 planD['total'].rjust(sizeOfCol['total'])+ color.END
+                 fqnStr + " | " + bandwidthStr
+        if showPrice:
+            colStr = colStr + planD['price'].rjust(sizeOfCol['price']) + " | "
+        if showFee:
+            colStr = colStr + planD['fee'].rjust(sizeOfCol['fee']) + " | "
+        if showTotalPrice:
+            colStr = colStr + planD['total'].rjust(sizeOfCol['total']) + " | "
+        colStr = colStr + color.END
         print(colStr)
 
 # ----------------- PRINT PROMPT --------------------------------------------------------------
