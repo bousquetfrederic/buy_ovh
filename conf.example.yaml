@@ -35,8 +35,14 @@ maxPrice: 100
 
 ovhSubsidiary: FR
 
-# add the VAT to the price?
+# add the VAT to the prices?
 addVAT: True
+# show the monthly price
+showPrice: True
+# show the setup fee
+showFee: False
+# show the price for first month (price+fee)
+showTotalPrice: False
 
 # show a helpful prompt after the list of server
 showPrompt: True
