@@ -9,54 +9,66 @@ __all__ = ['avail_added_removed_Str', 'avail_changed_Str', 'catalog_added_remove
 # - vibe coded using Copilot
 # - replace [(a.b.c.d), (a.b.c.e)] by a.b.c.(d|e) for shorter emails
 def compress_fnq_list(lines):
-    # Parse into lists of segments
-    parsed = [tuple(line.split(".")) for line in lines]
-    # Group by length: different lengths cannot be merged
-    length_groups = defaultdict(list)
-    for p in parsed:
-        length_groups[len(p)].append(p)
-    output = []
-    for length, group in length_groups.items():
-        # For each length, recursively factor
-        output.extend(factor_level(group, 0))
-    return [".".join(parts) for parts in output]
-
-def factor_level(group, level):
-    if len(group) == 1:
-        return [group[0]]
-    if level >= len(group[0]):
-        return group
-    # Group by the value at this level
-    buckets = defaultdict(list)
-    for g in group:
-        buckets[g[level]].append(g)
-    # If only one bucket, go deeper
-    if len(buckets) == 1:
-        key = next(iter(buckets))
-        sub = factor_level(buckets[key], level + 1)
-        return sub
-    # Try to factor deeper levels inside each bucket
-    factored = []
-    for key, items in buckets.items():
-        factored.append((key, factor_level(items, level + 1)))
-    # Check if all subgroups share identical suffix patterns
-    suffixes = [tuple(x[1] for x in f[1]) for f in factored]
-    if all(s == suffixes[0] for s in suffixes):
-        # We can merge keys at this level
-        merged_keys = sorted(f[0] for f in factored)
-        merged_suffix = suffixes[0][0]
-        merged = [None] * len(merged_suffix)
-        merged[level] = "(" + "|".join(merged_keys) + ")"
-        for i in range(level + 1, len(merged_suffix)):
-            merged[i] = merged_suffix[i]
-        return [tuple(merged)]
-    # Otherwise, return each subgroup separately
+    fqns_4 = []
+    passthrough = []
+    for line in lines:
+        parts = line.split(".")
+        if len(parts) == 4:
+            fqns_4.append(tuple(parts))
+        else:
+            passthrough.append(line)
+    # Group by a
+    groups_a = defaultdict(list)
+    for a, b, c, d in fqns_4:
+        groups_a[a].append((b, c, d))
     result = []
-    for key, sub in factored:
-        for s in sub:
-            new = list(s)
-            new[level] = key
-            result.append(tuple(new))
+    for a, bcd_list in groups_a.items():
+        # Group by b
+        groups_b = defaultdict(list)
+        for b, c, d in bcd_list:
+            groups_b[b].append((c, d))
+        # Pour chaque b, on construit sa structure c/d avec Option B
+        b_struct = {}  # b -> list of (c_group_tuple, dset_tuple)
+        for b, cd_list in groups_b.items():
+            c_to_ds = defaultdict(set)
+            for c, d in cd_list:
+                c_to_ds[c].add(d)
+            # Option B sur c/d : regrouper les c qui ont le même set de d
+            dset_to_cs = defaultdict(list)
+            for c, dset in c_to_ds.items():
+                dset_to_cs[frozenset(dset)].append(c)
+            struct = []
+            for dset, cs in dset_to_cs.items():
+                cs_sorted = tuple(sorted(cs))
+                ds_sorted = tuple(sorted(dset))
+                struct.append((cs_sorted, ds_sorted))
+            struct.sort()
+            b_struct[b] = struct
+        # Maintenant, on regroupe les b qui ont la même structure c/d
+        struct_to_bs = defaultdict(list)
+        for b, struct in b_struct.items():
+            key = tuple(struct)  # hashable
+            struct_to_bs[key].append(b)
+        # On produit les lignes
+        for struct, bs in struct_to_bs.items():
+            bs_sorted = sorted(bs)
+            if len(bs_sorted) == 1:
+                b_part = bs_sorted[0]
+            else:
+                b_part = "(" + "|".join(bs_sorted) + ")"
+            for c_group, dset in struct:
+                if len(c_group) == 1:
+                    c_part = c_group[0]
+                else:
+                    c_part = "(" + "|".join(c_group) + ")"
+
+                if len(dset) == 1:
+                    d_part = dset[0]
+                else:
+                    d_part = "(" + "|".join(dset) + ")"
+                result.append(".".join([a, b_part, c_part, d_part]))
+    # On rajoute les lignes non compressées (≠ 4 niveaux)
+    result.extend(passthrough)
     return result
 
 # ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
