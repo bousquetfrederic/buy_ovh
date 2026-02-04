@@ -46,9 +46,9 @@ def avail_added_removed_Str(previousA, newA, preStr="", postStr=""):
         removedList = removedFqns
     if previousA and newA:
         for added in addedList:
-            strToSend += preStr + "Added to availabilities: " + added + postStr + "\n"
+            strToSend += preStr + "+ " + added + postStr + "\n"
         for removed in removedList:
-            strToSend += preStr + "Removed from availabilities: " + removed + postStr + "\n"
+            strToSend += preStr + "- " + removed + postStr + "\n"
     return strToSend
 
 def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
@@ -58,9 +58,9 @@ def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
     strToSend = ""
     availNow, availNotAnymore = m.availability.changed(previousA, newA, regex)
     for fqn in availNow:
-        strToSend += preStr + "Available now: " + fqn + postStr + "\n"
+        strToSend += preStr + "O " + fqn + postStr + "\n"
     for fqn in availNotAnymore:
-        strToSend += preStr + "No longer available: " + fqn + postStr + "\n"
+        strToSend += preStr + "X " + fqn + postStr + "\n"
     return strToSend
 
 # ---------------- EMAIL IF SOMETHING APPEARS IN THE CATALOG -----------------------------------
@@ -75,7 +75,7 @@ def catalog_added_removed_Str(previousP, newP, preStr="", postStr=""):
         addedList = addedFqns
         removedList = removedFqns
     for fqn in addedList:
-        strChanged += preStr + "New to the catalog: " + fqn + postStr + "\n"
+        strChanged += preStr + "+ " + fqn + postStr + "\n"
     for fqn in removedList:
-        strChanged += preStr + "No longer in the catalog: " + fqn + postStr + "\n"
+        strChanged += preStr + "- " + fqn + postStr + "\n"
     return strChanged

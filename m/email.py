@@ -22,7 +22,9 @@ def send_email(subject, text, warnUser=False):
     html = """\
 <html>
   <body>
+  <div style="font-family: Consolas, 'Courier New', monospace;">
 """ + text + """\
+  </div>
   </body>
 </html>
 """

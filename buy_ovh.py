@@ -332,18 +332,18 @@ while True:
                 # availability and catalog monitor if configured
                 strAvailMonitor = ""
                 if email_added_removed:
-                    strAvailMonitor = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities, "<p>", "</p>")
+                    strAvailMonitor = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities, "", "<br>")
                 if email_availability_monitor:
                     strAvailMonitor = strAvailMonitor + \
                                       m.monitor.avail_changed_Str(previousAvailabilities,
                                                                   availabilities,
                                                                   email_availability_monitor,
-                                                                  "<p>", "</p>")
+                                                                  "", "<br>")
                 if strAvailMonitor:
                     m.email.send_email("BUY_OVH: availabilities", strAvailMonitor, not loop)
                 # Don't do the catalog monitoring if the user has just changed the filters
                 if not filtersChanged:
-                    strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "<p>", "</p>")
+                    strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "", "<br>")
                     if strCatalogMonitor:
                         m.email.send_email("BUY_OVH: catalog", strCatalogMonitor, not loop)
                 else:
