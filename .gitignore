@@ -1,6 +1,6 @@
 /ovh.conf
 /conf.py
-/conf.yaml
+/*.yaml
 __pycache__/
 *.py[cod]
 .vscode/
