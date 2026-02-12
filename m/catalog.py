@@ -37,16 +37,24 @@ def getPriceValue(price):
         myPromo = 1
     return myPrice * myPromo
 
-def getPlanPrice(plan):
+def getPlanPrice(plan, mode = 'default'):
     try:
-        allPlanPrices = [x for x in plan['pricings'] if x['phase'] == 1 and x['capacities'][0] == 'renew']
+        allPlanPrices = [x for x in plan['pricings']
+                         if x['phase'] == 1
+                         and x['capacities'][0] == 'renew'
+                         and x['strategy'] == 'tiered'
+                         and x['mode'] == mode]
         return getPriceValue(allPlanPrices[0])
     except:
         return 0
 
-def getPlanFee(plan):
+def getPlanFee(plan, mode = 'default'):
     try:
-        allPlanFees = [x for x in plan['pricings'] if x['phase'] == 0 and x['capacities'][0] == 'installation']
+        allPlanFees = [x for x in plan['pricings']
+                       if x['phase'] == 0
+                       and x['capacities'][0] == 'installation'
+                       and x['strategy'] == 'tiered'
+                       and x['mode']  == mode]
         return getPriceValue(allPlanFees[0])
     except:
         return 0
