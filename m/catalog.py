@@ -22,8 +22,8 @@ def fixSto(sto):
         fixedSto = sto.replace("512", "500")
     return fixedSto
 
-# -------------- EXTRACT THE PRICE INCLUDING PROMOTION -----------------------------------------------------------
-def getPrice(price):
+# -------------- EXTRACT THE PRICE AND FEES INCLUDING PROMOTION ----------------------------------------------------
+def getPriceValue(price):
     myPrice = float(price['price'])/100000000
     allPromo = price['promotions']
     if allPromo:
@@ -36,6 +36,20 @@ def getPrice(price):
     else:
         myPromo = 1
     return myPrice * myPromo
+
+def getPlanPrice(plan):
+    try:
+        allPlanPrices = [x for x in plan['pricings'] if x['phase'] == 1 and x['capacities'][0] == 'renew']
+        return getPriceValue(allPlanPrices[0])
+    except:
+        return 0
+
+def getPlanFee(plan):
+    try:
+        allPlanFees = [x for x in plan['pricings'] if x['phase'] == 0 and x['capacities'][0] == 'installation']
+        return getPriceValue(allPlanFees[0])
+    except:
+        return 0
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def build_list(url,
@@ -74,16 +88,9 @@ def build_list(url,
                 or bool(re.search(filterName, plan['planCode']))):
             continue
 
-        # find the price
-        allPrices = plan['pricings']
-        # first pricing is the setup fee, second is the monthly price
-        # (1 month commitment)
-        if allPrices:
-            planFee = getPrice(allPrices[0])
-            planPrice = getPrice(allPrices[1])
-        else:
-            planFee = 0.0
-            planPrice = 0.0
+        # find the price and fee
+        planFee = getPlanFee(plan)
+        planPrice = getPlanPrice(plan)
 
         allStorages = []
         allMemories = []
@@ -149,19 +156,19 @@ def build_list(url,
                             # try to find out the full price
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
-                                thisFee = thisFee + getPrice(storagePlan[0]['pricings'][0])
-                                thisPrice = thisPrice + getPrice(storagePlan[0]['pricings'][1])
+                                thisFee = thisFee + getPlanFee(storagePlan[0])
+                                thisPrice = thisPrice + getPlanPrice(storagePlan[0])
                             except Exception as e:
                                 print(e)
                             try:
                                 memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
-                                thisFee = thisFee + getPrice(memoryPlan[0]['pricings'][0])
-                                thisPrice = thisPrice + getPrice(memoryPlan[0]['pricings'][1])
+                                thisFee = thisFee + getPlanFee(memoryPlan[0])
+                                thisPrice = thisPrice + getPlanPrice(memoryPlan[0])
                             except Exception as e:
                                 print(e)
                             try:
                                 bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
-                                bandwidthPrice = getPrice(bandwidthPlan[0]['pricings'][1])
+                                bandwidthPrice = getPlanPrice(bandwidthPlan[0])
                                 # if showBandwidth is false, drop the plans with a bandwidth that costs money
                                 if not bandwidthAndVRack and bandwidthPrice > 0.0:
                                     continue
@@ -172,7 +179,7 @@ def build_list(url,
                             if vr != 'none':
                                 try:
                                     vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
-                                    vRackPrice = getPrice(vRackPlan[0]['pricings'][2])
+                                    vRackPrice = getPlanPrice(vRackPlan[0])
                                     # if showBandwidth is false, drop the plans with a vRack that costs money
                                     if not bandwidthAndVRack and vRackPrice > 0.0:
                                         continue
