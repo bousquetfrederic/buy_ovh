@@ -37,7 +37,7 @@ def getPriceValue(price):
         myPromo = 1
     return myPrice * myPromo
 
-def getPlanPrice(plan, mode = 'default'):
+def getPlanPrice(plan, mode):
     try:
         allPlanPrices = [x for x in plan['pricings']
                          if x['phase'] == 1
@@ -48,7 +48,7 @@ def getPlanPrice(plan, mode = 'default'):
     except:
         return 0
 
-def getPlanFee(plan, mode = 'default'):
+def getPlanFee(plan, mode):
     try:
         allPlanFees = [x for x in plan['pricings']
                        if x['phase'] == 0
@@ -63,13 +63,20 @@ def getPlanFee(plan, mode = 'default'):
 def build_list(url,
                avail, ovhSubsidiary,
                filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
-               addVAT,
+               addVAT, months,
                bandwidthAndVRack):
     response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
 
     allPlans = API_catalog['plans']
     myPlans = []
+
+    if months == 12:
+        pricingMode = 'upfront12'
+    elif months == 24:
+        pricingMode = 'upfront24'
+    else:
+        pricingMode = 'default'
 
     allAddons = API_catalog['addons']
 
@@ -97,8 +104,8 @@ def build_list(url,
             continue
 
         # find the price and fee
-        planFee = getPlanFee(plan)
-        planPrice = getPlanPrice(plan)
+        planFee = getPlanFee(plan, pricingMode)
+        planPrice = getPlanPrice(plan, pricingMode)
 
         allStorages = []
         allMemories = []
@@ -164,19 +171,19 @@ def build_list(url,
                             # try to find out the full price
                             try:
                                 storagePlan = [x for x in allAddons if (x['planCode'] == st)]
-                                thisFee = thisFee + getPlanFee(storagePlan[0])
-                                thisPrice = thisPrice + getPlanPrice(storagePlan[0])
+                                thisFee = thisFee + getPlanFee(storagePlan[0], pricingMode)
+                                thisPrice = thisPrice + getPlanPrice(storagePlan[0], pricingMode)
                             except Exception as e:
                                 print(e)
                             try:
                                 memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
-                                thisFee = thisFee + getPlanFee(memoryPlan[0])
-                                thisPrice = thisPrice + getPlanPrice(memoryPlan[0])
+                                thisFee = thisFee + getPlanFee(memoryPlan[0], pricingMode)
+                                thisPrice = thisPrice + getPlanPrice(memoryPlan[0], pricingMode)
                             except Exception as e:
                                 print(e)
                             try:
                                 bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
-                                bandwidthPrice = getPlanPrice(bandwidthPlan[0])
+                                bandwidthPrice = getPlanPrice(bandwidthPlan[0], pricingMode)
                                 # if showBandwidth is false, drop the plans with a bandwidth that costs money
                                 if not bandwidthAndVRack and bandwidthPrice > 0.0:
                                     continue
@@ -187,7 +194,7 @@ def build_list(url,
                             if vr != 'none':
                                 try:
                                     vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
-                                    vRackPrice = getPlanPrice(vRackPlan[0])
+                                    vRackPrice = getPlanPrice(vRackPlan[0], pricingMode)
                                     # if showBandwidth is false, drop the plans with a vRack that costs money
                                     if not bandwidthAndVRack and vRackPrice > 0.0:
                                         continue

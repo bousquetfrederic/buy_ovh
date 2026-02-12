@@ -20,7 +20,7 @@ from m.config import configFile
 def loadConfigMain(cf):
     global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, addVAT, APIEndpoint, ovhSubsidiary, \
            loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, showUnknown, \
-           showBandwidth, fakeBuy, coupon, \
+           showBandwidth, fakeBuy, coupon, months, \
            showPrice, showFee, showTotalPrice
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
     filterName = cf['filterName'] if 'filterName' in cf else filterName
@@ -43,6 +43,7 @@ def loadConfigMain(cf):
     showTotalPrice = cf['showTotalPrice'] if 'showTotalPrice' in cf else showTotalPrice
     fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
     coupon = cf['coupon'] if 'coupon' in cf else coupon
+    months = cf['months'] if 'months' in cf else months
 
 def loadConfigEmail(cf):
     global email_on, email_at_startup, email_auto_buy, email_added_removed, \
@@ -91,6 +92,7 @@ showFee = False
 showTotalPrice = False
 fakeBuy = True
 coupon = ''
+months = 1
 
 loadConfigMain(configFile)
 
@@ -216,7 +218,7 @@ def buyServer(plan, buyNow, autoMode):
     strBuy = strBuyNow + plan['model'] + " in " + plan['datacenter'] + "."
     print("Let's " + strBuy + strAuto)
     try:
-        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy), buyNow, fakeBuy)
+        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy, months), buyNow, fakeBuy)
         if autoMode:
             if fakeBuy:
                 autoFake += 1
@@ -294,7 +296,7 @@ while True:
                                              availabilities,
                                              ovhSubsidiary,
                                              filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
-                                             addVAT,
+                                             addVAT, months,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
                 displayedPlans = [ x for x in plans \
@@ -351,7 +353,7 @@ while True:
                 # if the conf says no loop, jump to the menu
                 if not loop:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon)
+                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months)
                         # if there has been at least one auto buy, show counters
                         if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
                             m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
@@ -359,7 +361,7 @@ while True:
                     break
                 if not foundAutoBuyServer:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon)
+                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months)
                         if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
                             m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
                                                    autoOK, autoKO, autoFake)

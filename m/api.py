@@ -66,7 +66,7 @@ def get_consumer_key(endpoint, application_key, application_secret):
         return "nokey"
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
-def build_cart(plan, ovhSubsidiary, coupon, fake=False):
+def build_cart(plan, ovhSubsidiary, coupon, fake, months):
     if fake:
         print("Fake cart!")
         time.sleep(1)
@@ -75,8 +75,15 @@ def build_cart(plan, ovhSubsidiary, coupon, fake=False):
         raise NotLoggedIn("Need to be logged in to build the cart.")
 
     # duration and mode
-    duration = "P1M"
-    pricingMode = "default"
+    if months == 12:
+        duration = "P12M"
+        pricingMode = "upfront12"
+    elif months == 24:
+        duration = "P24M"
+        pricingMode = "upfront24"
+    else:
+        duration = "P1M"
+        pricingMode = "default"
 
     # make a cart
     cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
