@@ -74,6 +74,10 @@ def build_cart(plan, ovhSubsidiary, coupon, fake=False):
     elif client == None:
         raise NotLoggedIn("Need to be logged in to build the cart.")
 
+    # duration and mode
+    duration = "P1M"
+    pricingMode = "default"
+
     # make a cart
     cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
     cartId = cart.get("cartId")
@@ -81,9 +85,9 @@ def build_cart(plan, ovhSubsidiary, coupon, fake=False):
     # add the server
     result = client.post(
                          f'/order/cart/{cart.get("cartId")}/eco',
-                         duration = "P1M",
+                         duration = duration,
                          planCode = plan['planCode'],
-                         pricingMode = "default",
+                         pricingMode = pricingMode,
                          quantity = 1
                         )
     itemId = result['itemId']
@@ -91,35 +95,35 @@ def build_cart(plan, ovhSubsidiary, coupon, fake=False):
     # add options
     result = client.post(
                          f'/order/cart/{cartId}/eco/options',
-                         duration = "P1M",
                          itemId = itemId,
+                         duration = duration,
                          planCode = plan['memory'],
-                         pricingMode = "default",
+                         pricingMode = pricingMode,
                          quantity = 1
                         )
     result = client.post(
                          f'/order/cart/{cartId}/eco/options',
                          itemId = itemId,
-                         duration = "P1M",
+                         duration = duration,
                          planCode = plan['storage'],
-                         pricingMode = "default",
+                         pricingMode = pricingMode,
                          quantity = 1
                         )
     result = client.post(
                          f'/order/cart/{cartId}/eco/options',
                          itemId = itemId,
-                         duration = "P1M",
+                         duration = duration,
                          planCode = plan['bandwidth'],
-                         pricingMode = "default",
+                         pricingMode = pricingMode,
                          quantity = 1
                         )
     if plan['vrack'] != 'none':
         result = client.post(
                             f'/order/cart/{cartId}/eco/options',
                             itemId = itemId,
-                            duration = "P1M",
+                            duration = duration,
                             planCode = plan['vrack'],
-                            pricingMode = "default",
+                            pricingMode = pricingMode,
                             quantity = 1
                             )
 
@@ -194,7 +198,7 @@ def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
                     # order awaiting delivery don't expire
                     if now < dt or orderStatus == 'delivering':
                         description = orderDetail['description'].split('|')[0].split(' ')[0]
-                        location = orderDetail['description'].split('-')[-2][-4:]
+                        location = orderDetail['description'].split(' - ')[1][-3:]
                         orderURL = theOrder['url']
                         orderDate = theOrder['expirationDate'].split('T')[0]
                         orderList.append({

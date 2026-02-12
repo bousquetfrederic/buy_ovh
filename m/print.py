@@ -159,7 +159,7 @@ def print_orders(orderList, printDate=False):
                        + order['description'].ljust(10) + "| " \
                        + order['location']
         if printDate:
-            strOrder = strOrder + "| " + order['date']
+            strOrder = strOrder + " | " + order['date']
         print (strOrder)
 
 # ------------------ PRINT SERVER SPECS ----------------------------------------------------------
