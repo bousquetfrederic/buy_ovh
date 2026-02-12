@@ -178,6 +178,12 @@ def showHelp():
     print(" [filtername]=[value] is also supported, for example:")
     print(" fp=20 fm=32g")
     print("")
+    print("Months upfront")
+    print("--------------")
+    print(" M1  - show prices and buy with 1 month commitment")
+    print(" M12 - show prices and buy with 12 months commitment paid upfront")
+    print(" M24 - show prices and buy with 24 months commitment paid upfront")
+    print("")
     print("Commands")
     print("--------")
     print(" D  - show your undelivered orders and a link to see your bill for one")
@@ -438,6 +444,15 @@ while True:
                 maxPrice = 0
             else:
                 maxPrice = float(tmpMaxPrice)
+            filtersChanged = True
+        elif sChoice.lower() == 'm1':
+            months = 1
+            filtersChanged = True
+        elif sChoice.lower() == 'm12':
+            months = 12
+            filtersChanged = True
+        elif sChoice.lower() == 'm24':
+            months = 24
             filtersChanged = True
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
