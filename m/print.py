@@ -74,10 +74,10 @@ def print_plan_list(plans,
             }
         plansForDisplay.append(myPlanD)
         # update the max width of each column if needed
-        for col in myPlanD.keys():
-            if col not in ['autobuy', 'availability']:
-                sizeOfCol[col]=max(sizeOfCol[col], len(myPlanD[col]))
-
+        exclude = {'autobuy', 'availability'}
+        for col, val in myPlanD.items():
+            if col not in exclude:
+                sizeOfCol[col] = max(sizeOfCol[col], len(val))
     # print the list
     for planD in plansForDisplay:
         # what colour?
