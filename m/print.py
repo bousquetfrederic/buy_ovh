@@ -53,13 +53,15 @@ def print_plan_list(plans,
             vrack = 'none'
         else:
             vrack = plan['vrack'].split("-")[2]
+        # storage can be very verbose, keep only what disks are there (ex: "2x450ssd")
+        storage = "-".join([x for x in plan['storage'].split("-") if x[1] == "x"])
         myPlanD = {
             'index':        str(plans.index(plan)),
             'planCode':     plan['planCode'],
             'datacenter':   plan['datacenter'],
             'fqn':          plan['fqn'],
             'memory':       plan['memory'].split("-")[1],
-            'storage':      "-".join(plan['storage'].split("-")[1:-1]),
+            'storage':      storage,
             'bandwidth':    plan['bandwidth'].split("-")[1],
             'vrack':        vrack,
             'autobuy':      plan['autobuy'],
