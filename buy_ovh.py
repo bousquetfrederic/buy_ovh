@@ -19,31 +19,32 @@ from m.config import configFile
 
 def loadConfigMain(cf):
     global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, addVAT, APIEndpoint, ovhSubsidiary, \
-           loop, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, showUnknown, \
+           loop, printListWhileLooping, sleepsecs, showPrompt, showCpu, showFqn, showUnavailable, showUnknown, \
            showBandwidth, fakeBuy, coupon, months, \
            showPrice, showFee, showTotalPrice
     acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
-    filterName = cf['filterName'] if 'filterName' in cf else filterName
+    addVAT = cf['addVAT'] if 'addVAT' in cf else addVAT
+    APIEndpoint = cf['APIEndpoint'] if 'APIEndpoint' in cf else APIEndpoint
+    coupon = cf['coupon'] if 'coupon' in cf else coupon
+    fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
     filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
     filterMemory = cf['filterMemory'] if 'filterMemory' in cf else filterMemory
-    maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
-    addVAT = cf['addVAT'] if 'addVAT' in cf else addVAT
-    ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
-    APIEndpoint = cf['APIEndpoint'] if 'APIEndpoint' in cf else APIEndpoint
+    filterName = cf['filterName'] if 'filterName' in cf else filterName
     loop = cf['loop'] if 'loop' in cf else loop
-    sleepsecs = cf['sleepsecs'] if 'sleepsecs' in cf else sleepsecs    
-    showPrompt = cf['showPrompt'] if 'showPrompt' in cf else showPrompt
+    maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
+    months = cf['months'] if 'months' in cf else months
+    ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
+    printListWhileLooping = cf['printListWhileLooping'] if 'printListWhileLooping' in cf else printListWhileLooping
+    showBandwidth = cf['showBandwidth'] if 'showBandwidth' in cf else showBandwidth
     showCpu = cf['showCpu'] if 'showCpu' in cf else showCpu
+    showFee = cf['showFee'] if 'showFee' in cf else showFee
     showFqn = cf['showFqn'] if 'showFqn' in cf else showFqn
+    showPrice = cf['showPrice'] if 'showPrice' in cf else showPrice
+    showPrompt = cf['showPrompt'] if 'showPrompt' in cf else showPrompt
+    showTotalPrice = cf['showTotalPrice'] if 'showTotalPrice' in cf else showTotalPrice
     showUnavailable = cf['showUnavailable'] if 'showUnavailable' in cf else showUnavailable
     showUnknown = cf['showUnknown'] if 'showUnknown' in cf else showUnknown
-    showBandwidth = cf['showBandwidth'] if 'showBandwidth' in cf else showBandwidth
-    showPrice = cf['showPrice'] if 'showPrice' in cf else showPrice
-    showFee = cf['showFee'] if 'showFee' in cf else showFee
-    showTotalPrice = cf['showTotalPrice'] if 'showTotalPrice' in cf else showTotalPrice
-    fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
-    coupon = cf['coupon'] if 'coupon' in cf else coupon
-    months = cf['months'] if 'months' in cf else months
+    sleepsecs = cf['sleepsecs'] if 'sleepsecs' in cf else sleepsecs    
 
 def loadConfigEmail(cf):
     global email_on, email_at_startup, email_auto_buy, email_added_removed, \
@@ -72,27 +73,28 @@ def loadConfigAutoBuy(cf):
     autoFake = 0
 
 acceptable_dc = []
-filterName = ""
+addVAT = False
+APIEndpoint = "ovh-eu"
+coupon = ''
+fakeBuy = True
 filterDisk = ""
 filterMemory = ""
-maxPrice = 0
-addVAT = False
-ovhSubsidiary = "FR"
-APIEndpoint = "ovh-eu"
+filterName = ""
 loop = False
-sleepsecs = 60    
-showPrompt = True
+maxPrice = 0
+months = 1
+ovhSubsidiary = "FR"
+printListWhileLooping = True
+showBandwidth = True
 showCpu = True
+showFee = False
 showFqn = False
+showPrice = True
+showPrompt = True
+showTotalPrice = False
 showUnavailable = True
 showUnknown = True
-showBandwidth = True
-showPrice = True
-showFee = False
-showTotalPrice = False
-fakeBuy = True
-coupon = ''
-months = 1
+sleepsecs = 60    
 
 loadConfigMain(configFile)
 
@@ -159,6 +161,7 @@ def showHelp():
     print(" B  - show Bandwidth and vRack options ON/OFF")
     print(" C  - show CPU type ON/OFF")
     print(" F  - show FQN instead of server details ON/OFF")
+    print(" LP - show the server list while looping ON/OFF")
     print(" P  - show helpful prompt ON/OFF")
     print(" PP - show the monthly price ON/OFF")
     print(" PF - show the installation fee ON/OFF")
@@ -305,13 +308,14 @@ while True:
                                              addVAT, months,
                                              showBandwidth)
                 m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
-                displayedPlans = [ x for x in plans \
-                                   if (x['availability'] not in m.availability.unavailableAndUnknownList or
-                                       (x['availability'] in m.availability.unavailableList and showUnavailable) or
-                                       (x['availability'] == 'unknown' and showUnknown) or
-                                       x['autobuy'])]
-                m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
-                                        showPrice, showFee, showTotalPrice)
+                if printListWhileLooping or not loop:
+                    displayedPlans = [ x for x in plans \
+                                    if (x['availability'] not in m.availability.unavailableAndUnknownList or
+                                        (x['availability'] in m.availability.unavailableList and showUnavailable) or
+                                        (x['availability'] == 'unknown' and showUnknown) or
+                                        x['autobuy'])]
+                    m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
+                                            showPrice, showFee, showTotalPrice)
                 if fakeBuy:
                     print("- Fake Buy ON")
                 if not m.api.is_logged_in():
@@ -480,6 +484,8 @@ while True:
             fakeBuy = not fakeBuy
         elif sChoice.lower() == 'l':
             loop = True
+        elif sChoice.lower() == 'lp':
+            printListWhileLooping = not printListWhileLooping
         elif sChoice.lower() == 'o':
             m.orders.unpaid_orders(True)
         elif sChoice.lower() == 'd':

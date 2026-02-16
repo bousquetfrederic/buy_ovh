@@ -79,6 +79,9 @@ fakeBuy: True
 # by pressing 'L'
 loop: False
 
+# print or not the server list while looping
+printListWhileLooping: True
+
 # how many seconds before a refresh (if loop = True)
 sleepsecs: 20
 
