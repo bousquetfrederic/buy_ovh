@@ -1,3 +1,4 @@
+import copy
 import os
 import re
 import sys
@@ -58,19 +59,12 @@ def loadConfigEmail(cf):
     email_exception = cf['email_exception'] if 'email_exception' in cf and email_on else email_exception
 
 def loadConfigAutoBuy(cf):
-    global autoBuyRE, autoBuyNum, autoBuyMaxPrice, autoBuyInvoicesNum, autoBuyUnknown, \
-           autoBuyNumInit, autoOK, autoKO, autoFake
-    autoBuyRE = cf['auto_buy'] if 'auto_buy' in cf else autoBuyRE
-    autoBuyNum = cf['auto_buy_num'] if 'auto_buy_num' in cf else autoBuyNum
-    autoBuyMaxPrice = cf['auto_buy_max_price'] if 'auto_buy_max_price' in cf else autoBuyMaxPrice
-    autoBuyInvoicesNum = cf['auto_buy_num_invoices'] if 'auto_buy_num_invoices' in cf else autoBuyInvoicesNum
-    autoBuyUnknown = cf['auto_buy_unknown'] if 'auto_buy_unknown' in cf else autoBuyUnknown
-    if autoBuyNum == 0:
-        autoBuyRE = ""
-    autoBuyNumInit = autoBuyNum
-    autoOK = 0
-    autoKO = 0
-    autoFake = 0
+    global autoBuy
+    autoBuy = copy.deepcopy(cf['auto_buy']) if 'auto_buy' in cf else autoBuy
+    print(autoBuy)
+    time.sleep(3)
+    # drop entries with num = 0
+    autoBuy = [x for x in autoBuy if x['num'] > 0]
 
 acceptable_dc = []
 addVAT = False
@@ -108,16 +102,7 @@ email_exception = False
 loadConfigEmail(configFile)
 
 # Auto Buy
-autoBuyRE = ""
-autoBuyNum = 1
-autoBuyMaxPrice = 0
-autoBuyInvoicesNum = 0
-autoBuyNumInit = 0
-autoBuyUnknown = 0
-# counters to display how auto buy are doing
-autoOK = 0
-autoKO = 0
-autoFake = 0
+autoBuy = []
 loadConfigAutoBuy(configFile)
 
 # ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
@@ -215,7 +200,6 @@ def showHelp():
 
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow, autoMode):
-    global autoFake, autoOK, autoKO
     if autoMode:
         strAuto = "   -Auto Mode-"
     else:
@@ -228,20 +212,13 @@ def buyServer(plan, buyNow, autoMode):
     print("Let's " + strBuy + strAuto)
     try:
         m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy, months), buyNow, fakeBuy)
-        if autoMode:
-            if fakeBuy:
-                autoFake += 1
-            else:
-                autoOK += 1
-            if email_auto_buy and loop:
-                m.email.send_auto_buy_email("SUCCESS: " + strBuy)
+        if autoMode and email_auto_buy and loop:
+            m.email.send_auto_buy_email("SUCCESS: " + strBuy)
     except Exception as e:
         print("Not today.")
         print(e)
-        if autoMode:
-            autoKO += 1
-            if email_auto_buy  and loop:
-                m.email.send_auto_buy_email("FAILED: " + strBuy)
+        if autoMode and email_auto_buy and loop:
+            m.email.send_auto_buy_email("FAILED: " + strBuy)
         time.sleep(3)
 
 # ------------------ TOOL ---------------------------------------------------------------------
@@ -301,13 +278,16 @@ while True:
                     previousAvailabilities = availabilities
                     previousPlans = plans
                 availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint),acceptable_dc)
+                # test
+                if previousAvailabilities:
+                    availabilities['26sk50b-v1.ram-32g-ecc-2133.softraid-2x450nvme.fra']='unknown'
                 plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                              availabilities,
                                              ovhSubsidiary,
                                              filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                                              addVAT, months,
                                              showBandwidth)
-                m.catalog.add_auto_buy(plans, autoBuyRE, autoBuyMaxPrice)
+                m.catalog.add_auto_buy(plans, autoBuy)
                 if printListWhileLooping or not loop:
                     displayedPlans = [ x for x in plans \
                                     if (x['availability'] not in m.availability.unavailableAndUnknownList or
@@ -321,26 +301,21 @@ while True:
                 if not m.api.is_logged_in():
                     print("- Not logged in")
                 foundAutoBuyServer = False
-                if autoBuyRE:
+                if autoBuy:
                     for plan in plans:
-                        if (plan['autobuy'] and
-                            autoBuyNum > 0 and
-                            (plan['availability'] not in m.availability.unavailableAndUnknownList or
-                             # the first x can be attempted for servers in unknown availability
-                             # if defined in the conf. This allows to grab servers when they appear
-                             # even if there is a discrepancy between availabilities and catalog
-                             (plan['availability'] == 'unknown' and autoBuyUnknown > autoBuyNumInit - autoBuyNum))
-                        ):
-                            # auto buy
-                            foundAutoBuyServer = True
-                            # The last x are invoices (rather than direct buy) if a number
-                            # of invoices is defined in the config file
-                            autoBuyInvoice = autoBuyNum <= autoBuyInvoicesNum
-                            buyServer(plan, not autoBuyInvoice, True)
-                            autoBuyNum -= 1
-                            if autoBuyNum < 1:
-                                autoBuyRE = ""
-                                break
+                        if plan['autobuy']:
+                            for auto in autoBuy:
+                                if (auto['num'] > 0
+                                    and (bool(re.search(auto['regex'], plan['fqn']))
+                                         or bool(re.search(auto['regex'], plan['model'])))
+                                    and (auto['max_price'] == 0 or plan['price'] <= auto['max_price'])
+                                    and (plan['availability'] not in m.availability.unavailableAndUnknownList
+                                         or (plan['availability'] == 'unknown' and auto['unknown']))
+                                ):
+                                    # auto buy
+                                    foundAutoBuyServer = True
+                                    buyServer(plan, not auto['invoice'], True)
+                                    auto['num'] -= 1
                 # availability and catalog monitor if configured
                 strAvailMonitor = ""
                 if email_added_removed:
@@ -364,17 +339,10 @@ while True:
                 if not loop:
                     if showPrompt:
                         m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months)
-                        # if there has been at least one auto buy, show counters
-                        if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
-                            m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
-                                                   autoOK, autoKO, autoFake)
                     break
                 if not foundAutoBuyServer:
                     if showPrompt:
                         m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months)
-                        if autoBuyNumInit > 0 and autoBuyNum < autoBuyNumInit:
-                            m.print.print_auto_buy(autoBuyNum, autoBuyNumInit,
-                                                   autoOK, autoKO, autoFake)
                     m.print.print_and_sleep(showPrompt, sleepsecs)
             except KeyboardInterrupt:
                 raise

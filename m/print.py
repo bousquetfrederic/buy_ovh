@@ -154,11 +154,6 @@ def print_and_sleep(showMessage, sleepsecs):
             print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
         time.sleep(1)
 
-# ----------------- PRINT AUTO BUY STATS -------------------------------------------------------
-def print_auto_buy(autoBuyNum, autoBuyNumInit, autoOK, autoKO, autoFake):
-    print("Auto buy left: " + str(autoBuyNum) + "/" + str(autoBuyNumInit)
-            + " - OK: " + str(autoOK) + ", NOK: " + str(autoKO) + ", Fake: " + str(autoFake))
-
 # ----------------- PRINT LIST OF ORDERS -------------------------------------------------------
 def print_orders(orderList, printDate=False):
     for order in orderList:
