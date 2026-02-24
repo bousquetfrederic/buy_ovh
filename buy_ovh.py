@@ -61,10 +61,6 @@ def loadConfigEmail(cf):
 def loadConfigAutoBuy(cf):
     global autoBuy
     autoBuy = copy.deepcopy(cf['auto_buy']) if 'auto_buy' in cf else autoBuy
-    print(autoBuy)
-    time.sleep(3)
-    # drop entries with num = 0
-    autoBuy = [x for x in autoBuy if x['num'] > 0]
 
 acceptable_dc = []
 addVAT = False
@@ -278,9 +274,6 @@ while True:
                     previousAvailabilities = availabilities
                     previousPlans = plans
                 availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint),acceptable_dc)
-                # test
-                if previousAvailabilities:
-                    availabilities['26sk50b-v1.ram-32g-ecc-2133.softraid-2x450nvme.fra']='unknown'
                 plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                              availabilities,
                                              ovhSubsidiary,
