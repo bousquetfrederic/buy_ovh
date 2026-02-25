@@ -9,7 +9,7 @@ pip install ovh
 pip install PyYAML
 ```
 
-The main program is buy_ovh.py. There is also a small program availability_monitor which just does the availability monitoring.
+The main program is buy_ovh.py.
 
 There is a conf file that you need to make, conf.yaml, where you can define stuff. There is an example file provided. The file explains all the parameters.
 

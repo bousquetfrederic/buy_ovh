@@ -1,11 +1,15 @@
 import re
 import requests
 
-__all__ = ['unavailableList', 'unavailableAndUnknownList', 'added_removed', 'build_availability_dict', 'changed', 'look_up_avail']
+__all__ = ['added_removed', 'build_availability_dict', 'changed', 'look_up_avail', 'test_availability']
 
-# below lists are useful for 'if' statements
-unavailableList = ['comingSoon', 'unavailable']
-unavailableAndUnknownList = ['comingSoon', 'unavailable', 'unknown']
+# -------------- TEST AVAILABILITY AGAINST LISTS -----------------------------------------------------------------
+def test_availability(avail, allow_unavailable=False, allow_unknown=False):
+    if avail == "unknown":
+        return allow_unknown
+    if avail in ("comingSoon", "unavailable"):
+        return allow_unavailable
+    return True
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def build_availability_dict(url, datacenters=[]):
@@ -40,16 +44,14 @@ def changed(previousA, newA, regex):
     if previousA:
         for fqn in newA:
             if bool(re.search(regex, fqn)):
-                if (newA[fqn] not in unavailableAndUnknownList):
+                if (test_availability(newA[fqn])):
                     # found an available server that matches the filter
-                    if (fqn not in previousA.keys()
-                        or previousA[fqn] in unavailableAndUnknownList):
+                    if (fqn not in previousA.keys() or not test_availability(previousA[fqn])):
                         # its availability went from unavailable to available
                         availNow.append(fqn)
                 else:
                     # found an unavailable server that matches the filter
-                    if (fqn in previousA.keys()
-                        and previousA[fqn] not in unavailableAndUnknownList):
+                    if (fqn in previousA.keys() and not test_availability(previousA[fqn])):
                         # its availability went from available to unavailable
                         availNotAnymore.append(fqn)
     return (availNow, availNotAnymore)

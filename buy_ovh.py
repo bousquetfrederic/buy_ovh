@@ -217,17 +217,19 @@ def buyServer(plan, buyNow, autoMode):
             m.email.send_auto_buy_email("FAILED: " + strBuy)
         time.sleep(3)
 
-# -------------- ADD AUTO BUY INFO TO PLAN LIST ---------------------------------------------
+# -------------- AUTO BUY TOOLS ----------------------------------------------------------------
+def is_auto_buy(plan, auto):
+    return (auto['num'] > 0
+            and (bool(re.search(auto['regex'], plan['fqn'])) or bool(re.search(auto['regex'], plan['model'])))
+            and (auto['max_price'] == 0 or plan['price'] <= auto['max_price']))
+
 def add_auto_buy(plans):
     for plan in plans:
-        found_auto_buy = False
+        plan['autobuy'] = False
         for auto in autoBuy:
-            if (auto['num'] > 0
-                and ((bool(re.search(auto['regex'], plan['fqn']))
-                     or bool(re.search(auto['regex'], plan['model'])))
-                and (auto['max_price'] == 0 or plan['price'] <= auto['max_price']))):
-                found_auto_buy = True
-        plan['autobuy'] = found_auto_buy
+            if is_auto_buy(plan, auto):
+                plan['autobuy'] = True
+                break
 
 # ------------------ TOOL ---------------------------------------------------------------------
 # when ordering servers, the user can type something like "!0*3"
@@ -295,10 +297,8 @@ while True:
                 add_auto_buy(plans)
                 if printListWhileLooping or not loop:
                     displayedPlans = [ x for x in plans \
-                                    if (x['availability'] not in m.availability.unavailableAndUnknownList or
-                                        (x['availability'] in m.availability.unavailableList and showUnavailable) or
-                                        (x['availability'] == 'unknown' and showUnknown) or
-                                        x['autobuy'])]
+                                    if (m.availability.test_availability(x['availability'], showUnavailable, showUnknown)
+                                        or x['autobuy'])]
                     m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
                                             showPrice, showFee, showTotalPrice)
                 if fakeBuy:
@@ -310,12 +310,8 @@ while True:
                     for plan in plans:
                         if plan['autobuy']:
                             for auto in autoBuy:
-                                if (auto['num'] > 0
-                                    and (bool(re.search(auto['regex'], plan['fqn']))
-                                         or bool(re.search(auto['regex'], plan['model'])))
-                                    and (auto['max_price'] == 0 or plan['price'] <= auto['max_price'])
-                                    and (plan['availability'] not in m.availability.unavailableAndUnknownList
-                                         or (plan['availability'] == 'unknown' and auto['unknown']))
+                                if (is_auto_buy(plan, auto)
+                                    and m.availability.test_availability(plan['availability'], False, auto['unknown'])
                                 ):
                                     # auto buy
                                     foundAutoBuyServer = True

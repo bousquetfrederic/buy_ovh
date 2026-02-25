@@ -82,7 +82,7 @@ def print_plan_list(plans,
     for planD in plansForDisplay:
         # what colour?
         avail = planD['availability']
-        if avail in m.availability.unavailableList:
+        if not m.availability.test_availability(avail, False, True):
             printcolor = whichColor[avail]
         elif avail.endswith("low") or avail.endswith('H'):
             printcolor = whichColor['low']
