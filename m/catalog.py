@@ -231,18 +231,6 @@ def build_list(url,
                                 })
     return sorted(myPlans, key=lambda x: x['planCode'])
 
-# -------------- ADD AUTO BUY INFO TO PLAN LIST ---------------------------------------------
-def add_auto_buy(plans, autoBuy):
-    for plan in plans:
-        found_auto_buy = False
-        for auto in autoBuy:
-            if (auto['num'] > 0
-                and ((bool(re.search(auto['regex'], plan['fqn']))
-                     or bool(re.search(auto['regex'], plan['model'])))
-                and (auto['max_price'] == 0 or plan['price'] <= auto['max_price']))):
-                found_auto_buy = True
-        plan['autobuy'] = found_auto_buy
-
 # -------------- CHECK IF A SERVER WAS ADDED OR REMOVED -------------------------------------
 def added_removed(previousP, newP):
     addedFqns = []

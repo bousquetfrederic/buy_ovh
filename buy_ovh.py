@@ -217,6 +217,18 @@ def buyServer(plan, buyNow, autoMode):
             m.email.send_auto_buy_email("FAILED: " + strBuy)
         time.sleep(3)
 
+# -------------- ADD AUTO BUY INFO TO PLAN LIST ---------------------------------------------
+def add_auto_buy(plans):
+    for plan in plans:
+        found_auto_buy = False
+        for auto in autoBuy:
+            if (auto['num'] > 0
+                and ((bool(re.search(auto['regex'], plan['fqn']))
+                     or bool(re.search(auto['regex'], plan['model'])))
+                and (auto['max_price'] == 0 or plan['price'] <= auto['max_price']))):
+                found_auto_buy = True
+        plan['autobuy'] = found_auto_buy
+
 # ------------------ TOOL ---------------------------------------------------------------------
 # when ordering servers, the user can type something like "!0*3"
 # "*3" means repeat 3 times
@@ -280,7 +292,7 @@ while True:
                                              filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                                              addVAT, months,
                                              showBandwidth)
-                m.catalog.add_auto_buy(plans, autoBuy)
+                add_auto_buy(plans)
                 if printListWhileLooping or not loop:
                     displayedPlans = [ x for x in plans \
                                     if (x['availability'] not in m.availability.unavailableAndUnknownList or
