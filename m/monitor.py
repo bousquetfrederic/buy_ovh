@@ -38,12 +38,8 @@ def avail_added_removed_Str(previousA, newA, preStr="", postStr=""):
     strToSend = ""
     # look for new FQN in availabilities (no filters)
     addedFqns, removedFqns = m.availability.added_removed(previousA, newA)
-    try:
-        addedList = compress_fnq_list(addedFqns)
-        removedList = compress_fnq_list(removedFqns)
-    except:
-        addedList = addedFqns
-        removedList = removedFqns
+    addedList = compress_fnq_list(addedFqns)
+    removedList = compress_fnq_list(removedFqns)
     if previousA and newA:
         for added in addedList:
             strToSend += preStr + "+ " + added + postStr + "\n"
@@ -68,12 +64,8 @@ def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
 def catalog_added_removed_Str(previousP, newP, preStr="", postStr=""):
     strChanged = ""
     addedFqns, removedFqns = m.catalog.added_removed(previousP, newP)
-    try:
-        addedList = compress_fnq_list(addedFqns)
-        removedList = compress_fnq_list(removedFqns)
-    except:
-        addedList = addedFqns
-        removedList = removedFqns
+    addedList = compress_fnq_list(addedFqns)
+    removedList = compress_fnq_list(removedFqns)
     for fqn in addedList:
         strChanged += preStr + "+ " + fqn + postStr + "\n"
     for fqn in removedList:
