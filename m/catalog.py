@@ -3,25 +3,6 @@ import requests
 
 __all__ = ['added_removed', 'build_list']
 
-# Here we fix errors in the catalog to match the FQN listed in the availabilities
-def fixMem(mem):
-    fixedMem = mem
-    # For 25rises011 and 021, OVH add "-rise-s" instead of the plancode at the end of the RAM
-    # and in the availabilities there is an extra "-on-die-ecc-5200"
-    if mem.endswith("-rise"):
-        fixedMem = mem.removesuffix("-rise") + "-on-die-ecc-5200"
-    elif mem.endswith("-16g"):
-    # For KS-STOR and SYS-STOR they don't have the ECC part at the end of the mem in the catalog
-        fixedMem = mem + "-ecc-2133"
-    return fixedMem
-
-def fixSto(sto):
-    fixedSto = sto
-    # For SYS-01 with hybrid disks, the availabilities have 500nvme instead of 512nvme 
-    if sto.endswith("4000sa-2x512nvme") or sto.endswith("4000sa-1x512nvme"):
-        fixedSto = sto.replace("512", "500")
-    return fixedSto
-
 # -------------- EXTRACT THE PRICE AND FEES INCLUDING PROMOTION ----------------------------------------------------
 def getPriceValue(price):
     myPrice = float(price['price'])/100000000
@@ -78,7 +59,10 @@ def build_list(url,
     else:
         pricingMode = 'default'
 
-    allAddons = API_catalog['addons']
+    allAddonsDict = {}
+    for addon in API_catalog['addons']:
+        planCode = addon["planCode"]
+        allAddonsDict[planCode] = {k: v for k, v in addon.items() if k != "planCode"}
 
     try:
         vatRate = 1 + (API_catalog['locale']['taxRate']) / 100
@@ -143,65 +127,47 @@ def build_list(url,
         # build a list of all possible combinations
         for da in sortedDatacenters:
             for me in allMemories:
-                # the API adds the name of the plan at the end of the addons, drop it
-                # (only for building the FQN)
-                # for KS-LE-* they also add the v1 at the end which needs to go
-                # Also there are sometimes differences between catalog and availabilities
-                # fix these errors (only for building the FQN)
-                if me.split("-")[-1] == "v1":
-                    shortme = fixMem("-".join(me.split("-")[:-2]))
-                else:
-                    shortme = fixMem("-".join(me.split("-")[:-1]))
+                memoryPlan = allAddonsDict[me]
                 # apply the memory filter
-                if not bool(re.search(filterMemory,shortme)):
+                if not bool(re.search(filterMemory,memoryPlan['product'])):
                     continue
+                memoryFee = getPlanFee(memoryPlan, pricingMode)
+                memoryPrice = getPlanPrice(memoryPlan, pricingMode)
                 for st in allStorages:
-                    if st.split("-")[-1] == "v1":
-                        shortst = fixSto("-".join(st.split("-")[:-2]))
-                    else:
-                        shortst = fixSto("-".join(st.split("-")[:-1]))
+                    storagePlan = allAddonsDict[st]
                     # apply the disk filter
-                    if not bool(re.search(filterDisk,shortst)):
+                    if not bool(re.search(filterDisk,storagePlan['product'])):
                         continue
+                    storageFee = getPlanFee(storagePlan, pricingMode)
+                    storagePrice = getPlanPrice(storagePlan, pricingMode)
                     for ba in allBandwidths:
+                        bandwidthPlan = allAddonsDict[ba]
+                        bandwidthPrice = getPlanPrice(bandwidthPlan, pricingMode)
                         for vr in allVRack:
                             # each config may have a different price within the same plan
-                            thisPrice = planPrice
-                            thisFee = planFee
+                            thisPrice = planPrice + memoryPrice + storagePrice
+                            thisFee = planFee + memoryFee + storageFee
                             # try to find out the full price
-                            try:
-                                storagePlan = [x for x in allAddons if (x['planCode'] == st)]
-                                thisFee = thisFee + getPlanFee(storagePlan[0], pricingMode)
-                                thisPrice = thisPrice + getPlanPrice(storagePlan[0], pricingMode)
-                            except Exception as e:
-                                print(e)
-                            try:
-                                memoryPlan = [x for x in allAddons if (x['planCode'] == me)]
-                                thisFee = thisFee + getPlanFee(memoryPlan[0], pricingMode)
-                                thisPrice = thisPrice + getPlanPrice(memoryPlan[0], pricingMode)
-                            except Exception as e:
-                                print(e)
-                            try:
-                                bandwidthPlan = [x for x in allAddons if (x['planCode'] == ba)]
-                                bandwidthPrice = getPlanPrice(bandwidthPlan[0], pricingMode)
-                                # if showBandwidth is false, drop the plans with a bandwidth that costs money
-                                if not bandwidthAndVRack and bandwidthPrice > 0.0:
-                                    continue
-                                # not sure if there is setup fee for the bandwidth?
-                                thisPrice = thisPrice + bandwidthPrice
-                            except Exception as e:
-                                print(e)
+                            thisFee = thisFee + getPlanFee(storagePlan, pricingMode)
+                            thisPrice = thisPrice + getPlanPrice(storagePlan, pricingMode)
+                            memoryPlan = allAddonsDict[me]
+                            thisFee = thisFee + getPlanFee(memoryPlan, pricingMode)
+                            thisPrice = thisPrice + getPlanPrice(memoryPlan, pricingMode)
+                            bandwidthPlan = allAddonsDict[ba]
+                            bandwidthPrice = getPlanPrice(bandwidthPlan, pricingMode)
+                            # if showBandwidth is false, drop the plans with a bandwidth that costs money
+                            if not bandwidthAndVRack and bandwidthPrice > 0.0:
+                                continue
+                            # not sure if there is setup fee for the bandwidth?
+                            thisPrice = thisPrice + bandwidthPrice
                             if vr != 'none':
-                                try:
-                                    vRackPlan = [x for x in allAddons if (x['planCode'] == vr)]
-                                    vRackPrice = getPlanPrice(vRackPlan[0], pricingMode)
-                                    # if showBandwidth is false, drop the plans with a vRack that costs money
-                                    if not bandwidthAndVRack and vRackPrice > 0.0:
-                                        continue
-                                    # not sure if there is setup fee for the vRack?
-                                    thisPrice = thisPrice + vRackPrice
-                                except Exception as e:
-                                    print(e)
+                                vRackPlan = allAddonsDict[vr]
+                                vRackPrice = getPlanPrice(vRackPlan, pricingMode)
+                                # if showBandwidth is false, drop the plans with a vRack that costs money
+                                if not bandwidthAndVRack and vRackPrice > 0.0:
+                                    continue
+                                # not sure if there is setup fee for the vRack?
+                                thisPrice = thisPrice + vRackPrice
                             if addVAT:
                                 # apply the VAT to the price
                                 thisFee = round(thisFee * vatRate, 2)
@@ -209,7 +175,7 @@ def build_list(url,
                             # apply the max price filter if different from 0
                             if maxPrice > 0 and thisPrice > maxPrice:
                                 continue
-                            myFqn = planCode + "." + shortme + "." + shortst + "." + da
+                            myFqn = planCode + "." + memoryPlan['product'] + "." + storagePlan['product'] + "." + da
                             if myFqn in avail:
                                 myavailability = avail[myFqn]
                             else:
