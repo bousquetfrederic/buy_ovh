@@ -166,8 +166,11 @@ def build_list(url,
                                 # if showBandwidth is false, drop the plans with a vRack that costs money
                                 if not bandwidthAndVRack and vRackPrice > 0.0:
                                     continue
+                                vRackName = vRackPlan['product']
                                 # not sure if there is setup fee for the vRack?
                                 thisPrice = thisPrice + vRackPrice
+                            else:
+                                vRackName = "none"
                             if addVAT:
                                 # apply the VAT to the price
                                 thisFee = round(thisFee * vatRate, 2)
@@ -186,10 +189,10 @@ def build_list(url,
                                 'model' : model,
                                 'cpu' : cpu,
                                 'datacenter' : da,
-                                'storage' : st,
-                                'memory' : me,
-                                'bandwidth' : ba,
-                                'vrack' : vr,
+                                'storage' : storagePlan['product'],
+                                'memory' : memoryPlan['product'],
+                                'bandwidth' : bandwidthPlan['product'],
+                                'vrack' : vRackName,
                                 'fqn' : myFqn, # for auto buy
                                 'price' : thisPrice,
                                 'fee' : thisFee,
