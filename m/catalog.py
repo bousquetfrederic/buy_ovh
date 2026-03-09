@@ -1,5 +1,8 @@
+import logging
 import re
 import requests
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['added_removed', 'build_list']
 
@@ -46,6 +49,7 @@ def build_list(url,
                filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                addVAT, months,
                bandwidthAndVRack):
+    logger.debug("Building Server list")
     response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
 
@@ -67,9 +71,11 @@ def build_list(url,
     try:
         vatRate = 1 + (API_catalog['locale']['taxRate']) / 100
     except:
+        logger.exception("Could not read VAT from the catalog")
         if addVAT:
             print("Could not read VAT from the catalog")
         vatRate = 1
+    logger.debug("VAT Rate=" + str(vatRate))
 
     for plan in allPlans:
         planCode = plan['planCode']

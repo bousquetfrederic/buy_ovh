@@ -1,7 +1,11 @@
+import logging
+
 import m.availability
 import m.catalog
 
 __all__ = ['avail_added_removed_Str', 'avail_changed_Str', 'catalog_added_removed_Str']
+
+logger = logging.getLogger(__name__)
 
 # ---------------- TOOL FOR EMAIL ---------------------------------------
 # - vibe coded using Copilot
@@ -42,8 +46,10 @@ def avail_added_removed_Str(previousA, newA, preStr="", postStr=""):
     removedList = compress_fnq_list(removedFqns)
     if previousA and newA:
         for added in addedList:
+            logger.info("a+ " + added)
             strToSend += preStr + "+ " + added + postStr + "\n"
         for removed in removedList:
+            logger.info("a- " + added)
             strToSend += preStr + "- " + removed + postStr + "\n"
     return strToSend
 
@@ -54,8 +60,10 @@ def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
     strToSend = ""
     availNow, availNotAnymore = m.availability.changed(previousA, newA, regex)
     for fqn in availNow:
+        logger.info("Available now: " + fqn)
         strToSend += preStr + "O " + fqn + postStr + "\n"
     for fqn in availNotAnymore:
+        logger.info("Not longer available: " + fqn)
         strToSend += preStr + "X " + fqn + postStr + "\n"
     return strToSend
 
@@ -67,7 +75,9 @@ def catalog_added_removed_Str(previousP, newP, preStr="", postStr=""):
     addedList = compress_fnq_list(addedFqns)
     removedList = compress_fnq_list(removedFqns)
     for fqn in addedList:
+        logger.info("c+ " + fqn)
         strChanged += preStr + "+ " + fqn + postStr + "\n"
     for fqn in removedList:
+        logger.info("c- " + fqn)
         strChanged += preStr + "- " + fqn + postStr + "\n"
     return strChanged
