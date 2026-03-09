@@ -1,5 +1,8 @@
+import logging
 import re
 import requests
+
+logger = logging.getLogger(__name__)
 
 __all__ = ['added_removed', 'build_availability_dict', 'changed', 'look_up_avail', 'test_availability']
 
@@ -13,6 +16,7 @@ def test_availability(avail, allow_unavailable=False, allow_unknown=False):
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def build_availability_dict(url, datacenters=[]):
+    logger.info("Building Availability list")
     myAvail = {}
     if datacenters:
         response = requests.get(url + "dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))
