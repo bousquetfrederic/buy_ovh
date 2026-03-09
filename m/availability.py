@@ -16,7 +16,7 @@ def test_availability(avail, allow_unavailable=False, allow_unknown=False):
 
 # -------------- BUILD AVAILABILITY DICT -------------------------------------------------------------------------
 def build_availability_dict(url, datacenters=[]):
-    logger.info("Building Availability list")
+    logger.debug("Building Availability list")
     myAvail = {}
     if datacenters:
         response = requests.get(url + "dedicated/server/datacenter/availabilities?datacenters=" + ",".join(datacenters))

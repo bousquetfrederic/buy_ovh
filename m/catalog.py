@@ -49,7 +49,7 @@ def build_list(url,
                filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                addVAT, months,
                bandwidthAndVRack):
-    logger.info("Building Server list")
+    logger.debug("Building Server list")
     response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
     API_catalog = response.json()
 
