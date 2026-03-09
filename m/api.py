@@ -1,9 +1,12 @@
+import logging
 import ovh
 import time
 from datetime import datetime, timezone
 
 __all__ = ['api_url','build_cart', 'checkout_cart', 'get_orders_per_status',
            'get_consumer_key', 'get_servers_list', 'login', 'is_logged_in']
+
+logger = logging.getLogger(__name__)
 
 # --- Exceptions ----------------------------
 class NotLoggedIn(Exception):
@@ -31,21 +34,27 @@ def is_logged_in():
 def login(endpoint, application_key, application_secret, consumer_key):
     global client
     try:
+        logger.info("Login attempt")
+        logger.debug("Endpoint=" + endpoint)
         tmpClient = ovh.Client(endpoint=endpoint,
                                application_key=application_key,
                                application_secret=application_secret,
                                consumer_key=consumer_key)
         # if the API credential are incorrect, this will fail
         tmpClient.get('/me')
+        logger.info("Login successful")
         client = tmpClient
         return True
     except Exception as e:
+        logger.exception("Exception during login")
         return False
 
 # ---------------- GET A CONSUMER KEY ----------------------------------------------------------
 def get_consumer_key(endpoint, application_key, application_secret):
     global client
     try:
+        logger.info("Getting a consumer key")
+        logger.debug("Endpoint=" + endpoint)
         client = ovh.Client(endpoint=endpoint,
                             application_key=application_key,
                             application_secret=application_secret)
@@ -55,23 +64,28 @@ def get_consumer_key(endpoint, application_key, application_secret):
         validation = ck.request()
 
         print("Please visit %s to authenticate" % validation['validationUrl'])
+        logger.info("Waiting for the User to authenticate")
         input("and press Enter to continue...")
 
         # this will fail if they did not authenticate
         client.get('/me')
-
+        logger.info("Consumer Key obtained")
         return validation['consumerKey']
     except Exception as e:
+        logger.exception("Exception while getting the consumer key")
         client = None
         return "nokey"
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
 def build_cart(plan, ovhSubsidiary, coupon, fake, months):
+    logger.info("Building the Cart")
     if fake:
+        logger.info("This is a fake buy")
         print("Fake cart!")
         time.sleep(1)
         return 0
     elif client == None:
+        logger.error("Need to be logged in to build the cart")
         raise NotLoggedIn("Need to be logged in to build the cart.")
 
     # duration and mode
@@ -84,10 +98,12 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
     else:
         duration = "P1M"
         pricingMode = "default"
-
+    logger.debug("Duration=" + duration)
+    logger.debug("Pricing Mode=" + pricingMode)
     # make a cart
     cart = client.post("/order/cart", ovhSubsidiary=ovhSubsidiary)
     cartId = cart.get("cartId")
+    logger.debug("Created cart number " + cartId)
     client.post("/order/cart/{0}/assign".format(cartId))
     # add the server
     result = client.post(
@@ -97,6 +113,7 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          pricingMode = pricingMode,
                          quantity = 1
                         )
+    logger.debug("Added " + plan['planCode'])
     itemId = result['itemId']
 
     # add options
@@ -108,6 +125,7 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          pricingMode = pricingMode,
                          quantity = 1
                         )
+    logger.debug("Added " + plan['memory'])
     result = client.post(
                          f'/order/cart/{cartId}/eco/options',
                          itemId = itemId,
@@ -116,6 +134,7 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          pricingMode = pricingMode,
                          quantity = 1
                         )
+    logger.debug("Added " + plan['storage'])
     result = client.post(
                          f'/order/cart/{cartId}/eco/options',
                          itemId = itemId,
@@ -124,6 +143,7 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          pricingMode = pricingMode,
                          quantity = 1
                         )
+    logger.debug("Added " + plan['bandwidth'])
     if plan['vrack'] != 'none':
         result = client.post(
                             f'/order/cart/{cartId}/eco/options',
@@ -133,6 +153,7 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                             pricingMode = pricingMode,
                             quantity = 1
                             )
+        logger.debug("Added " + plan['vrack'])
 
     # add configuration
     result = client.post(
@@ -140,11 +161,13 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          label = "dedicated_datacenter",
                          value = plan['datacenter']
                          )
+    logger.debug("Added " + plan['datacenter'])
     result = client.post(
                          f'/order/cart/{cartId}/item/{itemId}/configuration',
                          label = "dedicated_os",
                          value = "none_64.en"
                          )
+    logger.debug("Added dedicated_os " + "none_64.en")
     if plan['datacenter'] in ["bhs", "syd", "sgp"]:
         myregion = "canada"
     else:
@@ -154,22 +177,27 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          label = "region",
                          value = myregion
                          )
+    logger.debug("Added region " + myregion)
 
     # add coupon
     if coupon:
         result = client.post(f'/order/cart/{cartId}/coupon',
                              label = "coupon",
                              value = coupon)
+    logger.debug("Added coupon " + coupon)
 
     return cartId
 
 # ---------------- CHECKOUT THE CART ---------------------------------------------------------
 def checkout_cart(cartId, buyNow, fake=False):
+    logger.info("Checking out the cart")
+    logger.info("Buy Now=" + str(buyNow))
     if fake:
         print("Fake buy! Now: " + str(buyNow))
         time.sleep(2)
         return
     elif client == None:
+        logger.error("Need to be logged in to check out the cart")
         raise NotLoggedIn("Need to be logged in to check out the cart.")
 
     # this is it, we checkout the cart!
@@ -177,6 +205,7 @@ def checkout_cart(cartId, buyNow, fake=False):
                          autoPayWithPreferredPaymentMethod=buyNow,
                          waiveRetractationPeriod=buyNow
                         )
+    logger.info("Cart checkout successful")
 
 def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
     if client == None:

@@ -111,7 +111,10 @@ if logFile:
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
                         handlers=[logging.FileHandler(logFile, encoding="utf-8")]
                        )
-logging.getLogger("urllib3").setLevel(logging.WARNING)
+if logLevel == "ERROR":
+    logging.getLogger("urllib3").setLevel(logging.ERROR)
+else:
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 # below in case there is no logfile
 logger.addHandler(logging.NullHandler())
@@ -348,6 +351,8 @@ while True:
                                     foundAutoBuyServer = True
                                     buyServer(plan, not auto['invoice'], True)
                                     auto['num'] -= 1
+                    if not foundAutoBuyServer:
+                        logger.debug("Found none.")
                 # availability and catalog monitor if configured
                 strAvailMonitor = ""
                 if email_added_removed:
@@ -387,20 +392,23 @@ while True:
                 print("Wait " + str(sleepsecs) + "s before retry.")
                 time.sleep(sleepsecs)
     except KeyboardInterrupt:
+        logger.info("User pressed CTRL-C.")
         pass
 
     print("")
     # stop the infinite loop, the user must press L to restart it
     loop = False
     allChoices = input("(H for Help)> ")
-    logger.debug("User Choice: " + allChoices)
+    logger.info("User Choice: " + allChoices)
     # The user can specify to buy a server multiple times
     # "2*5" means buy server 2, 5 times
     # "2" and "2*1" mean the same thing
     # "!2*3 ?2*10" works too (see below for ! and ?)
     allChoicesExpanded = expandMulti(allChoices)
+    logger.debug("User Choice expanded: " + allChoicesExpanded)
     listChoices = allChoicesExpanded.split(' ')
     for sChoice in listChoices:
+        logger.debug("Processing Choice: " + sChoice)
         # when buying, the user can specify if they want an invoice or buy now, by starting with ? or !
         # example: ?2 means an invoice for server two
         #          !4 means buy server 4 now
@@ -420,10 +428,13 @@ while True:
         if sChoice.isdigit():
             choice = int (sChoice)
             if choice >= len(displayedPlans):
+                logger.error("User had one job.")
                 sys.exit("You had one job.")
             if whattodo == 'a':
+                logger.debug("Model selected: " + displayedPlans[choice]['model'])
                 print(displayedPlans[choice]['model'])
                 whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
+                logger.debug("User chose to: " + whattodo)
             if whattodo == 'i':
                 mybool = False
             elif whattodo == 'n':
@@ -437,12 +448,15 @@ while True:
         # or buy just [filtername] then inputing the value when asked
         elif sChoice.lower().startswith('fd'):
             filterDisk = getCommandValue(sChoice, filterDisk)
+            logger.info("New filterDisk=" + filterDisk)
             filtersChanged = True
         elif sChoice.lower().startswith('fm'):
             filterMemory = getCommandValue(sChoice, filterMemory)
+            logger.info("New filterMemory=" + filterMemory)
             filtersChanged = True
         elif sChoice.lower().startswith('fn'):
             filterName = getCommandValue(sChoice, filterName)
+            logger.info("New filterName=" + filterName)
             filtersChanged = True
         elif sChoice.lower().startswith('fp'):
             tmpMaxPrice=getCommandValue(sChoice, str(maxPrice))
@@ -450,53 +464,72 @@ while True:
                 maxPrice = 0
             else:
                 maxPrice = float(tmpMaxPrice)
+            logger.info("New maxPrice=" + tmpMaxPrice)
             filtersChanged = True
         elif sChoice.lower() == 'm1':
             months = 1
+            logger.info("New contract duration 1 month")
             filtersChanged = True
         elif sChoice.lower() == 'm12':
             months = 12
+            logger.info("New contract duration 12 months")
             filtersChanged = True
         elif sChoice.lower() == 'm24':
             months = 24
+            logger.info("New contract duration 24 months")
             filtersChanged = True
         elif sChoice.lower() == 'k':
             print("Current: " + coupon)
             coupon = input("Enter Coupon: ")
+            logger.info("New coupon=" + coupon)
         elif sChoice.lower() == 'uk':
             showUnknown = not showUnknown
+            logger.debug("Show unknown=" + str(showUnknown))
         elif sChoice.lower() == 'u':
             showUnavailable = not showUnavailable
+            logger.debug("Show unavailable=" + str(showUnavailable))
         elif sChoice.lower() == 'p':
             showPrompt = not showPrompt
+            logger.debug("Show prompt=" + str(showPrompt))
         elif sChoice.lower() == 'pp':
             showPrice = not showPrice
+            logger.debug("Show price=" + str(showPrice))
         elif sChoice.lower() == 'pf':
             showFee = not showFee
+            logger.debug("Show fee=" + str(showFee))
         elif sChoice.lower() == 'pt':
             showTotalPrice = not showTotalPrice
+            logger.debug("Show total price=" + str(showTotalPrice))
         elif sChoice.lower() == 'c':
             showCpu = not showCpu
+            logger.debug("Show CPU=" + str(showCpu))
         elif sChoice.lower() == 'f':
             showFqn = not showFqn
+            logger.debug("Show FQN=" + str(showFqn))
         elif sChoice.lower() == 'b':
             showBandwidth = not showBandwidth
+            logger.debug("Show bandwidth=" + str(showBandwidth))
             filtersChanged = True
         elif sChoice == '$':
             fakeBuy = not fakeBuy
+            logger.info("Fake Buy=" + str(fakeBuy))
         elif sChoice.lower() == 'l':
+            logger.info("User started the infinite loop")
             loop = True
         elif sChoice.lower() == 'lp':
             printListWhileLooping = not printListWhileLooping
+            logger.debug("Print List while looping=" + str(printListWhileLooping))
         elif sChoice.lower() == 'o':
             m.orders.unpaid_orders(True)
         elif sChoice.lower() == 'd':
             m.orders.undelivered_orders(True)
         elif sChoice.lower() == 'r':
             # reload conf
+            logger.info("User reloaded the configuration")
             loadConfigMain(configFile)
             filtersChanged = True
         elif sChoice.lower() == 'rr':
+            logger.info("User reloaded the configuration")
             # reload conf including autobuy
             loadConfigMain(configFile)
             loadConfigAutoBuy(configFile)
@@ -505,6 +538,7 @@ while True:
             m.servers.servers_specs(True)
         elif sChoice.lower() == 't':
             addVAT = not addVAT
+            logger.info("Apply VAT=" + str(addVAT))
             # VAT increases the price which could no longer pass the max price filter
             # so a server could "disappear" or "appear" in the catalog
             # triggering the catalog monitor
@@ -514,4 +548,5 @@ while True:
         elif sChoice.lower() == 'h':
             showHelp()
         elif sChoice.lower() == 'q':
+            logger.info("User quitted.")
             sys.exit("Bye now.")
