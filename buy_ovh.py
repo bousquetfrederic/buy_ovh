@@ -320,9 +320,6 @@ while True:
                     previousAvailabilities = availabilities
                     previousPlans = plans
                 availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint),acceptable_dc)
-                # test
-                if previousAvailabilities:
-                    availabilities['goyo']='available'
                 plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                              availabilities,
                                              ovhSubsidiary,
