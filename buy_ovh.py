@@ -1,4 +1,5 @@
 import copy
+import logging
 import os
 import re
 import sys
@@ -58,6 +59,11 @@ def loadConfigEmail(cf):
     email_catalog_monitor = cf['email_catalog_monitor'] if 'email_catalog_monitor' in cf and email_on else email_catalog_monitor
     email_exception = cf['email_exception'] if 'email_exception' in cf and email_on else email_exception
 
+def loadConfigLogging(cf):
+    global logFile, logLevel
+    logFile = cf['logFile'] if 'logFile' in cf else logFile
+    logLevel = cf['logLevel'] if 'logLevel' in cf else logLevel
+
 def loadConfigAutoBuy(cf):
     global autoBuy
     autoBuy = copy.deepcopy(cf['auto_buy']) if 'auto_buy' in cf else autoBuy
@@ -85,7 +91,6 @@ showTotalPrice = False
 showUnavailable = True
 showUnknown = True
 sleepsecs = 60    
-
 loadConfigMain(configFile)
 
 email_on = False
@@ -96,6 +101,20 @@ email_availability_monitor = ""
 email_catalog_monitor = False
 email_exception = False
 loadConfigEmail(configFile)
+
+# Logging
+logFile = ""
+logLevel = "WARNING"
+loadConfigLogging(configFile)
+if logFile:
+    logging.basicConfig(level=logging.getLevelNamesMapping()[logLevel.upper()],
+                        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                        handlers=[logging.FileHandler(logFile, encoding="utf-8")]
+                       )
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+# below in case there is no logfile
+logger.addHandler(logging.NullHandler())
 
 # Auto Buy
 autoBuy = []
@@ -118,11 +137,13 @@ if ('APIKey' in m.config.configFile and
             print("To add the generated consumer key to your conf.yaml file:")
             print("APIConsumerKey: " + ck)
         else:
+            logger.error("Failed to get a consumer key")
             print("Failed to get a consumer key, did you authenticate?")
         input("Press Enter to continue...")
 
 # ----------------- DISPLAY HELP --------------------------------------------------------------
 def showHelp():
+    logger.info("Showing Help")
     print("")
     print("Colour coding")
     print("-------------")
@@ -205,12 +226,14 @@ def buyServer(plan, buyNow, autoMode):
     else:
         strBuyNow = "get an invoice for a "
     strBuy = strBuyNow + plan['model'] + " in " + plan['datacenter'] + "."
+    logger.info("Buying: " + strBuy + strAuto)
     print("Let's " + strBuy + strAuto)
     try:
         m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy, months), buyNow, fakeBuy)
         if autoMode and email_auto_buy and loop:
             m.email.send_auto_buy_email("SUCCESS: " + strBuy)
     except Exception as e:
+        logger.exception("Buying Exception")
         print("Not today.")
         print(e)
         if autoMode and email_auto_buy and loop:
@@ -224,6 +247,7 @@ def is_auto_buy(plan, auto):
             and (auto['max_price'] == 0 or plan['price'] <= auto['max_price']))
 
 def add_auto_buy(plans):
+    logger.debug("Adding Auto Buy info")
     for plan in plans:
         plan['autobuy'] = False
         for auto in autoBuy:
@@ -258,6 +282,9 @@ def getCommandValue(strC, current):
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
+logger.info("-----------")
+logger.info("Starting up")
+logger.info("-----------")
 # send email at startup
 if email_at_startup:
     m.email.send_startup_email()
@@ -278,9 +305,11 @@ displayedPlans = []
 filtersChanged = False
 
 # loop until the user wants out
+logger.debug("Starting the main loop")
 while True:
 
     try:
+        logger.debug("Starting a new update cycle")
         while True:
             try:
                 os.system('cls' if os.name == 'nt' else 'clear')
@@ -307,6 +336,7 @@ while True:
                     print("- Not logged in")
                 foundAutoBuyServer = False
                 if autoBuy:
+                    logger.debug("Looking for servers to auto buy")
                     for plan in plans:
                         if plan['autobuy']:
                             for auto in autoBuy:
@@ -314,6 +344,7 @@ while True:
                                     and m.availability.test_availability(plan['availability'], False, auto['unknown'])
                                 ):
                                     # auto buy
+                                    logger.debug("Found one for regex [" + auto['regex'] + "]: " + plan['fqn'])
                                     foundAutoBuyServer = True
                                     buyServer(plan, not auto['invoice'], True)
                                     auto['num'] -= 1
@@ -348,6 +379,7 @@ while True:
             except KeyboardInterrupt:
                 raise
             except Exception as e:
+                logger.exception("Exception!")
                 print("Exception!")
                 print(e)
                 if loop and email_exception:
@@ -361,6 +393,7 @@ while True:
     # stop the infinite loop, the user must press L to restart it
     loop = False
     allChoices = input("(H for Help)> ")
+    logger.debug("User Choice: " + allChoices)
     # The user can specify to buy a server multiple times
     # "2*5" means buy server 2, 5 times
     # "2" and "2*1" mean the same thing

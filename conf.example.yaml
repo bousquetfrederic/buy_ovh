@@ -7,6 +7,12 @@ APIKey: 123
 APISecret: 456
 #APIConsumerKey: 789
 
+# Logging
+# Don't define a log file = no logging
+logFile: log.txt
+# logLevel are defined here: https://docs.python.org/3/library/logging.html#logging-levels
+logLevel: INFO
+
 # in which datacenters are we looking for?
 # this is a list
 datacenters:
