@@ -1,0 +1,9 @@
+certifi==2026.2.25
+charset-normalizer==3.4.6
+idna==3.11
+oauthlib==3.3.1
+ovh==1.2.0
+PyYAML==6.0.3
+requests==2.32.5
+requests-oauthlib==2.0.0
+urllib3==2.6.3
