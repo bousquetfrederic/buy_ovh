@@ -29,7 +29,7 @@ def getPlanPrice(plan, mode):
                          and x['strategy'] == 'tiered'
                          and x['mode'] == mode]
         return getPriceValue(allPlanPrices[0])
-    except:
+    except (KeyError, IndexError, TypeError):
         return 0
 
 def getPlanFee(plan, mode):
@@ -40,7 +40,7 @@ def getPlanFee(plan, mode):
                        and x['strategy'] == 'tiered'
                        and x['mode']  == mode]
         return getPriceValue(allPlanFees[0])
-    except:
+    except (KeyError, IndexError, TypeError):
         return 0
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
@@ -70,7 +70,7 @@ def build_list(url,
 
     try:
         vatRate = 1 + (API_catalog['locale']['taxRate']) / 100
-    except:
+    except (KeyError, TypeError):
         logger.exception("Could not read VAT from the catalog")
         if addVAT:
             print("Could not read VAT from the catalog")
