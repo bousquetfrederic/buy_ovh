@@ -49,7 +49,7 @@ def avail_added_removed_Str(previousA, newA, preStr="", postStr=""):
             logger.info("a+ " + added)
             strToSend += preStr + "+ " + added + postStr + "\n"
         for removed in removedList:
-            logger.info("a- " + added)
+            logger.info("a- " + removed)
             strToSend += preStr + "- " + removed + postStr + "\n"
     return strToSend
 
