@@ -5,4 +5,5 @@ __pycache__/
 *.py[cod]
 .vscode/
 log.txt
+.venv/
 venv/
