@@ -1,5 +1,4 @@
 import logging
-import re
 import sys
 import time
 from datetime import datetime
@@ -9,8 +8,6 @@ import m.api
 import m.availability
 import m.catalog
 import m.interactive
-import m.print
-from m.print import format_age
 
 from m.config import configFile, config_path
 
@@ -20,7 +17,6 @@ MAIN_DEFAULTS = {
     'acceptable_dc': ([], 'datacenters'),
     'addVAT': False,
     'APIEndpoint': 'ovh-eu',
-    'coupon': '',
     'fakeBuy': True,
     'filterDisk': '',
     'filterMemory': '',
@@ -33,7 +29,6 @@ MAIN_DEFAULTS = {
     'showFee': False,
     'showFqn': False,
     'showPrice': True,
-    'showPrompt': True,
     'showTotalPrice': False,
     'showUnavailable': True,
     'showUnknown': True,
@@ -97,76 +92,6 @@ if ('APIKey' in configFile and 'APISecret' in configFile):
             print("Failed to get a consumer key, did you authenticate?")
         input("Press Enter to continue...")
 
-# ----------------- DISPLAY HELP --------------------------------------------------------------
-def showHelp():
-    logger.info("Showing Help")
-    print("")
-    print("Colour coding")
-    print("-------------")
-    m.print.print_help_legend()
-    print("")
-    print("Interactive mode")
-    print("----------------")
-    print("The tool starts in interactive mode. Press ':' to drop to the command prompt,")
-    print("'q' or Esc to quit, 'r' to refresh the catalog.")
-    print("From the command prompt, 'I' re-enters interactive mode and an empty ENTER")
-    print("refetches and re-prints the prompt.")
-    print("")
-    print("Toggles")
-    print("-------")
-    print(" B  - show Bandwidth and vRack options ON/OFF")
-    print(" C  - show CPU type ON/OFF")
-    print(" F  - show FQN instead of server details ON/OFF")
-    print(" P  - show helpful prompt ON/OFF")
-    print(" PP - show the monthly price ON/OFF")
-    print(" PF - show the installation fee ON/OFF")
-    print(" PT - show the total price ON/OFF")
-    print(" U  - show Unavailable servers ON/OFF")
-    print(" UK - show servers with Unknown availability ON/OFF")
-    print(" T  - add Tax (VAT) to the price ON/OFF")
-    print(" $  - fake buy ON/OFF")
-    print("")
-    print("Filters")
-    print("-------")
-    print(" FD - re-enter the Disk filter (sa, nvme, ssd)")
-    print(" FM - re-enter the Memory filter (ex: 32g)")
-    print(" FN - re-enter the Name filter (invoice name or plan code)")
-    print(" FP - set maximum price")
-    print("")
-    print(" [filtername]=[value] is also supported, for example:")
-    print(" fp=20 fm=32g")
-    print("")
-    print("Months upfront")
-    print("--------------")
-    print(" M1  - show prices and buy with 1 month commitment")
-    print(" M12 - show prices and buy with 12 months commitment paid upfront")
-    print(" M24 - show prices and buy with 24 months commitment paid upfront")
-    print("")
-    print("Commands")
-    print("--------")
-    print(" I  - enter interactive mode (navigate the list with arrow keys)")
-    print(" K  - enter a coupon (buying will fail if coupon is invalid)")
-    print(" R  - reload the configuration file")
-    print(" Q  - quit")
-    print("")
-    print("Orders and servers live in manage_ovh.")
-    print("")
-    print("Buying")
-    print("------")
-    print("Enter the server number in the list to either get an invoice or buy it straight away.")
-    print("  Example :> 0")
-    print("Start with ! to buy it now, ? for invoice.")
-    print("  Example :> ?1")
-    print("Add * followed by a number to buy multiple time")
-    print("(this creates as many orders, each of them for one server)")
-    print("  Example :> !3*4")
-    print("")
-    print("It is possible to enter more than one command at a time.")
-    print("For example, to deactivate fake buy, buy 2 servers number 6 and get one invoice, re-activate fake buy:")
-    print("  > $ !6*2 ?6 $")
-    print("")
-    dummy=input("Press ENTER.")
-
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow):
     strBuyNow = "buy now a " if buyNow else "get an invoice for a "
@@ -174,31 +99,12 @@ def buyServer(plan, buyNow):
     logger.info("Buying: " + strBuy)
     print("Let's " + strBuy)
     try:
-        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy, months), buyNow, fakeBuy)
+        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, fakeBuy, months), buyNow, fakeBuy)
     except Exception as e:
         logger.exception("Buying Exception")
         print("Not today.")
         print(e)
         time.sleep(3)
-
-# ------------------ TOOL ---------------------------------------------------------------------
-def expandMulti(line):
-    pattern = r'(^|\s)([?!]?\d+)\*(\d+)'
-
-    def replacer(match):
-        first, word, count = match.groups()
-        return first + ' '.join([word] * int(count))
-
-    return re.sub(pattern, replacer, line)
-
-def getCommandValue(strC, current):
-    lstC = strC.split("=")
-    if len(lstC) == 2:
-        strR = lstC[1]
-    else:
-        print("Current: " + current)
-        strR = input("New: ")
-    return strR
 
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
@@ -210,6 +116,21 @@ availabilities = {}
 plans = []
 displayedPlans = []
 fetched_at = None
+# Per-column regex filters driven by the interactive UI. Empty at startup;
+# mutated in place by the interactive run loop. The config-level filters
+# (filterName, filterDisk, filterMemory, maxPrice) still narrow the catalog
+# at build_list time; column filters narrow the on-screen list on top of that.
+columnFilters = {}
+
+
+def _filter_displayed(all_plans):
+    """Apply availability toggles plus per-column regex filters."""
+    avail_filtered = [p for p in all_plans
+                      if m.availability.test_availability(p['availability'],
+                                                          showUnavailable,
+                                                          showUnknown)]
+    return m.catalog.apply_column_filters(avail_filtered, columnFilters)
+
 
 def refetch():
     """Rebuild availabilities, plans, displayedPlans, and fetched_at."""
@@ -223,59 +144,64 @@ def refetch():
                                  showBandwidth)
     for p in plans:
         p['autobuy'] = False
-    displayedPlans = [x for x in plans
-                      if m.availability.test_availability(x['availability'], showUnavailable, showUnknown)]
+    displayedPlans = _filter_displayed(plans)
     fetched_at = datetime.now()
 
-def enterInteractive():
-    """Spin up the interactive navigator and sync state back on return."""
-    global showCpu, showFqn, showBandwidth, showPrice, showFee, showTotalPrice, \
-           showUnavailable, showUnknown, fakeBuy, displayedPlans, fetched_at
-    intState = {
-        'showCpu': showCpu, 'showFqn': showFqn,
-        'showBandwidth': showBandwidth,
-        'showPrice': showPrice, 'showFee': showFee,
-        'showTotalPrice': showTotalPrice,
-        'showUnavailable': showUnavailable,
-        'showUnknown': showUnknown,
-        'fakeBuy': fakeBuy,
-        'months': months,
-    }
+# State keys mirrored between the module globals and the interactive state
+# dict. `refresh_fn` / `reload_fn` copy in both directions so whichever side
+# mutates (interactive key, or config reload) both agree on what to fetch.
+_MIRRORED_STATE = ('showCpu', 'showFqn', 'showBandwidth',
+                   'showPrice', 'showFee', 'showTotalPrice',
+                   'showUnavailable', 'showUnknown',
+                   'fakeBuy', 'addVAT', 'months')
+
+
+def _stateFromGlobals():
+    return {k: globals()[k] for k in _MIRRORED_STATE}
+
+
+def _applyStateToGlobals(state):
+    for k in _MIRRORED_STATE:
+        globals()[k] = state[k]
+
+
+def runInteractive():
+    """Run the interactive navigator; returns when the user quits."""
+    intState = _stateFromGlobals()
+    # Shared mutable dict: interactive mutates column filters in place so
+    # they survive across a config reload.
+    intState['filters'] = columnFilters
 
     def intRefilter():
-        return [x for x in plans
-                if m.availability.test_availability(x['availability'],
-                                                    intState['showUnavailable'],
-                                                    intState['showUnknown'])]
+        avail = [x for x in plans
+                 if m.availability.test_availability(x['availability'],
+                                                     intState['showUnavailable'],
+                                                     intState['showUnknown'])]
+        return m.catalog.apply_column_filters(avail, columnFilters)
 
     def intBuy(plan, buyNow):
-        # buyServer reads the fakeBuy global, so push the interactive toggle
-        # through before each buy
-        global fakeBuy
-        fakeBuy = intState['fakeBuy']
+        # Push the interactive fakeBuy toggle into the global buyServer reads.
+        _applyStateToGlobals(intState)
         buyServer(plan, buyNow)
 
     def intRefresh():
+        _applyStateToGlobals(intState)
         refetch()
-        return ([x for x in plans
-                 if m.availability.test_availability(x['availability'],
-                                                     intState['showUnavailable'],
-                                                     intState['showUnknown'])],
-                fetched_at)
+        return intRefilter(), fetched_at
 
-    reason = m.interactive.run(displayedPlans, intState, intBuy, intRefilter,
-                               refresh_fn=intRefresh, fetched_at=fetched_at)
-    showCpu = intState['showCpu']
-    showFqn = intState['showFqn']
-    showBandwidth = intState['showBandwidth']
-    showPrice = intState['showPrice']
-    showFee = intState['showFee']
-    showTotalPrice = intState['showTotalPrice']
-    showUnavailable = intState['showUnavailable']
-    showUnknown = intState['showUnknown']
-    fakeBuy = intState['fakeBuy']
-    displayedPlans = intRefilter()
-    return reason
+    def intReload():
+        logger.info('User reloaded the configuration')
+        loadConfigMain(configFile)
+        for k in _MIRRORED_STATE:
+            intState[k] = globals()[k]
+        refetch()
+        return intRefilter(), fetched_at
+
+    m.interactive.run(displayedPlans, intState, intBuy, intRefilter,
+                      refresh_fn=intRefresh, reload_fn=intReload,
+                      fetched_at=fetched_at)
+    _applyStateToGlobals(intState)
+
 
 # initial fetch
 try:
@@ -285,154 +211,9 @@ except Exception as e:
     print("Startup fetch failed:")
     print(e)
 
-# Start in interactive mode; the user toggles between interactive and the
-# command prompt. 'quit' ends the program.
-mode = 'interactive'
 try:
-    while True:
-        if mode == 'interactive':
-            reason = enterInteractive()
-            if reason == 'quit':
-                logger.info("User quitted from interactive.")
-                sys.exit("Bye now.")
-            mode = 'prompt'
-            continue
-
-        # ---------------- COMMAND PROMPT ----------------
-        m.print.clear_screen()
-        if showPrompt:
-            m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
-                                 fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=False)
-        m.print.console.print(f'[bright_black]fetched {format_age(fetched_at) or "—"}[/]')
-        m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
-                                showPrice, showFee, showTotalPrice, months)
-        if fakeBuy:
-            m.print.console.print('[black on yellow] FAKE BUY [/]')
-        allChoices = input("(H for Help, I for interactive, empty ENTER to refresh)> ")
-        logger.info("User Choice: " + allChoices)
-
-        # empty input: refetch and loop back to interactive? No — the user said
-        # pressing Enter on the prompt refreshes and re-displays the prompt.
-        if allChoices.strip() == '':
-            try:
-                refetch()
-            except Exception as e:
-                logger.exception("Refetch exception")
-                print("Refetch failed:")
-                print(e)
-            continue
-
-        allChoicesExpanded = expandMulti(allChoices)
-        logger.debug("User Choice expanded: " + allChoicesExpanded)
-        listChoices = allChoicesExpanded.split(' ')
-        for sChoice in listChoices:
-            logger.debug("Processing Choice: " + sChoice)
-            if sChoice.startswith('?'):
-                whattodo = 'i'
-                sChoice = sChoice[1:]
-            elif sChoice.startswith('!'):
-                whattodo = 'n'
-                sChoice = sChoice[1:]
-            else:
-                whattodo = 'a'
-            if sChoice.isdigit():
-                choice = int(sChoice)
-                if choice >= len(displayedPlans):
-                    logger.error("User had one job.")
-                    sys.exit("You had one job.")
-                if whattodo == 'a':
-                    logger.debug("Model selected: " + displayedPlans[choice]['model'])
-                    print(displayedPlans[choice]['model'])
-                    whattodo = input("Last chance : Make an invoice = I , Buy now = N , other = out : ").lower()
-                    logger.debug("User chose to: " + whattodo)
-                if whattodo == 'i':
-                    mybool = False
-                elif whattodo == 'n':
-                    mybool = True
-                else:
-                    continue
-                buyServer(displayedPlans[choice], mybool)
-            elif sChoice.lower().startswith('fd'):
-                filterDisk = getCommandValue(sChoice, filterDisk)
-                logger.info("New filterDisk=" + filterDisk)
-            elif sChoice.lower().startswith('fm'):
-                filterMemory = getCommandValue(sChoice, filterMemory)
-                logger.info("New filterMemory=" + filterMemory)
-            elif sChoice.lower().startswith('fn'):
-                filterName = getCommandValue(sChoice, filterName)
-                logger.info("New filterName=" + filterName)
-            elif sChoice.lower().startswith('fp'):
-                tmpMaxPrice = getCommandValue(sChoice, str(maxPrice))
-                if tmpMaxPrice == "":
-                    maxPrice = 0
-                else:
-                    maxPrice = float(tmpMaxPrice)
-                logger.info("New maxPrice=" + tmpMaxPrice)
-            elif sChoice.lower() == 'm1':
-                months = 1
-                logger.info("New contract duration 1 month")
-            elif sChoice.lower() == 'm12':
-                months = 12
-                logger.info("New contract duration 12 months")
-            elif sChoice.lower() == 'm24':
-                months = 24
-                logger.info("New contract duration 24 months")
-            elif sChoice.lower() == 'k':
-                print("Current: " + coupon)
-                coupon = input("Enter Coupon: ")
-                logger.info("New coupon=" + coupon)
-            elif sChoice.lower() == 'uk':
-                showUnknown = not showUnknown
-                logger.debug("Show unknown=" + str(showUnknown))
-            elif sChoice.lower() == 'u':
-                showUnavailable = not showUnavailable
-                logger.debug("Show unavailable=" + str(showUnavailable))
-            elif sChoice.lower() == 'p':
-                showPrompt = not showPrompt
-                logger.debug("Show prompt=" + str(showPrompt))
-            elif sChoice.lower() == 'pp':
-                showPrice = not showPrice
-                logger.debug("Show price=" + str(showPrice))
-            elif sChoice.lower() == 'pf':
-                showFee = not showFee
-                logger.debug("Show fee=" + str(showFee))
-            elif sChoice.lower() == 'pt':
-                showTotalPrice = not showTotalPrice
-                logger.debug("Show total price=" + str(showTotalPrice))
-            elif sChoice.lower() == 'c':
-                showCpu = not showCpu
-                logger.debug("Show CPU=" + str(showCpu))
-            elif sChoice.lower() == 'f':
-                showFqn = not showFqn
-                logger.debug("Show FQN=" + str(showFqn))
-            elif sChoice.lower() == 'b':
-                showBandwidth = not showBandwidth
-                logger.debug("Show bandwidth=" + str(showBandwidth))
-            elif sChoice == '$':
-                fakeBuy = not fakeBuy
-                logger.info("Fake Buy=" + str(fakeBuy))
-            elif sChoice.lower() == 'i':
-                logger.info("User switched to interactive mode")
-                mode = 'interactive'
-            elif sChoice.lower() == 'r':
-                logger.info("User reloaded the configuration")
-                loadConfigMain(configFile)
-            elif sChoice.lower() == 't':
-                addVAT = not addVAT
-                logger.info("Apply VAT=" + str(addVAT))
-            elif sChoice.lower() == 'h':
-                showHelp()
-            elif sChoice.lower() == 'q':
-                logger.info("User quitted.")
-                sys.exit("Bye now.")
-
-        # refetch after each dispatched line so the next view is fresh
-        try:
-            refetch()
-        except Exception as e:
-            logger.exception("Refetch exception")
-            print("Refetch failed:")
-            print(e)
+    runInteractive()
 except KeyboardInterrupt:
-    logger.info("User pressed CTRL-C at the prompt.")
-    sys.exit("Bye now.")
+    logger.info("User pressed CTRL-C in interactive.")
+logger.info("Bye.")
+sys.exit("Bye now.")

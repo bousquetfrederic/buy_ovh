@@ -1,4 +1,6 @@
 import logging
+import select
+import sys
 
 import readchar
 from rich import box
@@ -8,105 +10,164 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from m.print import whichColor, console, format_age, resolve_state
+from m.catalog import column_display_value
+from m.print import console, format_age, resolve_state, whichColor
 
 __all__ = ['run']
 
 logger = logging.getLogger(__name__)
 
 
+def _readkey():
+    """readchar.readkey() blocks after ESC waiting for an escape sequence,
+    so a bare Esc press never returns until the user hits another key. And
+    we can't just peek with select() around readchar's readchar(), because
+    sys.stdin's BufferedReader may already hold the rest of the sequence
+    while select() on the fd sees nothing pending.
+
+    Bypass Python's buffering by reading directly from the fd via os.read,
+    after putting the terminal in cbreak mode. After an ESC we wait 50 ms
+    for a continuation byte; if none arrives the user really did hit Esc.
+    Falls back to readchar.readkey() on non-POSIX platforms."""
+    try:
+        import os
+        import termios
+        import tty
+    except ImportError:
+        return readchar.readkey()
+
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd, termios.TCSANOW)
+        b = os.read(fd, 1)
+        if not b:
+            return ''
+        c1 = b.decode('utf-8', 'replace')
+        if c1 == '\x03':
+            raise KeyboardInterrupt
+        if c1 != '\x1b':
+            return c1
+        if not select.select([fd], [], [], 0.05)[0]:
+            return '\x1b'
+        seq = b''
+        while select.select([fd], [], [], 0.005)[0]:
+            chunk = os.read(fd, 32)
+            if not chunk:
+                break
+            seq += chunk
+        return c1 + seq.decode('utf-8', 'replace')
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
 HELP_LINES = [
-    ('↑/↓  j/k',    'move cursor'),
-    ('PgUp/PgDn',   'page up / down'),
-    ('g / G',       'top / bottom'),
-    ('Enter',       'buy or invoice (ask)'),
-    ('!',           'buy now'),
-    ('?',           'invoice'),
-    ('r',           'refresh catalog'),
-    ('c',           'toggle CPU column'),
-    ('f',           'toggle FQN view'),
-    ('b',           'toggle Bandwidth/vRack'),
-    ('u / U',       'toggle Unavailable / Unknown'),
-    ('$',           'toggle Fake-buy'),
-    ('h',           'toggle this help'),
-    (':',           'drop to command prompt'),
-    ('q  Esc',      'quit'),
+    ('↑/↓  j/k',         'move cursor'),
+    ('PgUp/PgDn',        'page up / down'),
+    ('g / G',            'top / bottom'),
+    ('1-9 then ! / ?',   'buy (!) / invoice (?) N times'),
+    ('! / ?',            'buy now / invoice (once)'),
+    ('/',                'enter filter mode'),
+    ('X',                'clear all filters'),
+    ('r',                'refresh catalog'),
+    ('R',                'reload config from disk'),
+    ('M',                'cycle commitment term 1 → 12 → 24 months'),
+    ('T',                'toggle VAT in prices'),
+    ('c / f / b',        'toggle CPU / FQN / BW columns'),
+    ('u / U',            'toggle Unavailable / Unknown rows'),
+    ('$',                'toggle Fake-buy'),
+    ('h',                'toggle this help'),
+    ('q  Esc',           'quit'),
+]
+
+FILTER_HELP_LINES = [
+    ('← / →   Tab / S-Tab', 'previous / next column'),
+    ('type',                'edit regex (numeric col: <N, >=N, =N)'),
+    ('Backspace',           'delete one char'),
+    ('Ctrl-U',              'clear the focused cell'),
+    ('Enter',               'apply and leave filter mode'),
+    ('Esc',                 'cancel changes'),
 ]
 
 
-def _row_data(plan, idx, state):
-    vrack = 'none' if plan['vrack'] == 'none' else plan['vrack'].split('-')[2]
-    storage = '-'.join(x for x in plan['storage'].split('-')
-                       if len(x) > 1 and x[1] == 'x')
-    memory = plan['memory'].split('-')[1]
-    bandwidth = plan['bandwidth'].split('-')[1]
-    row = [str(idx)]
+def _visible_columns(state):
+    """Return a list of (header, justify, filter_key) tuples in display
+    order. filter_key is None for the row-number column."""
+    cols = [('#', 'right', None)]
     if state['showFqn']:
-        row.append(plan['fqn'])
+        cols.append(('FQN', 'left', 'fqn'))
     else:
-        row.append(plan['planCode'])
-        row.append(plan['model'])
+        cols.append(('Plan', 'left', 'planCode'))
+        cols.append(('Model', 'left', 'model'))
         if state['showCpu']:
-            row.append(plan['cpu'])
-        row.append(plan['datacenter'])
-        row.append(memory)
-        row.append(storage)
+            cols.append(('CPU', 'left', 'cpu'))
+        cols.append(('DC', 'center', 'datacenter'))
+        cols.append(('Mem', 'right', 'memory'))
+        cols.append(('Storage', 'left', 'storage'))
     if state['showBandwidth']:
-        row.append(bandwidth)
-        row.append(vrack)
+        cols.append(('BW', 'right', 'bandwidth'))
+        cols.append(('vRack', 'right', 'vrack'))
     if state['showPrice']:
-        row.append(f"{plan['price']:.2f}")
+        header = '€/mo' if state.get('months', 1) == 1 else f"€/{state['months']}mo"
+        cols.append((header, 'right', 'price'))
     if state['showFee']:
-        row.append(f"{plan['fee']:.2f}")
+        cols.append(('Fee', 'right', 'fee'))
     if state['showTotalPrice']:
-        row.append(f"{plan['fee'] + plan['price']:.2f}")
-    return row
-
-
-def _price_header(months):
-    return '€/mo' if months == 1 else f'€/{months}mo'
-
-
-def _column_specs(state):
-    cols = [('#', 'right')]
-    if state['showFqn']:
-        cols.append(('FQN', 'left'))
-    else:
-        cols.append(('Plan', 'left'))
-        cols.append(('Model', 'left'))
-        if state['showCpu']:
-            cols.append(('CPU', 'left'))
-        cols.append(('DC', 'center'))
-        cols.append(('Mem', 'right'))
-        cols.append(('Storage', 'left'))
-    if state['showBandwidth']:
-        cols.append(('BW', 'right'))
-        cols.append(('vRack', 'right'))
-    if state['showPrice']:
-        cols.append((_price_header(state.get('months', 1)), 'right'))
-    if state['showFee']:
-        cols.append(('Fee', 'right'))
-    if state['showTotalPrice']:
-        cols.append(('Total', 'right'))
+        cols.append(('Total', 'right', 'total'))
     return cols
 
 
-def _build_table(displayedPlans, cursor, scroll_top, window, state):
+def _row_data(plan, idx, cols):
+    row = [str(idx)]
+    for _header, _justify, key in cols[1:]:
+        row.append(column_display_value(plan, key))
+    return row
+
+
+def _filter_cell_text(pat, focused):
+    if focused:
+        return Text((pat or '') + '▌', style='black on bright_yellow')
+    if pat:
+        return Text(pat, style='bold bright_white on grey23')
+    return Text('—', style='dim')
+
+
+def _filter_cell_raw(pat, focused):
+    """Raw string used only for width calculation; matches cell length."""
+    if focused:
+        return (pat or '') + '▌'
+    return pat or '—'
+
+
+def _build_table(displayedPlans, cursor, scroll_top, window, state,
+                 cols, filters, focus_key, editing):
     # Format every row up-front so column widths are locked to the widest
-    # cell across the entire list, not just the visible window. Without this
-    # Rich auto-sizes each column based on whatever rows happen to be on
-    # screen, and a wider value scrolling in makes the whole table jump.
-    specs = _column_specs(state)
-    all_rows = [_row_data(p, i, state) for i, p in enumerate(displayedPlans)]
-    widths = [max(len(specs[i][0]),
-                  max((len(r[i]) for r in all_rows), default=0))
-              for i in range(len(specs))]
+    # value across headers + all rows + filter cells. Without this, scrolling
+    # a wider value into the window resizes the whole table.
+    all_rows = [_row_data(p, i, cols) for i, p in enumerate(displayedPlans)]
+    filter_strs = []
+    for _h, _j, key in cols:
+        pat = filters.get(key, '') if key else ''
+        filter_strs.append(_filter_cell_raw(pat, editing and key == focus_key))
+
+    widths = []
+    for i, (header, _justify, _key) in enumerate(cols):
+        w = max(len(header), len(filter_strs[i]),
+                max((len(r[i]) for r in all_rows), default=0))
+        widths.append(w)
 
     table = Table(box=box.SIMPLE_HEAVY,
                   header_style='bold white on grey15',
                   pad_edge=False, expand=False, show_edge=False)
-    for (header, justify), w in zip(specs, widths):
+    for (header, justify, _key), w in zip(cols, widths):
         table.add_column(header, justify=justify, no_wrap=True, min_width=w)
+
+    # Filter bar row, always shown so the current filter set is visible.
+    filter_cells = []
+    for _h, _j, key in cols:
+        pat = filters.get(key, '') if key else ''
+        filter_cells.append(_filter_cell_text(pat, editing and key == focus_key))
+    table.add_row(*filter_cells)
 
     end = min(scroll_top + window, len(displayedPlans))
     for i in range(scroll_top, end):
@@ -119,143 +180,249 @@ def _build_table(displayedPlans, cursor, scroll_top, window, state):
 
 
 def _toggle(key, label, on):
-    # Active toggles render bright; inactive ones are dimmed so the
-    # footer doubles as a status bar.
     if on:
         return f'[bold bright_cyan]{key}[/] [bright_white]{label}[/]'
     return f'[dim]{key} {label}[/]'
 
 
-def _footer_bar(state, fetched_at):
-    nav = [
-        '[bold]↑↓[/] move',
-        '[bold]↵[/] buy/invoice',
-        '[bold]![/] now',
-        '[bold]?[/] invoice',
-        '[bold]r[/] refresh',
-    ]
-    toggles = [
-        _toggle('c', 'CPU', state['showCpu']),
-        _toggle('f', 'FQN', state['showFqn']),
-        _toggle('b', 'BW', state['showBandwidth']),
-        _toggle('u', 'unavail', state['showUnavailable']),
-        _toggle('U', 'unknown', state['showUnknown']),
-    ]
-    tail = ['[bold]h[/] help', '[bold]:[/] prompt', '[bold]q[/] quit']
+def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
+    """Footer is a Panel with a few short logical lines:
+      - meta line: status (age / 'fetching…'), multiplier, fake/real badge
+                   (fake/real is right-aligned via Table.grid)
+      - nav line:  the keys you press to *do* things
+      - toggles:   nav mode only — flags you flip on/off
+    Breaking it into distinct rows means each category lives on its own line
+    instead of wrapping whenever the terminal happens to be narrow."""
     if state['fakeBuy']:
-        fake = '[black on yellow] $ FAKE BUY [/]'
+        fake_markup = '[black on yellow] $ FAKE BUY [/]'
     else:
-        fake = '[white on red] $ REAL BUY [/]'
-    age = format_age(fetched_at)
-    age_part = f'[bright_black]fetched {age}[/]    ' if age else ''
-    line = age_part + '   '.join(nav) + '    ' + '  '.join(toggles) + '    ' + \
-           '   '.join(tail) + '    ' + fake
-    return Panel(Text.from_markup(line),
+        fake_markup = '[white on red] $ REAL BUY [/]'
+    if fetching:
+        status = '[black on bright_yellow] fetching… [/]'
+    else:
+        age = format_age(fetched_at)
+        status = f'[bright_black]fetched {age}[/]' if age else ''
+    multiplier = (f'[black on bright_yellow] × {count_buffer} [/]'
+                  if count_buffer else '')
+    meta_left = '   '.join(b for b in (status, multiplier) if b)
+    meta = Table.grid(expand=True)
+    meta.add_column(justify='left')
+    meta.add_column(justify='right')
+    meta.add_row(Text.from_markup(meta_left) if meta_left else Text(''),
+                 Text.from_markup(fake_markup))
+
+    if mode == 'filter':
+        nav = '   '.join([
+            '[bold]←→[/] column',
+            '[bold]Tab[/] next',
+            '[bold]type[/] regex',
+            '[bold]↵[/] apply',
+            '[bold]Esc[/] cancel',
+            '[bold]^U[/] clear cell',
+            '[bold]h[/] help',
+        ])
+        rows = [meta, Text.from_markup(nav)]
+    else:
+        months = state.get('months', 1)
+        term_label = '1mo' if months == 1 else f'{months}mo'
+        nav = '   '.join([
+            '[bold]↑↓[/] move',
+            '[bold]![/] buy',
+            '[bold]?[/] invoice',
+            '[bold]/[/] filter',
+            '[bold]X[/] clear',
+            '[bold]r[/] refresh',
+            f'[bold]M[/] {term_label}',
+            '[bold]h[/] help',
+            '[bold]R[/] reload',
+            '[bold]q[/] quit',
+        ])
+        toggles = '  '.join([
+            _toggle('c', 'CPU', state['showCpu']),
+            _toggle('f', 'FQN', state['showFqn']),
+            _toggle('b', 'BW', state['showBandwidth']),
+            _toggle('T', 'VAT', state.get('addVAT', False)),
+            _toggle('u', 'unavail', state['showUnavailable']),
+            _toggle('U', 'unknown', state['showUnknown']),
+            _toggle('$', 'fake', state['fakeBuy']),
+        ])
+        rows = [meta, Text.from_markup(nav), Text.from_markup(toggles)]
+    return Panel(Group(*rows),
                  border_style='bright_black', box=box.ROUNDED, padding=(0, 1))
 
 
-def _help_overlay():
-    lines = [Text.from_markup(f'[bold cyan]{k:<12}[/] {v}') for k, v in HELP_LINES]
-    return Panel(Group(*lines), title='Keys', title_align='left',
+def _help_overlay(mode):
+    lines = FILTER_HELP_LINES if mode == 'filter' else HELP_LINES
+    rendered = [Text.from_markup(f'[bold cyan]{k:<22}[/] {v}')
+                for k, v in lines]
+    title = 'Filter keys' if mode == 'filter' else 'Keys'
+    return Panel(Group(*rendered), title=title, title_align='left',
                  border_style='cyan', box=box.ROUNDED)
 
 
-def run(displayedPlans, state, buy_fn, refilter_fn,
-        refresh_fn=None, fetched_at=None):
-    """
-    state: dict of toggle flags the caller reads back after return.
-           Keys: showCpu, showFqn, showBandwidth, showPrice, showFee,
-                 showTotalPrice, showUnavailable, showUnknown, fakeBuy.
-    buy_fn(plan, buyNow): called when user buys or invoices a plan.
-    refilter_fn(): returns a freshly-filtered displayedPlans list, using
-                   the current state dict plus caller's plans/filters.
-    refresh_fn(): re-fetches availabilities/catalog and returns
-                  (new displayedPlans, new fetched_at datetime).
-    fetched_at: datetime of the most recent fetch, used for the age label.
+def _printable(key):
+    return len(key) == 1 and key.isprintable()
 
-    Returns 'prompt' when the user wants the command prompt (':'),
-    or 'quit' on q/Esc/Ctrl-C.
+
+def run(displayedPlans, state, buy_fn, refilter_fn,
+        refresh_fn=None, reload_fn=None, fetched_at=None):
+    """
+    state: dict of toggle flags the caller reads back on return. Keys:
+      showCpu, showFqn, showBandwidth, showPrice, showFee, showTotalPrice,
+      showUnavailable, showUnknown, fakeBuy, addVAT, months, filters.
+    `filters` is a mutable {column_key: pattern} dict owned by the caller;
+    interactive mutates it in place.
+    buy_fn(plan, buyNow): called once per buy, N times for a N-multiplier.
+    refilter_fn(): returns a freshly filtered displayedPlans for the current
+      state and filters.
+    refresh_fn(): re-fetches availabilities/catalog with the current state
+      (months/addVAT written back to globals by the caller) and returns
+      (displayedPlans, fetched_at).
+    reload_fn(): re-reads the config file (mutating state in place) and
+      returns (displayedPlans, fetched_at).
     """
     logger.info('Entering interactive mode')
-    exit_reason = 'quit'
 
     cursor = 0
     scroll_top = 0
     show_help = False
+    mode = 'nav'
+    count_buffer = ''
+    filters = state.setdefault('filters', {})
+    filter_snapshot = dict(filters)
+    focus_idx = 0
+
+    def filterable():
+        return [c for c in _visible_columns(state) if c[2] is not None]
 
     live = Live(console=console, screen=True, auto_refresh=False,
                 redirect_stdout=False, redirect_stderr=False)
 
-    def buy_ask(plan):
-        """ENTER path: suspend Live, ask invoice/buy/out, act, then resume."""
+    def buy_many(plan, buyNow, times):
         live.stop()
         try:
-            console.print(f"\n[bold]{plan['model']}[/]  ({plan['fqn']})")
-            choice = input('Last chance : Invoice = I , Buy now = N , '
-                           'other = out : ').strip().lower()
-            logger.debug('Interactive user chose: ' + choice)
-            if choice == 'i':
-                buy_fn(plan, False)
-                input('Press Enter.')
-            elif choice == 'n':
-                buy_fn(plan, True)
-                input('Press Enter.')
-        finally:
-            live.start()
-
-    def buy_direct(plan, buyNow):
-        """! / ? paths: suspend Live, buy without asking, then resume."""
-        live.stop()
-        try:
-            buy_fn(plan, buyNow)
+            for _ in range(times):
+                buy_fn(plan, buyNow)
             input('Press Enter.')
         finally:
             live.start()
 
+    def render(fetching=False):
+        """Paint the current state to the Live display. Used both by the main
+        loop and by key handlers that want to show a 'fetching…' hint before
+        synchronously waiting on the network."""
+        nonlocal cursor, scroll_top, focus_idx
+        cols = _visible_columns(state)
+        fcols = filterable()
+        if fcols:
+            focus_idx = min(focus_idx, len(fcols) - 1)
+        focus_key = fcols[focus_idx][2] if (fcols and mode == 'filter') else None
+
+        size = console.size
+        footer = _footer_bar(state, fetched_at, count_buffer, mode, fetching)
+        help_panel = _help_overlay(mode) if show_help else None
+        # chrome: header row + header underline (2 lines) + filter row +
+        # position line = 4, plus footer and optional help.
+        reserved = 4 + len(console.render_lines(footer))
+        if help_panel is not None:
+            reserved += len(console.render_lines(help_panel))
+        window = max(3, size.height - reserved)
+
+        if cursor < 0:
+            cursor = 0
+        if displayedPlans and cursor >= len(displayedPlans):
+            cursor = len(displayedPlans) - 1
+        if cursor < scroll_top:
+            scroll_top = cursor
+        elif cursor >= scroll_top + window:
+            scroll_top = cursor - window + 1
+        max_scroll = max(0, len(displayedPlans) - window)
+        scroll_top = max(0, min(scroll_top, max_scroll))
+
+        table = _build_table(displayedPlans, cursor, scroll_top, window,
+                             state, cols, filters, focus_key,
+                             mode == 'filter')
+        if displayedPlans:
+            pos = Text.from_markup(
+                f'[bright_black]{cursor + 1}/{len(displayedPlans)}'
+                f'   (rows {scroll_top + 1}-'
+                f'{scroll_top + min(window, len(displayedPlans) - scroll_top)})[/]')
+        else:
+            pos = Text.from_markup(
+                '[dim]No servers match the current filters. '
+                'Press [bold]/[/] to edit or [bold]X[/] to clear.[/]')
+        renderables = [table, pos, footer]
+        if help_panel is not None:
+            renderables.append(help_panel)
+        live.update(Group(*renderables), refresh=True)
+        return window
+
+    def do_fetch(fn):
+        """Keep the table on screen while the fetch runs; only the footer
+        changes to a 'fetching…' hint."""
+        nonlocal displayedPlans, fetched_at
+        render(fetching=True)
+        try:
+            displayedPlans, fetched_at = fn()
+        except Exception:
+            logger.exception('Fetch inside interactive failed')
+
     live.start()
     try:
         while True:
-            size = console.size
-            footer = _footer_bar(state, fetched_at)
-            help_panel = _help_overlay() if show_help else None
-            # table chrome (header + underline with SIMPLE_HEAVY) + pos line
-            reserved = 3 + len(console.render_lines(footer))
-            if help_panel is not None:
-                reserved += len(console.render_lines(help_panel))
-            window = max(3, size.height - reserved)
-
-            if not displayedPlans:
-                empty = Text.from_markup('[dim]No servers to display.[/]')
-                renderables = [empty, footer]
-                if help_panel is not None:
-                    renderables.append(help_panel)
-            else:
-                if cursor < 0:
-                    cursor = 0
-                if cursor >= len(displayedPlans):
-                    cursor = len(displayedPlans) - 1
-                if cursor < scroll_top:
-                    scroll_top = cursor
-                elif cursor >= scroll_top + window:
-                    scroll_top = cursor - window + 1
-                max_scroll = max(0, len(displayedPlans) - window)
-                scroll_top = max(0, min(scroll_top, max_scroll))
-
-                table = _build_table(displayedPlans, cursor, scroll_top,
-                                     window, state)
-                pos = Text.from_markup(
-                    f'[bright_black]{cursor + 1}/{len(displayedPlans)}'
-                    f'   (rows {scroll_top + 1}-{scroll_top + min(window, len(displayedPlans) - scroll_top)})[/]')
-                renderables = [table, pos, footer]
-                if help_panel is not None:
-                    renderables.append(help_panel)
-
-            live.update(Group(*renderables), refresh=True)
+            window = render()
 
             try:
-                key = readchar.readkey()
+                key = _readkey()
             except KeyboardInterrupt:
                 break
+
+            # ---------------- FILTER MODE ----------------
+            if mode == 'filter':
+                fcols = filterable()
+                fkey = fcols[focus_idx][2] if fcols else None
+                if key == readchar.key.ESC:
+                    filters.clear()
+                    filters.update(filter_snapshot)
+                    displayedPlans = refilter_fn()
+                    mode = 'nav'
+                elif key in (readchar.key.ENTER, readchar.key.CR, readchar.key.LF):
+                    displayedPlans = refilter_fn()
+                    mode = 'nav'
+                elif key in (readchar.key.RIGHT, readchar.key.TAB):
+                    if fcols:
+                        focus_idx = (focus_idx + 1) % len(fcols)
+                elif key in (readchar.key.LEFT, readchar.key.SHIFT_TAB):
+                    if fcols:
+                        focus_idx = (focus_idx - 1) % len(fcols)
+                elif key == readchar.key.BACKSPACE:
+                    if fkey and filters.get(fkey):
+                        filters[fkey] = filters[fkey][:-1]
+                        if not filters[fkey]:
+                            del filters[fkey]
+                        displayedPlans = refilter_fn()
+                elif key == readchar.key.CTRL_U:
+                    if fkey and fkey in filters:
+                        del filters[fkey]
+                        displayedPlans = refilter_fn()
+                elif _printable(key) and fkey is not None:
+                    filters[fkey] = filters.get(fkey, '') + key
+                    displayedPlans = refilter_fn()
+                continue
+
+            # ---------------- NAV MODE ----------------
+            # Numeric prefix buffer: digits accumulate until !/? consumes them.
+            if key.isdigit():
+                count_buffer += key
+                continue
+            if key in ('!', '?'):
+                times = int(count_buffer) if count_buffer else 1
+                count_buffer = ''
+                if displayedPlans:
+                    buy_many(displayedPlans[cursor], key == '!', times)
+                continue
+            # Any other keystroke cancels a pending multiplier.
+            count_buffer = ''
 
             if key in (readchar.key.UP, 'k'):
                 cursor -= 1
@@ -268,30 +435,29 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
             elif key in (readchar.key.HOME, 'g'):
                 cursor = 0
             elif key in (readchar.key.END, 'G'):
-                cursor = len(displayedPlans) - 1
+                cursor = len(displayedPlans) - 1 if displayedPlans else 0
             elif key in ('q', readchar.key.ESC):
-                exit_reason = 'quit'
-                break
-            elif key == ':':
-                exit_reason = 'prompt'
                 break
             elif key == 'h':
                 show_help = not show_help
+            elif key == '/':
+                if filterable():
+                    filter_snapshot = dict(filters)
+                    mode = 'filter'
+            elif key == 'X':
+                if filters:
+                    filters.clear()
+                    displayedPlans = refilter_fn()
             elif key == 'r' and refresh_fn is not None:
-                live.stop()
-                try:
-                    displayedPlans, fetched_at = refresh_fn()
-                finally:
-                    live.start()
-                cursor = min(cursor, max(0, len(displayedPlans) - 1))
-            elif not displayedPlans:
-                continue
-            elif key in (readchar.key.ENTER, '\r', '\n'):
-                buy_ask(displayedPlans[cursor])
-            elif key == '!':
-                buy_direct(displayedPlans[cursor], True)
-            elif key == '?':
-                buy_direct(displayedPlans[cursor], False)
+                do_fetch(refresh_fn)
+            elif key == 'R' and reload_fn is not None:
+                do_fetch(reload_fn)
+            elif key == 'M' and refresh_fn is not None:
+                state['months'] = {1: 12, 12: 24, 24: 1}.get(state.get('months', 1), 1)
+                do_fetch(refresh_fn)
+            elif key == 'T' and refresh_fn is not None:
+                state['addVAT'] = not state.get('addVAT', False)
+                do_fetch(refresh_fn)
             elif key == 'c':
                 state['showCpu'] = not state['showCpu']
             elif key == 'f':
@@ -301,14 +467,11 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
             elif key == 'u':
                 state['showUnavailable'] = not state['showUnavailable']
                 displayedPlans = refilter_fn()
-                cursor = min(cursor, max(0, len(displayedPlans) - 1))
             elif key == 'U':
                 state['showUnknown'] = not state['showUnknown']
                 displayedPlans = refilter_fn()
-                cursor = min(cursor, max(0, len(displayedPlans) - 1))
             elif key == '$':
                 state['fakeBuy'] = not state['fakeBuy']
     finally:
         live.stop()
         logger.info('Leaving interactive mode')
-    return exit_reason

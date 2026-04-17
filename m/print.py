@@ -1,16 +1,10 @@
 from datetime import datetime
 
-from rich import box
-from rich.console import Console, Group
-from rich.panel import Panel
-from rich.table import Table
-from rich.text import Text
+from rich.console import Console
 
 import m.availability
 
-__all__ = ['whichColor', 'print_plan_list', 'print_prompt',
-           'print_help_legend', 'clear_screen', 'console',
-           'format_age', 'resolve_state']
+__all__ = ['whichColor', 'console', 'format_age', 'resolve_state']
 
 console = Console()
 
@@ -24,9 +18,6 @@ whichColor = {
     'comingSoon':  'blue',
     'autobuy':     'bold magenta',
 }
-
-def clear_screen():
-    console.clear()
 
 
 def format_age(fetched_at):
@@ -53,128 +44,3 @@ def resolve_state(plan):
     if avail.endswith('high'):
         return 'high'
     return 'unknown'
-
-
-# ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
-def print_plan_list(plans, showCpu, showFqn, showBandwidth,
-                    showPrice, showFee, showTotalPrice, months=1):
-    if not plans:
-        console.print(Panel(Text('No availability.', style='bold red'),
-                            border_style='red', box=box.ROUNDED, expand=False))
-        return
-
-    table = Table(box=box.SIMPLE_HEAVY,
-                  header_style='bold white on grey15',
-                  pad_edge=False, expand=False, show_edge=False)
-    table.add_column('#', justify='right', no_wrap=True)
-    if showFqn:
-        table.add_column('FQN', no_wrap=True)
-    else:
-        table.add_column('Plan', no_wrap=True)
-        table.add_column('Model', no_wrap=True)
-        if showCpu:
-            table.add_column('CPU', no_wrap=True)
-        table.add_column('DC', justify='center', no_wrap=True)
-        table.add_column('Mem', justify='right', no_wrap=True)
-        table.add_column('Storage', no_wrap=True)
-    if showBandwidth:
-        table.add_column('BW', justify='right', no_wrap=True)
-        table.add_column('vRack', justify='right', no_wrap=True)
-    if showPrice:
-        price_header = '€/mo' if months == 1 else f'€/{months}mo'
-        table.add_column(price_header, justify='right', no_wrap=True)
-    if showFee:
-        table.add_column('Fee', justify='right', no_wrap=True)
-    if showTotalPrice:
-        table.add_column('Total', justify='right', no_wrap=True)
-
-    for idx, plan in enumerate(plans):
-        if plan['vrack'] == 'none':
-            vrack = 'none'
-        else:
-            vrack = plan['vrack'].split('-')[2]
-        storage = '-'.join(x for x in plan['storage'].split('-')
-                           if len(x) > 1 and x[1] == 'x')
-        memory = plan['memory'].split('-')[1]
-        bandwidth = plan['bandwidth'].split('-')[1]
-        state = resolve_state(plan)
-        style = whichColor[state]
-
-        row = [str(idx)]
-        if showFqn:
-            row.append(plan['fqn'])
-        else:
-            row.append(plan['planCode'])
-            row.append(plan['model'])
-            if showCpu:
-                row.append(plan['cpu'])
-            row.append(plan['datacenter'])
-            row.append(memory)
-            row.append(storage)
-        if showBandwidth:
-            row.append(bandwidth)
-            row.append(vrack)
-        if showPrice:
-            row.append(f"{plan['price']:.2f}")
-        if showFee:
-            row.append(f"{plan['fee']:.2f}")
-        if showTotalPrice:
-            row.append(f"{plan['fee'] + plan['price']:.2f}")
-
-        table.add_row(*row, style=style)
-
-    console.print(table)
-
-
-# ----------------- PRINT PROMPT (top-style header) --------------------------------------------
-def print_prompt(acceptable_dc, filterMemory, filterName, filterDisk,
-                 maxPrice, coupon, months,
-                 fakeBuy=False, loggedIn=True, loop=False):
-    dcs = ' '.join(acceptable_dc) if acceptable_dc else '—'
-    filt = ' / '.join(x for x in [filterName, filterDisk, filterMemory] if x) or '—'
-
-    line1 = Text.from_markup(
-        f"[bold]DCs[/]: {dcs}    [bold]Filter[/]: {filt}"
-    )
-    extras = []
-    if maxPrice > 0:
-        extras.append(f"[bold]Max[/]: €{maxPrice}")
-    if coupon:
-        extras.append(f"[bold]Coupon[/]: {coupon}")
-    if months > 1:
-        extras.append(f"[bold]Term[/]: {months}M")
-    line2 = Text.from_markup('    '.join(extras)) if extras else None
-
-    flags = []
-    flags.append(Text(' LOOP ', style='black on green') if loop
-                 else Text(' IDLE ', style='black on grey50'))
-    flags.append(Text(' LOGGED IN ', style='black on bright_blue') if loggedIn
-                 else Text(' OFFLINE ', style='white on red'))
-    flags.append(Text(' FAKE BUY ', style='black on yellow') if fakeBuy
-                 else Text(' REAL BUY ', style='white on red'))
-    flag_line = Text('  ').join(flags)
-
-    body = Group(line1, line2, flag_line) if line2 else Group(line1, flag_line)
-
-    title = Text.assemble(
-        ('  BUY_OVH  ', 'bold white on dark_cyan'),
-        ('   ', ''),
-        (datetime.now().strftime('%H:%M:%S'), 'bright_black'),
-    )
-    console.print(Panel(body, title=title, title_align='left',
-                        border_style='bright_black', box=box.ROUNDED,
-                        padding=(0, 1)))
-
-
-# ------------------ HELP-SCREEN COLOUR LEGEND -------------------------------------------------
-def print_help_legend():
-    legend = [
-        ('high',        'Available HIGH'),
-        ('low',         'Available LOW'),
-        ('unavailable', 'Unavailable'),
-        ('comingSoon',  'Coming Soon'),
-        ('unknown',     'Availability unknown'),
-        ('autobuy',     'Auto-buy candidate'),
-    ]
-    for state, label in legend:
-        console.print(Text(label, style=whichColor[state]))

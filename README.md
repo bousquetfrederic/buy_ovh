@@ -13,7 +13,14 @@ In there you at least need the following for the connection to the API: endpoint
 It's recommended to have at least a filter on the server name (or plan code) otherwise the list will be huge.
 
 ## buy_ovh
-The interactive one. It fetches the catalog at startup and drops you in a navigator where you move with the arrow keys, press Enter on a line to buy it (or get an invoice), `!` to buy now without asking, `?` for an invoice without asking. Press `:` to drop to the command prompt where you can change filters, toggle columns, VAT, the number of months, etc. From the prompt, `I` goes back to interactive and an empty ENTER refreshes.
+The interactive one. It fetches the catalog at startup and drops you in a navigator — everything happens from there, there is no separate command prompt.
+
+- `↑`/`↓` (or `j`/`k`) move the cursor; `PgUp`/`PgDn`, `g`/`G` for jumps.
+- `!` buys the highlighted row, `?` requests an invoice for it. To create several orders at once, type a number first (vim style): `3!` places three identical orders.
+- `/` opens filter mode. The focus jumps to the filter row under the column headers; `←`/`→` (or `Tab`) moves between columns, typing edits the regex, `Enter` applies, `Esc` cancels, `Ctrl-U` clears the current cell. Numeric columns (price, fee, total) accept `<N`, `>N`, `<=N`, `>=N`, `=N`, or a bare number (treated as `<=N`). `X` clears every filter at once. The `filterName` / `filterDisk` / `filterMemory` / `maxPrice` keys in `conf.yaml` are a separate layer applied at catalog-fetch time and do not show up in the filter bar.
+- `M` cycles the commitment term 1 → 12 → 24 months, `T` toggles VAT, `r` refreshes the catalog, `R` reloads `conf.yaml` from disk.
+- `c`/`f`/`b`/`u`/`U`/`$` toggle CPU / FQN / BW columns, include-unavailable, include-unknown-availability and fake-buy mode.
+- `h` opens the in-app key reference, `q` or `Esc` quits.
 
 The colour coding is in the code. Red is unavailable. Green and yellow are available. Etc.
 

@@ -77,7 +77,7 @@ def get_consumer_key(endpoint, application_key, application_secret):
         return "nokey"
 
 # ---------------- BUILD THE CART --------------------------------------------------------------
-def build_cart(plan, ovhSubsidiary, coupon, fake, months):
+def build_cart(plan, ovhSubsidiary, fake, months):
     logger.info("Building the Cart")
     if fake:
         logger.info("This is a fake buy")
@@ -178,13 +178,6 @@ def build_cart(plan, ovhSubsidiary, coupon, fake, months):
                          value = myregion
                          )
     logger.debug("Added region " + myregion)
-
-    # add coupon
-    if coupon:
-        result = client.post(f'/order/cart/{cartId}/coupon',
-                             label = "coupon",
-                             value = coupon)
-    logger.debug("Added coupon " + coupon)
 
     return cartId
 

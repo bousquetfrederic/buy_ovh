@@ -19,7 +19,6 @@ MAIN_DEFAULTS = {
     'acceptable_dc': ([], 'datacenters'),
     'addVAT': False,
     'APIEndpoint': 'ovh-eu',
-    'coupon': '',
     'fakeBuy': True,
     'filterDisk': '',
     'filterMemory': '',
@@ -123,7 +122,7 @@ def buyServer(plan, buyNow):
     strBuy = strBuyNow + plan['model'] + " in " + plan['datacenter'] + "."
     logger.info("Buying: " + strBuy + "   -Auto Mode-")
     try:
-        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, coupon, fakeBuy, months), buyNow, fakeBuy)
+        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, fakeBuy, months), buyNow, fakeBuy)
         if email_auto_buy:
             m.email.send_auto_buy_email("SUCCESS: " + strBuy)
     except Exception as e:
