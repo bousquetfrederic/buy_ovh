@@ -1,4 +1,6 @@
-# example configuration file for buy_ovh
+# example configuration file shared by buy_ovh (interactive) and
+# monitor_ovh (headless loop). Each tool ignores the keys it doesn't use;
+# you can keep one conf.yaml or split it.
 
 # API stuff
 # They are explained here: https://github.com/ovh/python-ovh
@@ -76,19 +78,14 @@ showFqn: False
 # Try the script once with fakeBuy but don't forget to set it to False after your test
 fakeBuy: True
 
-# Loop?
-# If True, the script refreshes the list of servers
-# every 'sleepsecs' seconds and does the monitoring (email sending).
-# You need to press CTRL-C to stop the loop and then you can choose.
-# If False, it displays the list of servers once and let you choose.
-# This is only the initial state, the user can always start the loop
-# by pressing 'L'
-loop: False
+# ------------- monitor_ovh only -------------
+# These keys are read by monitor_ovh (the headless loop) and ignored by
+# buy_ovh. monitor_ovh only needs API credentials if auto_buy is set.
 
-# print or not the server list while looping
+# print or not the server list each cycle
 printListWhileLooping: True
 
-# how many seconds before a refresh (if loop = True)
+# how many seconds between refreshes
 sleepsecs: 20
 
 # email sending (email_on = False deactivate all emails)

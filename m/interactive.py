@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 import readchar
 from rich import box
@@ -22,14 +23,30 @@ HELP_LINES = [
     ('Enter',       'buy or invoice (ask)'),
     ('!',           'buy now'),
     ('?',           'invoice'),
+    ('r',           'refresh catalog'),
     ('c',           'toggle CPU column'),
     ('f',           'toggle FQN view'),
     ('b',           'toggle Bandwidth/vRack'),
     ('u / U',       'toggle Unavailable / Unknown'),
     ('$',           'toggle Fake-buy'),
     ('h',           'toggle this help'),
-    ('q  Esc',      'exit interactive'),
+    (':',           'drop to command prompt'),
+    ('q  Esc',      'quit'),
 ]
+
+
+def _format_age(fetched_at):
+    if fetched_at is None:
+        return ''
+    delta = datetime.now() - fetched_at
+    secs = int(delta.total_seconds())
+    if secs < 60:
+        return f'{secs}s ago'
+    if secs < 3600:
+        return f'{secs // 60}m ago'
+    if secs < 86400:
+        return f'{secs // 3600}h ago'
+    return f'{secs // 86400}d ago'
 
 
 def _resolve_state(plan):
@@ -114,12 +131,13 @@ def _toggle(key, label, on):
     return f'[dim]{key} {label}[/]'
 
 
-def _footer_bar(state):
+def _footer_bar(state, fetched_at):
     nav = [
         '[bold]↑↓[/] move',
         '[bold]↵[/] buy/invoice',
         '[bold]![/] now',
         '[bold]?[/] invoice',
+        '[bold]r[/] refresh',
     ]
     toggles = [
         _toggle('c', 'CPU', state['showCpu']),
@@ -128,12 +146,14 @@ def _footer_bar(state):
         _toggle('u', 'unavail', state['showUnavailable']),
         _toggle('U', 'unknown', state['showUnknown']),
     ]
-    tail = ['[bold]h[/] help', '[bold]q[/] exit']
+    tail = ['[bold]h[/] help', '[bold]:[/] prompt', '[bold]q[/] quit']
     if state['fakeBuy']:
         fake = '[black on yellow] $ FAKE BUY [/]'
     else:
         fake = '[white on red] $ REAL BUY [/]'
-    line = '   '.join(nav) + '    ' + '  '.join(toggles) + '    ' + \
+    age = _format_age(fetched_at)
+    age_part = f'[bright_black]fetched {age}[/]    ' if age else ''
+    line = age_part + '   '.join(nav) + '    ' + '  '.join(toggles) + '    ' + \
            '   '.join(tail) + '    ' + fake
     return Panel(Text.from_markup(line),
                  border_style='bright_black', box=box.ROUNDED, padding=(0, 1))
@@ -145,7 +165,8 @@ def _help_overlay():
                  border_style='cyan', box=box.ROUNDED)
 
 
-def run(displayedPlans, state, buy_fn, refilter_fn):
+def run(displayedPlans, state, buy_fn, refilter_fn,
+        refresh_fn=None, fetched_at=None):
     """
     state: dict of toggle flags the caller reads back after return.
            Keys: showCpu, showFqn, showBandwidth, showPrice, showFee,
@@ -153,52 +174,57 @@ def run(displayedPlans, state, buy_fn, refilter_fn):
     buy_fn(plan, buyNow): called when user buys or invoices a plan.
     refilter_fn(): returns a freshly-filtered displayedPlans list, using
                    the current state dict plus caller's plans/filters.
+    refresh_fn(): re-fetches availabilities/catalog and returns
+                  (new displayedPlans, new fetched_at datetime).
+    fetched_at: datetime of the most recent fetch, used for the age label.
+
+    Returns 'prompt' when the user wants the command prompt (':'),
+    or 'quit' on q/Esc/Ctrl-C.
     """
     logger.info('Entering interactive mode')
-    if not displayedPlans:
-        console.print('[dim]No servers to navigate.[/]')
-        input('Press Enter.')
-        return
+    exit_reason = 'quit'
 
     cursor = 0
     scroll_top = 0
     show_help = False
-    msg = ''  # transient message shown below the footer
 
     with console.screen():
         try:
             while True:
                 size = console.size
-                # reserve rows for: header row of table, footer panel (3),
-                # position line (1), help overlay (optional), msg (1), margins
                 reserved = 7 + (len(HELP_LINES) + 2 if show_help else 0)
                 window = max(3, size.height - reserved)
 
-                if cursor < 0:
-                    cursor = 0
-                if cursor >= len(displayedPlans):
-                    cursor = len(displayedPlans) - 1
-                if cursor < scroll_top:
-                    scroll_top = cursor
-                elif cursor >= scroll_top + window:
-                    scroll_top = cursor - window + 1
-                max_scroll = max(0, len(displayedPlans) - window)
-                scroll_top = max(0, min(scroll_top, max_scroll))
+                if not displayedPlans:
+                    empty = Text.from_markup('[dim]No servers to display.[/]')
+                    renderables = [empty, _footer_bar(state, fetched_at)]
+                    if show_help:
+                        renderables.append(_help_overlay())
+                    console.clear()
+                    console.print(Group(*renderables))
+                else:
+                    if cursor < 0:
+                        cursor = 0
+                    if cursor >= len(displayedPlans):
+                        cursor = len(displayedPlans) - 1
+                    if cursor < scroll_top:
+                        scroll_top = cursor
+                    elif cursor >= scroll_top + window:
+                        scroll_top = cursor - window + 1
+                    max_scroll = max(0, len(displayedPlans) - window)
+                    scroll_top = max(0, min(scroll_top, max_scroll))
 
-                table = _build_table(displayedPlans, cursor, scroll_top,
-                                     window, state)
-                pos = Text.from_markup(
-                    f'[bright_black]{cursor + 1}/{len(displayedPlans)}'
-                    f'   (rows {scroll_top + 1}-{scroll_top + min(window, len(displayedPlans) - scroll_top)})[/]')
-                renderables = [table, pos, _footer_bar(state)]
-                if msg:
-                    renderables.append(Text.from_markup(msg))
-                if show_help:
-                    renderables.append(_help_overlay())
+                    table = _build_table(displayedPlans, cursor, scroll_top,
+                                         window, state)
+                    pos = Text.from_markup(
+                        f'[bright_black]{cursor + 1}/{len(displayedPlans)}'
+                        f'   (rows {scroll_top + 1}-{scroll_top + min(window, len(displayedPlans) - scroll_top)})[/]')
+                    renderables = [table, pos, _footer_bar(state, fetched_at)]
+                    if show_help:
+                        renderables.append(_help_overlay())
 
-                console.clear()
-                console.print(Group(*renderables))
-                msg = ''
+                    console.clear()
+                    console.print(Group(*renderables))
 
                 try:
                     key = readchar.readkey()
@@ -218,9 +244,19 @@ def run(displayedPlans, state, buy_fn, refilter_fn):
                 elif key in (readchar.key.END, 'G'):
                     cursor = len(displayedPlans) - 1
                 elif key in ('q', readchar.key.ESC):
+                    exit_reason = 'quit'
+                    break
+                elif key == ':':
+                    exit_reason = 'prompt'
                     break
                 elif key == 'h':
                     show_help = not show_help
+                elif key == 'r' and refresh_fn is not None:
+                    displayedPlans, fetched_at = refresh_fn()
+                    cursor = min(cursor, max(0, len(displayedPlans) - 1))
+                elif not displayedPlans:
+                    # without rows, none of the below keys make sense
+                    continue
                 elif key in (readchar.key.ENTER, '\r', '\n'):
                     plan = displayedPlans[cursor]
                     console.print(f"\n[bold]{plan['model']}[/]  ({plan['fqn']})")
@@ -259,3 +295,4 @@ def run(displayedPlans, state, buy_fn, refilter_fn):
                 # unknown keys: ignored
         finally:
             logger.info('Leaving interactive mode')
+    return exit_reason
