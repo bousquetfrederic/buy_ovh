@@ -26,16 +26,6 @@ whichColor = {
     'autobuy':     'bold magenta',
 }
 
-_STATUS_GLYPH = {
-    'unknown':     '?',
-    'low':         '◐',
-    'high':        '●',
-    'unavailable': '○',
-    'comingSoon':  '◌',
-    'autobuy':     '★',
-}
-
-
 def clear_screen():
     console.clear()
 
@@ -65,7 +55,6 @@ def print_plan_list(plans, showCpu, showFqn, showBandwidth,
                   header_style='bold white on grey15',
                   row_styles=['', 'on grey7'],
                   pad_edge=False, expand=False, show_edge=False)
-    table.add_column(' ', justify='center', no_wrap=True)
     table.add_column('#', justify='right', no_wrap=True)
     if showFqn:
         table.add_column('FQN', no_wrap=True)
@@ -98,9 +87,8 @@ def print_plan_list(plans, showCpu, showFqn, showBandwidth,
         bandwidth = plan['bandwidth'].split('-')[1]
         state = _resolve_state(plan)
         style = whichColor[state]
-        glyph = _STATUS_GLYPH[state]
 
-        row = [Text(glyph, style=style), str(idx)]
+        row = [str(idx)]
         if showFqn:
             row.append(plan['fqn'])
         else:
@@ -225,9 +213,6 @@ def print_servers(server_list):
 
 # ------------------ HELP-SCREEN COLOUR LEGEND -------------------------------------------------
 def print_help_legend():
-    table = Table(box=box.MINIMAL, show_header=False, pad_edge=False)
-    table.add_column(no_wrap=True)
-    table.add_column(no_wrap=True)
     legend = [
         ('high',        'Available HIGH'),
         ('low',         'Available LOW'),
@@ -237,7 +222,4 @@ def print_help_legend():
         ('autobuy',     'Auto-buy candidate'),
     ]
     for state, label in legend:
-        style = whichColor[state]
-        table.add_row(Text(_STATUS_GLYPH[state], style=style),
-                      Text(label, style=style))
-    console.print(table)
+        console.print(Text(label, style=whichColor[state]))
