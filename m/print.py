@@ -10,8 +10,7 @@ from rich.text import Text
 import m.availability
 
 __all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep',
-           'print_orders', 'print_servers', 'print_help_legend',
-           'clear_screen', 'console']
+           'print_help_legend', 'clear_screen', 'console']
 
 console = Console()
 
@@ -172,43 +171,6 @@ def print_and_sleep(showMessage, sleepsecs):
     finally:
         # wipe the line so subsequent output starts clean
         console.print(' ' * (bar_width + 60), end='\r', highlight=False)
-
-
-# ----------------- PRINT LIST OF ORDERS -------------------------------------------------------
-def print_orders(orderList, printDate=False):
-    if not orderList:
-        console.print('[dim]No orders.[/]')
-        return
-    table = Table(box=box.SIMPLE_HEAVY, header_style='bold white on grey15')
-    table.add_column('#', justify='right', no_wrap=True)
-    table.add_column('Description', no_wrap=True)
-    table.add_column('Location', no_wrap=True)
-    if printDate:
-        table.add_column('Expires', no_wrap=True)
-    for idx, order in enumerate(orderList):
-        row = [str(idx), order['description'], order['location']]
-        if printDate:
-            row.append(order['date'])
-        table.add_row(*row)
-    console.print(table)
-
-
-# ------------------ PRINT SERVER SPECS --------------------------------------------------------
-def print_servers(server_list):
-    if not server_list:
-        console.print('[dim]No servers.[/]')
-        return
-    table = Table(box=box.SIMPLE_HEAVY, header_style='bold white on grey15',
-                  show_lines=True)
-    table.add_column('Name', style='bold')
-    table.add_column('DC', justify='center')
-    table.add_column('CPU')
-    table.add_column('RAM', justify='right')
-    table.add_column('Disks')
-    for s in server_list:
-        table.add_row(s['name'], s['datacenter'], s['cpu'], s['memory'],
-                      '\n'.join(s['disks']))
-    console.print(table)
 
 
 # ------------------ HELP-SCREEN COLOUR LEGEND -------------------------------------------------

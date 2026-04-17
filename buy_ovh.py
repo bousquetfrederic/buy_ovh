@@ -9,9 +9,7 @@ import m.api
 import m.availability
 import m.catalog
 import m.interactive
-import m.orders
 import m.print
-import m.servers
 
 from m.config import configFile
 
@@ -153,14 +151,12 @@ def showHelp():
     print("")
     print("Commands")
     print("--------")
-    print(" D  - show your undelivered orders and a link to see your bill for one")
     print(" I  - enter interactive mode (navigate the list with arrow keys)")
     print(" K  - enter a coupon (buying will fail if coupon is invalid)")
-    print(" O  - show your unpaid orders and a link to pay for one")
     print(" R  - reload the configuration file")
-    print(" S  - print a list of your servers with some specs")
-    print(" V  - look up availabilities for a specific FQN")
     print(" Q  - quit")
+    print("")
+    print("Orders and servers live in manage_ovh.")
     print("")
     print("Buying")
     print("------")
@@ -436,20 +432,12 @@ try:
             elif sChoice.lower() == 'i':
                 logger.info("User switched to interactive mode")
                 mode = 'interactive'
-            elif sChoice.lower() == 'o':
-                m.orders.unpaid_orders(True)
-            elif sChoice.lower() == 'd':
-                m.orders.undelivered_orders(True)
             elif sChoice.lower() == 'r':
                 logger.info("User reloaded the configuration")
                 loadConfigMain(configFile)
-            elif sChoice.lower() == 's':
-                m.servers.servers_specs(True)
             elif sChoice.lower() == 't':
                 addVAT = not addVAT
                 logger.info("Apply VAT=" + str(addVAT))
-            elif sChoice.lower() == 'v':
-                m.availability.look_up_avail(availabilities)
             elif sChoice.lower() == 'h':
                 showHelp()
             elif sChoice.lower() == 'q':

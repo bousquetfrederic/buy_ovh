@@ -4,7 +4,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['added_removed', 'build_availability_dict', 'changed', 'look_up_avail', 'test_availability']
+__all__ = ['added_removed', 'build_availability_dict', 'changed', 'test_availability']
 
 # -------------- TEST AVAILABILITY AGAINST LISTS -----------------------------------------------------------------
 def test_availability(avail, allow_unavailable=False, allow_unknown=False):
@@ -60,20 +60,3 @@ def changed(previousA, newA, regex):
                         availNotAnymore.append(fqn)
     return (availNow, availNotAnymore)
 
-# ----------------- LOOK UP AVAILABILITIES ----------------------------------------------------
-def look_up_avail(avail):
-
-    sChoice = 'a'
-    while sChoice:
-        sChoice = input("FQN starts with: ")
-        if sChoice:
-            fqnsToShow = []
-            # size of column
-            sizeCol = 0
-            for eachFqn in avail.keys():
-                if eachFqn.startswith(sChoice):
-                    fqnsToShow.append(eachFqn)
-                    sizeCol = max(sizeCol, len(eachFqn))
-            for eachFqn in fqnsToShow:
-                if eachFqn.startswith(sChoice):
-                    print(eachFqn.ljust(sizeCol) + " | " + avail[eachFqn])
