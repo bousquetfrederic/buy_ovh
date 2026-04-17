@@ -65,7 +65,6 @@ def print_plan_list(plans, showCpu, showFqn, showBandwidth,
 
     table = Table(box=box.SIMPLE_HEAVY,
                   header_style='bold white on grey15',
-                  row_styles=['', 'on grey7'],
                   pad_edge=False, expand=False, show_edge=False)
     table.add_column('#', justify='right', no_wrap=True)
     if showFqn:
