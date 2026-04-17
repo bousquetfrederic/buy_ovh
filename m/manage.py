@@ -10,7 +10,7 @@ from rich.table import Table
 from rich.text import Text
 
 import m.api
-from m.print import console
+from m.print import console, format_age
 
 __all__ = ['run']
 
@@ -41,21 +41,8 @@ def _help_overlay(lines, title='Keys'):
                  border_style='cyan', box=box.ROUNDED)
 
 
-def _format_age(fetched_at):
-    if fetched_at is None:
-        return ''
-    secs = int((datetime.now() - fetched_at).total_seconds())
-    if secs < 60:
-        return f'{secs}s ago'
-    if secs < 3600:
-        return f'{secs // 60}m ago'
-    if secs < 86400:
-        return f'{secs // 3600}h ago'
-    return f'{secs // 86400}d ago'
-
-
 def _footer(label, fetched_at=None):
-    age = _format_age(fetched_at)
+    age = format_age(fetched_at)
     left = f'[bright_black]{label}[/]'
     right = f'[bright_black]fetched {age}[/]' if age else ''
     line = left + ('    ' + right if right else '')
@@ -154,7 +141,13 @@ def _orders_view(title, status_list, days_back):
 
     while True:
         size = console.size
-        reserved = 7 + (len(SUB_HELP_LINES) + 2 if show_help else 0)
+        footer = _footer('↑↓ move   ↵/o open URL   r refresh   '
+                         'h help   q back', fetched_at)
+        help_panel = _help_overlay(SUB_HELP_LINES) if show_help else None
+        # panel border top+bottom + table header + underline + url_line + pos
+        reserved = 6 + len(console.render_lines(footer))
+        if help_panel is not None:
+            reserved += len(console.render_lines(help_panel))
         window = max(3, size.height - reserved)
 
         if not orders:
@@ -163,8 +156,8 @@ def _orders_view(title, status_list, days_back):
                          title=title, title_align='left')
             renderables = [body, _footer('r refresh   h help   q back',
                                           fetched_at)]
-            if show_help:
-                renderables.append(_help_overlay(SUB_HELP_LINES))
+            if help_panel is not None:
+                renderables.append(help_panel)
             console.clear()
             console.print(Group(*renderables))
         else:
@@ -184,16 +177,14 @@ def _orders_view(title, status_list, days_back):
                 f'[bright_black]URL[/]  {orders[cursor]["url"]}')
             pos = Text.from_markup(
                 f'[bright_black]{cursor + 1}/{len(orders)}[/]')
-            footer = _footer('↑↓ move   ↵/o open URL   r refresh   '
-                             'h help   q back', fetched_at)
             renderables = [
                 Panel(table, title=title, title_align='left',
                       border_style='bright_black', box=box.ROUNDED,
                       padding=(0, 0)),
                 url_line, pos, footer,
             ]
-            if show_help:
-                renderables.append(_help_overlay(SUB_HELP_LINES))
+            if help_panel is not None:
+                renderables.append(help_panel)
             console.clear()
             console.print(Group(*renderables))
 
@@ -269,7 +260,13 @@ def _servers_view():
 
     while True:
         size = console.size
-        reserved = 7 + (len(SUB_HELP_LINES) + 2 if show_help else 0)
+        footer = _footer('↑↓ move   r refresh   h help   q back',
+                          fetched_at)
+        help_panel = _help_overlay(SUB_HELP_LINES) if show_help else None
+        # panel border top+bottom + table header + underline + pos line
+        reserved = 5 + len(console.render_lines(footer))
+        if help_panel is not None:
+            reserved += len(console.render_lines(help_panel))
         # each server row is 2 lines because of show_lines=True
         window = max(2, (size.height - reserved) // 2)
 
@@ -279,8 +276,8 @@ def _servers_view():
                          title='Servers', title_align='left')
             renderables = [body, _footer('r refresh   h help   q back',
                                           fetched_at)]
-            if show_help:
-                renderables.append(_help_overlay(SUB_HELP_LINES))
+            if help_panel is not None:
+                renderables.append(help_panel)
             console.clear()
             console.print(Group(*renderables))
         else:
@@ -298,16 +295,14 @@ def _servers_view():
             table = _servers_table(servers, cursor, scroll_top, window)
             pos = Text.from_markup(
                 f'[bright_black]{cursor + 1}/{len(servers)}[/]')
-            footer = _footer('↑↓ move   r refresh   h help   q back',
-                              fetched_at)
             renderables = [
                 Panel(table, title='Servers', title_align='left',
                       border_style='bright_black', box=box.ROUNDED,
                       padding=(0, 0)),
                 pos, footer,
             ]
-            if show_help:
-                renderables.append(_help_overlay(SUB_HELP_LINES))
+            if help_panel is not None:
+                renderables.append(help_panel)
             console.clear()
             console.print(Group(*renderables))
 

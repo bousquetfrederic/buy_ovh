@@ -1,4 +1,3 @@
-import time
 from datetime import datetime
 
 from rich import box
@@ -9,8 +8,9 @@ from rich.text import Text
 
 import m.availability
 
-__all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep',
-           'print_help_legend', 'clear_screen', 'console']
+__all__ = ['whichColor', 'print_plan_list', 'print_prompt',
+           'print_help_legend', 'clear_screen', 'console',
+           'format_age', 'resolve_state']
 
 console = Console()
 
@@ -29,7 +29,20 @@ def clear_screen():
     console.clear()
 
 
-def _resolve_state(plan):
+def format_age(fetched_at):
+    if fetched_at is None:
+        return ''
+    secs = int((datetime.now() - fetched_at).total_seconds())
+    if secs < 60:
+        return f'{secs}s ago'
+    if secs < 3600:
+        return f'{secs // 60}m ago'
+    if secs < 86400:
+        return f'{secs // 3600}h ago'
+    return f'{secs // 86400}d ago'
+
+
+def resolve_state(plan):
     if plan['autobuy']:
         return 'autobuy'
     avail = plan['availability']
@@ -44,7 +57,7 @@ def _resolve_state(plan):
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
 def print_plan_list(plans, showCpu, showFqn, showBandwidth,
-                    showPrice, showFee, showTotalPrice):
+                    showPrice, showFee, showTotalPrice, months=1):
     if not plans:
         console.print(Panel(Text('No availability.', style='bold red'),
                             border_style='red', box=box.ROUNDED, expand=False))
@@ -69,7 +82,8 @@ def print_plan_list(plans, showCpu, showFqn, showBandwidth,
         table.add_column('BW', justify='right', no_wrap=True)
         table.add_column('vRack', justify='right', no_wrap=True)
     if showPrice:
-        table.add_column('€/mo', justify='right', no_wrap=True)
+        price_header = '€/mo' if months == 1 else f'€/{months}mo'
+        table.add_column(price_header, justify='right', no_wrap=True)
     if showFee:
         table.add_column('Fee', justify='right', no_wrap=True)
     if showTotalPrice:
@@ -84,7 +98,7 @@ def print_plan_list(plans, showCpu, showFqn, showBandwidth,
                            if len(x) > 1 and x[1] == 'x')
         memory = plan['memory'].split('-')[1]
         bandwidth = plan['bandwidth'].split('-')[1]
-        state = _resolve_state(plan)
+        state = resolve_state(plan)
         style = whichColor[state]
 
         row = [str(idx)]
@@ -151,26 +165,6 @@ def print_prompt(acceptable_dc, filterMemory, filterName, filterDisk,
     console.print(Panel(body, title=title, title_align='left',
                         border_style='bright_black', box=box.ROUNDED,
                         padding=(0, 1)))
-
-
-# ----------------- SLEEP x SECONDS ------------------------------------------------------------
-def print_and_sleep(showMessage, sleepsecs):
-    if not showMessage:
-        time.sleep(sleepsecs)
-        return
-    bar_width = 30
-    try:
-        for i in range(sleepsecs, 0, -1):
-            filled = int(bar_width * (sleepsecs - i) / max(sleepsecs, 1))
-            bar = '█' * filled + '░' * (bar_width - filled)
-            console.print(
-                f'[dim]⟲[/] [cyan]{bar}[/] [bold cyan]{i:>3}s[/] '
-                f'[dim](CTRL-C to stop and buy/quit)[/]',
-                end='\r', soft_wrap=True, highlight=False)
-            time.sleep(1)
-    finally:
-        # wipe the line so subsequent output starts clean
-        console.print(' ' * (bar_width + 60), end='\r', highlight=False)
 
 
 # ------------------ HELP-SCREEN COLOUR LEGEND -------------------------------------------------

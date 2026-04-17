@@ -1,15 +1,14 @@
 import logging
-from datetime import datetime
 
 import readchar
 from rich import box
 from rich.console import Group
+from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-import m.availability
-from m.print import whichColor, console
+from m.print import whichColor, console, format_age, resolve_state
 
 __all__ = ['run']
 
@@ -35,91 +34,87 @@ HELP_LINES = [
 ]
 
 
-def _format_age(fetched_at):
-    if fetched_at is None:
-        return ''
-    delta = datetime.now() - fetched_at
-    secs = int(delta.total_seconds())
-    if secs < 60:
-        return f'{secs}s ago'
-    if secs < 3600:
-        return f'{secs // 60}m ago'
-    if secs < 86400:
-        return f'{secs // 3600}h ago'
-    return f'{secs // 86400}d ago'
+def _row_data(plan, idx, state):
+    vrack = 'none' if plan['vrack'] == 'none' else plan['vrack'].split('-')[2]
+    storage = '-'.join(x for x in plan['storage'].split('-')
+                       if len(x) > 1 and x[1] == 'x')
+    memory = plan['memory'].split('-')[1]
+    bandwidth = plan['bandwidth'].split('-')[1]
+    row = [str(idx)]
+    if state['showFqn']:
+        row.append(plan['fqn'])
+    else:
+        row.append(plan['planCode'])
+        row.append(plan['model'])
+        if state['showCpu']:
+            row.append(plan['cpu'])
+        row.append(plan['datacenter'])
+        row.append(memory)
+        row.append(storage)
+    if state['showBandwidth']:
+        row.append(bandwidth)
+        row.append(vrack)
+    if state['showPrice']:
+        row.append(f"{plan['price']:.2f}")
+    if state['showFee']:
+        row.append(f"{plan['fee']:.2f}")
+    if state['showTotalPrice']:
+        row.append(f"{plan['fee'] + plan['price']:.2f}")
+    return row
 
 
-def _resolve_state(plan):
-    if plan['autobuy']:
-        return 'autobuy'
-    avail = plan['availability']
-    if not m.availability.test_availability(avail, False, True):
-        return avail
-    if avail.endswith('low') or avail.endswith('H'):
-        return 'low'
-    if avail.endswith('high'):
-        return 'high'
-    return 'unknown'
+def _price_header(months):
+    return '€/mo' if months == 1 else f'€/{months}mo'
+
+
+def _column_specs(state):
+    cols = [('#', 'right')]
+    if state['showFqn']:
+        cols.append(('FQN', 'left'))
+    else:
+        cols.append(('Plan', 'left'))
+        cols.append(('Model', 'left'))
+        if state['showCpu']:
+            cols.append(('CPU', 'left'))
+        cols.append(('DC', 'center'))
+        cols.append(('Mem', 'right'))
+        cols.append(('Storage', 'left'))
+    if state['showBandwidth']:
+        cols.append(('BW', 'right'))
+        cols.append(('vRack', 'right'))
+    if state['showPrice']:
+        cols.append((_price_header(state.get('months', 1)), 'right'))
+    if state['showFee']:
+        cols.append(('Fee', 'right'))
+    if state['showTotalPrice']:
+        cols.append(('Total', 'right'))
+    return cols
 
 
 def _build_table(displayedPlans, cursor, scroll_top, window, state):
+    # Format every row up-front so column widths are locked to the widest
+    # cell across the entire list, not just the visible window. Without this
+    # Rich auto-sizes each column based on whatever rows happen to be on
+    # screen, and a wider value scrolling in makes the whole table jump.
+    specs = _column_specs(state)
+    all_rows = [_row_data(p, i, state) for i, p in enumerate(displayedPlans)]
+    widths = [max(len(specs[i][0]),
+                  max((len(r[i]) for r in all_rows), default=0))
+              for i in range(len(specs))]
+
     table = Table(box=box.SIMPLE_HEAVY,
                   header_style='bold white on grey15',
                   pad_edge=False, expand=False, show_edge=False)
-    table.add_column('#', justify='right', no_wrap=True)
-    if state['showFqn']:
-        table.add_column('FQN', no_wrap=True)
-    else:
-        table.add_column('Plan', no_wrap=True)
-        table.add_column('Model', no_wrap=True)
-        if state['showCpu']:
-            table.add_column('CPU', no_wrap=True)
-        table.add_column('DC', justify='center', no_wrap=True)
-        table.add_column('Mem', justify='right', no_wrap=True)
-        table.add_column('Storage', no_wrap=True)
-    if state['showBandwidth']:
-        table.add_column('BW', justify='right', no_wrap=True)
-        table.add_column('vRack', justify='right', no_wrap=True)
-    if state['showPrice']:
-        table.add_column('€/mo', justify='right', no_wrap=True)
-    if state['showFee']:
-        table.add_column('Fee', justify='right', no_wrap=True)
-    if state['showTotalPrice']:
-        table.add_column('Total', justify='right', no_wrap=True)
+    for (header, justify), w in zip(specs, widths):
+        table.add_column(header, justify=justify, no_wrap=True, min_width=w)
 
     end = min(scroll_top + window, len(displayedPlans))
     for i in range(scroll_top, end):
         plan = displayedPlans[i]
-        vrack = 'none' if plan['vrack'] == 'none' else plan['vrack'].split('-')[2]
-        storage = '-'.join(x for x in plan['storage'].split('-')
-                           if len(x) > 1 and x[1] == 'x')
-        memory = plan['memory'].split('-')[1]
-        bandwidth = plan['bandwidth'].split('-')[1]
-        style = whichColor[_resolve_state(plan)]
+        style = whichColor[resolve_state(plan)]
         if i == cursor:
             style = style + ' reverse'
-
-        row = [str(i)]
-        if state['showFqn']:
-            row.append(plan['fqn'])
-        else:
-            row.append(plan['planCode'])
-            row.append(plan['model'])
-            if state['showCpu']:
-                row.append(plan['cpu'])
-            row.append(plan['datacenter'])
-            row.append(memory)
-            row.append(storage)
-        if state['showBandwidth']:
-            row.append(bandwidth)
-            row.append(vrack)
-        if state['showPrice']:
-            row.append(f"{plan['price']:.2f}")
-        if state['showFee']:
-            row.append(f"{plan['fee']:.2f}")
-        if state['showTotalPrice']:
-            row.append(f"{plan['fee'] + plan['price']:.2f}")
-        table.add_row(*row, style=style)
+        table.add_row(*all_rows[i], style=style)
     return table
 
 
@@ -151,7 +146,7 @@ def _footer_bar(state, fetched_at):
         fake = '[black on yellow] $ FAKE BUY [/]'
     else:
         fake = '[white on red] $ REAL BUY [/]'
-    age = _format_age(fetched_at)
+    age = format_age(fetched_at)
     age_part = f'[bright_black]fetched {age}[/]    ' if age else ''
     line = age_part + '   '.join(nav) + '    ' + '  '.join(toggles) + '    ' + \
            '   '.join(tail) + '    ' + fake
@@ -188,111 +183,132 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
     scroll_top = 0
     show_help = False
 
-    with console.screen():
+    live = Live(console=console, screen=True, auto_refresh=False,
+                redirect_stdout=False, redirect_stderr=False)
+
+    def buy_ask(plan):
+        """ENTER path: suspend Live, ask invoice/buy/out, act, then resume."""
+        live.stop()
         try:
-            while True:
-                size = console.size
-                reserved = 7 + (len(HELP_LINES) + 2 if show_help else 0)
-                window = max(3, size.height - reserved)
-
-                if not displayedPlans:
-                    empty = Text.from_markup('[dim]No servers to display.[/]')
-                    renderables = [empty, _footer_bar(state, fetched_at)]
-                    if show_help:
-                        renderables.append(_help_overlay())
-                    console.clear()
-                    console.print(Group(*renderables))
-                else:
-                    if cursor < 0:
-                        cursor = 0
-                    if cursor >= len(displayedPlans):
-                        cursor = len(displayedPlans) - 1
-                    if cursor < scroll_top:
-                        scroll_top = cursor
-                    elif cursor >= scroll_top + window:
-                        scroll_top = cursor - window + 1
-                    max_scroll = max(0, len(displayedPlans) - window)
-                    scroll_top = max(0, min(scroll_top, max_scroll))
-
-                    table = _build_table(displayedPlans, cursor, scroll_top,
-                                         window, state)
-                    pos = Text.from_markup(
-                        f'[bright_black]{cursor + 1}/{len(displayedPlans)}'
-                        f'   (rows {scroll_top + 1}-{scroll_top + min(window, len(displayedPlans) - scroll_top)})[/]')
-                    renderables = [table, pos, _footer_bar(state, fetched_at)]
-                    if show_help:
-                        renderables.append(_help_overlay())
-
-                    console.clear()
-                    console.print(Group(*renderables))
-
-                try:
-                    key = readchar.readkey()
-                except KeyboardInterrupt:
-                    break
-
-                if key in (readchar.key.UP, 'k'):
-                    cursor -= 1
-                elif key in (readchar.key.DOWN, 'j'):
-                    cursor += 1
-                elif key == readchar.key.PAGE_UP:
-                    cursor -= window
-                elif key == readchar.key.PAGE_DOWN:
-                    cursor += window
-                elif key in (readchar.key.HOME, 'g'):
-                    cursor = 0
-                elif key in (readchar.key.END, 'G'):
-                    cursor = len(displayedPlans) - 1
-                elif key in ('q', readchar.key.ESC):
-                    exit_reason = 'quit'
-                    break
-                elif key == ':':
-                    exit_reason = 'prompt'
-                    break
-                elif key == 'h':
-                    show_help = not show_help
-                elif key == 'r' and refresh_fn is not None:
-                    displayedPlans, fetched_at = refresh_fn()
-                    cursor = min(cursor, max(0, len(displayedPlans) - 1))
-                elif not displayedPlans:
-                    # without rows, none of the below keys make sense
-                    continue
-                elif key in (readchar.key.ENTER, '\r', '\n'):
-                    plan = displayedPlans[cursor]
-                    console.print(f"\n[bold]{plan['model']}[/]  ({plan['fqn']})")
-                    choice = input('Last chance : Invoice = I , Buy now = N , other = out : ').strip().lower()
-                    logger.debug('Interactive user chose: ' + choice)
-                    if choice == 'i':
-                        buy_fn(plan, False)
-                        input('Press Enter.')
-                    elif choice == 'n':
-                        buy_fn(plan, True)
-                        input('Press Enter.')
-                elif key == '!':
-                    plan = displayedPlans[cursor]
-                    buy_fn(plan, True)
-                    input('Press Enter.')
-                elif key == '?':
-                    plan = displayedPlans[cursor]
-                    buy_fn(plan, False)
-                    input('Press Enter.')
-                elif key == 'c':
-                    state['showCpu'] = not state['showCpu']
-                elif key == 'f':
-                    state['showFqn'] = not state['showFqn']
-                elif key == 'b':
-                    state['showBandwidth'] = not state['showBandwidth']
-                elif key == 'u':
-                    state['showUnavailable'] = not state['showUnavailable']
-                    displayedPlans = refilter_fn()
-                    cursor = min(cursor, max(0, len(displayedPlans) - 1))
-                elif key == 'U':
-                    state['showUnknown'] = not state['showUnknown']
-                    displayedPlans = refilter_fn()
-                    cursor = min(cursor, max(0, len(displayedPlans) - 1))
-                elif key == '$':
-                    state['fakeBuy'] = not state['fakeBuy']
-                # unknown keys: ignored
+            console.print(f"\n[bold]{plan['model']}[/]  ({plan['fqn']})")
+            choice = input('Last chance : Invoice = I , Buy now = N , '
+                           'other = out : ').strip().lower()
+            logger.debug('Interactive user chose: ' + choice)
+            if choice == 'i':
+                buy_fn(plan, False)
+                input('Press Enter.')
+            elif choice == 'n':
+                buy_fn(plan, True)
+                input('Press Enter.')
         finally:
-            logger.info('Leaving interactive mode')
+            live.start()
+
+    def buy_direct(plan, buyNow):
+        """! / ? paths: suspend Live, buy without asking, then resume."""
+        live.stop()
+        try:
+            buy_fn(plan, buyNow)
+            input('Press Enter.')
+        finally:
+            live.start()
+
+    live.start()
+    try:
+        while True:
+            size = console.size
+            footer = _footer_bar(state, fetched_at)
+            help_panel = _help_overlay() if show_help else None
+            # table chrome (header + underline with SIMPLE_HEAVY) + pos line
+            reserved = 3 + len(console.render_lines(footer))
+            if help_panel is not None:
+                reserved += len(console.render_lines(help_panel))
+            window = max(3, size.height - reserved)
+
+            if not displayedPlans:
+                empty = Text.from_markup('[dim]No servers to display.[/]')
+                renderables = [empty, footer]
+                if help_panel is not None:
+                    renderables.append(help_panel)
+            else:
+                if cursor < 0:
+                    cursor = 0
+                if cursor >= len(displayedPlans):
+                    cursor = len(displayedPlans) - 1
+                if cursor < scroll_top:
+                    scroll_top = cursor
+                elif cursor >= scroll_top + window:
+                    scroll_top = cursor - window + 1
+                max_scroll = max(0, len(displayedPlans) - window)
+                scroll_top = max(0, min(scroll_top, max_scroll))
+
+                table = _build_table(displayedPlans, cursor, scroll_top,
+                                     window, state)
+                pos = Text.from_markup(
+                    f'[bright_black]{cursor + 1}/{len(displayedPlans)}'
+                    f'   (rows {scroll_top + 1}-{scroll_top + min(window, len(displayedPlans) - scroll_top)})[/]')
+                renderables = [table, pos, footer]
+                if help_panel is not None:
+                    renderables.append(help_panel)
+
+            live.update(Group(*renderables), refresh=True)
+
+            try:
+                key = readchar.readkey()
+            except KeyboardInterrupt:
+                break
+
+            if key in (readchar.key.UP, 'k'):
+                cursor -= 1
+            elif key in (readchar.key.DOWN, 'j'):
+                cursor += 1
+            elif key == readchar.key.PAGE_UP:
+                cursor -= window
+            elif key == readchar.key.PAGE_DOWN:
+                cursor += window
+            elif key in (readchar.key.HOME, 'g'):
+                cursor = 0
+            elif key in (readchar.key.END, 'G'):
+                cursor = len(displayedPlans) - 1
+            elif key in ('q', readchar.key.ESC):
+                exit_reason = 'quit'
+                break
+            elif key == ':':
+                exit_reason = 'prompt'
+                break
+            elif key == 'h':
+                show_help = not show_help
+            elif key == 'r' and refresh_fn is not None:
+                live.stop()
+                try:
+                    displayedPlans, fetched_at = refresh_fn()
+                finally:
+                    live.start()
+                cursor = min(cursor, max(0, len(displayedPlans) - 1))
+            elif not displayedPlans:
+                continue
+            elif key in (readchar.key.ENTER, '\r', '\n'):
+                buy_ask(displayedPlans[cursor])
+            elif key == '!':
+                buy_direct(displayedPlans[cursor], True)
+            elif key == '?':
+                buy_direct(displayedPlans[cursor], False)
+            elif key == 'c':
+                state['showCpu'] = not state['showCpu']
+            elif key == 'f':
+                state['showFqn'] = not state['showFqn']
+            elif key == 'b':
+                state['showBandwidth'] = not state['showBandwidth']
+            elif key == 'u':
+                state['showUnavailable'] = not state['showUnavailable']
+                displayedPlans = refilter_fn()
+                cursor = min(cursor, max(0, len(displayedPlans) - 1))
+            elif key == 'U':
+                state['showUnknown'] = not state['showUnknown']
+                displayedPlans = refilter_fn()
+                cursor = min(cursor, max(0, len(displayedPlans) - 1))
+            elif key == '$':
+                state['fakeBuy'] = not state['fakeBuy']
+    finally:
+        live.stop()
+        logger.info('Leaving interactive mode')
     return exit_reason

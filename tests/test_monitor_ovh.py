@@ -42,7 +42,6 @@ def _install_fakes(conf, avail=None, plans=None, login_succeeds=True,
     import m.catalog
     import m.api
     import m.email
-    import m.print
 
     calls = {
         'login': [],
@@ -101,12 +100,6 @@ def _install_fakes(conf, avail=None, plans=None, login_succeeds=True,
     m.email.send_startup_email = fake_startup_email
     m.email.send_auto_buy_email = fake_auto_buy_email
 
-    # Silence output-heavy helpers.
-    m.print.clear_screen = lambda: None
-    m.print.print_prompt = lambda *a, **kw: None
-    m.print.print_plan_list = lambda *a, **kw: None
-    m.print.print_and_sleep = lambda show, secs: None
-
     # Don't burn real time in exception-retry paths.
     import time
     calls['_time_sleep_patched'] = time.sleep
@@ -149,7 +142,6 @@ BASE_CONF = {
     'filterMemory': '',
     'maxPrice': 0,
     'sleepsecs': 0,
-    'printListWhileLooping': False,
     'fakeBuy': True,
 }
 

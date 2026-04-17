@@ -4,7 +4,7 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['added_removed', 'build_list']
+__all__ = ['build_list']
 
 # -------------- EXTRACT THE PRICE AND FEES INCLUDING PROMOTION ----------------------------------------------------
 def getPriceValue(price):
@@ -42,6 +42,20 @@ def getPlanFee(plan, mode):
         return getPriceValue(allPlanFees[0])
     except (KeyError, IndexError, TypeError):
         return 0
+
+
+def priceWithFallback(plan, mode, months):
+    # Addon-only fallback: when the plan supports the requested commitment
+    # but an addon doesn't list that mode, estimate the cost as default
+    # × months. Bundled addons have default=0 so this is a no-op for them.
+    # The plan itself is handled separately (plans without the mode are
+    # dropped, not faked).
+    price = getPlanPrice(plan, mode)
+    if price == 0 and mode != 'default':
+        default_price = getPlanPrice(plan, 'default')
+        if default_price > 0:
+            return default_price * months
+    return price
 
 # -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
 def build_list(url,
@@ -96,6 +110,11 @@ def build_list(url,
         # find the price and fee
         planFee = getPlanFee(plan, pricingMode)
         planPrice = getPlanPrice(plan, pricingMode)
+        # If the plan has no entry for the requested commitment (e.g. some
+        # 2026 KS plans ship without upfront24), it can't be bought at that
+        # term — drop it from the list rather than fake a price.
+        if planPrice == 0 and pricingMode != 'default':
+            continue
 
         allStorages = []
         allMemories = []
@@ -138,37 +157,27 @@ def build_list(url,
                 if not bool(re.search(filterMemory,memoryPlan['product'])):
                     continue
                 memoryFee = getPlanFee(memoryPlan, pricingMode)
-                memoryPrice = getPlanPrice(memoryPlan, pricingMode)
+                memoryPrice = priceWithFallback(memoryPlan, pricingMode, months)
                 for st in allStorages:
                     storagePlan = allAddonsDict[st]
                     # apply the disk filter
                     if not bool(re.search(filterDisk,storagePlan['product'])):
                         continue
                     storageFee = getPlanFee(storagePlan, pricingMode)
-                    storagePrice = getPlanPrice(storagePlan, pricingMode)
+                    storagePrice = priceWithFallback(storagePlan, pricingMode, months)
                     for ba in allBandwidths:
                         bandwidthPlan = allAddonsDict[ba]
-                        bandwidthPrice = getPlanPrice(bandwidthPlan, pricingMode)
+                        bandwidthPrice = priceWithFallback(bandwidthPlan, pricingMode, months)
                         for vr in allVRack:
-                            # each config may have a different price within the same plan
                             thisPrice = planPrice + memoryPrice + storagePrice
                             thisFee = planFee + memoryFee + storageFee
-                            # try to find out the full price
-                            thisFee = thisFee + getPlanFee(storagePlan, pricingMode)
-                            thisPrice = thisPrice + getPlanPrice(storagePlan, pricingMode)
-                            memoryPlan = allAddonsDict[me]
-                            thisFee = thisFee + getPlanFee(memoryPlan, pricingMode)
-                            thisPrice = thisPrice + getPlanPrice(memoryPlan, pricingMode)
-                            bandwidthPlan = allAddonsDict[ba]
-                            bandwidthPrice = getPlanPrice(bandwidthPlan, pricingMode)
                             # if showBandwidth is false, drop the plans with a bandwidth that costs money
                             if not bandwidthAndVRack and bandwidthPrice > 0.0:
                                 continue
-                            # not sure if there is setup fee for the bandwidth?
                             thisPrice = thisPrice + bandwidthPrice
                             if vr != 'none':
                                 vRackPlan = allAddonsDict[vr]
-                                vRackPrice = getPlanPrice(vRackPlan, pricingMode)
+                                vRackPrice = priceWithFallback(vRackPlan, pricingMode, months)
                                 # if showBandwidth is false, drop the plans with a vRack that costs money
                                 if not bandwidthAndVRack and vRackPrice > 0.0:
                                     continue
@@ -179,7 +188,9 @@ def build_list(url,
                                 thisFee = round(thisFee * vatRate, 2)
                                 thisPrice = round(thisPrice * vatRate, 2)
                             # apply the max price filter if different from 0
-                            if maxPrice > 0 and thisPrice > maxPrice:
+                            # maxPrice is always per month; scale it to match
+                            # the period covered by the current price.
+                            if maxPrice > 0 and thisPrice > maxPrice * months:
                                 continue
                             myFqn = planCode + "." + memoryPlan['product'] + "." + storagePlan['product'] + "." + da
                             if myFqn in avail:
@@ -203,13 +214,3 @@ def build_list(url,
                                 })
     return sorted(myPlans, key=lambda x: x['planCode'])
 
-# -------------- CHECK IF A SERVER WAS ADDED OR REMOVED -------------------------------------
-def added_removed(previousP, newP):
-    addedFqns = []
-    removedFqns = []
-    if previousP:
-        previousFqns = [x['fqn'] for x in previousP]
-        newFqns = [x['fqn'] for x in newP]
-        addedFqns = [ x for x in newFqns if x not in previousFqns]
-        removedFqns = [ x for x in previousFqns if x not in newFqns]
-    return (addedFqns, removedFqns)

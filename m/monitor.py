@@ -1,7 +1,7 @@
 import logging
+import re
 
 import m.availability
-import m.catalog
 
 __all__ = ['avail_added_removed_Str', 'avail_changed_Str', 'catalog_added_removed_Str']
 
@@ -35,6 +35,39 @@ def compress_fnq_list(lines):
             result.append(last_part)
     return result
 
+# -------------- PRIVATE HELPERS -------------------------------------------------------
+
+def _avail_changed(previousA, newA, regex):
+    # look for availability change (unavailable <--> available)
+    # for this there is a filter in order to not spam
+    # the filter is on the FQN
+    availNow = []
+    availNotAnymore = []
+    if previousA:
+        for fqn in newA:
+            if bool(re.search(regex, fqn)):
+                if (m.availability.test_availability(newA[fqn])):
+                    # found an available server that matches the filter
+                    if (fqn not in previousA.keys() or not m.availability.test_availability(previousA[fqn])):
+                        # its availability went from unavailable to available
+                        availNow.append(fqn)
+                else:
+                    # found an unavailable server that matches the filter
+                    if (fqn in previousA.keys() and not m.availability.test_availability(previousA[fqn])):
+                        # its availability went from available to unavailable
+                        availNotAnymore.append(fqn)
+    return (availNow, availNotAnymore)
+
+def _catalog_added_removed(previousP, newP):
+    addedFqns = []
+    removedFqns = []
+    if previousP:
+        previousFqns = [x['fqn'] for x in previousP]
+        newFqns = [x['fqn'] for x in newP]
+        addedFqns = [x for x in newFqns if x not in previousFqns]
+        removedFqns = [x for x in previousFqns if x not in newFqns]
+    return (addedFqns, removedFqns)
+
 # ---------------- EMAIL MONITOR AVAILAIBILITIES ---------------------------------------
 # - detect new servers appearing in availabilities (or leaving)
 # - monitor availability of some servers
@@ -58,7 +91,7 @@ def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
     # for this there is a filter in order to not spam
     # the filter is on the FQN
     strToSend = ""
-    availNow, availNotAnymore = m.availability.changed(previousA, newA, regex)
+    availNow, availNotAnymore = _avail_changed(previousA, newA, regex)
     for fqn in availNow:
         logger.info("Available now: " + fqn)
         strToSend += preStr + "O " + fqn + postStr + "\n"
@@ -71,7 +104,7 @@ def avail_changed_Str(previousA, newA, regex, preStr="", postStr=""):
 # The catalog is filtered (name and disk), so the new server must pass these filters
 def catalog_added_removed_Str(previousP, newP, preStr="", postStr=""):
     strChanged = ""
-    addedFqns, removedFqns = m.catalog.added_removed(previousP, newP)
+    addedFqns, removedFqns = _catalog_added_removed(previousP, newP)
     addedList = compress_fnq_list(addedFqns)
     removedList = compress_fnq_list(removedFqns)
     for fqn in addedList:

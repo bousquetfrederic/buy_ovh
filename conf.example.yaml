@@ -1,19 +1,36 @@
-# example configuration file shared by buy_ovh (interactive) and
-# monitor_ovh (headless loop). Each tool ignores the keys it doesn't use;
-# you can keep one conf.yaml or split it.
+# Example configuration file for buy_ovh, monitor_ovh and manage_ovh.
+# Each tool ignores the keys it doesn't use, so one conf.yaml can drive all
+# three. If you prefer, copy the sections you want into separate files and
+# pass the path on the command line.
+#
+# Sections below:
+#   1. API + logging          -- used by all three tools
+#   2. Catalog + buying       -- used by buy_ovh and monitor_ovh
+#   3. buy_ovh only           -- display toggles for the interactive UI
+#   4. monitor_ovh only       -- loop cadence, auto_buy, email
 
-# API stuff
-# They are explained here: https://github.com/ovh/python-ovh
+
+# ============================================================
+# 1. API + logging  (all three tools)
+# ============================================================
+
+# API stuff. Explained here: https://github.com/ovh/python-ovh
+# manage_ovh and buy_ovh need the full set; monitor_ovh only needs them
+# if auto_buy is set (otherwise the public endpoints are enough).
 APIEndpoint: ovh-eu
 APIKey: 123
 APISecret: 456
 #APIConsumerKey: 789
 
-# Logging
 # Don't define a log file = no logging
 logFile: log.txt
-# logLevel are defined here: https://docs.python.org/3/library/logging.html#logging-levels
+# logLevel values: https://docs.python.org/3/library/logging.html#logging-levels
 logLevel: INFO
+
+
+# ============================================================
+# 2. Catalog + buying  (buy_ovh and monitor_ovh)
+# ============================================================
 
 # in which datacenters are we looking for?
 # this is a list
@@ -45,6 +62,26 @@ ovhSubsidiary: FR
 
 # add the VAT to the prices?
 addVAT: True
+
+# show the bandwidth, including of the vRack if available
+# if this is False, only the price for the default bandwidth is displayed
+# (in case there are bandwidth options for the server)
+showBandwidth: False
+
+# define if you have a coupon
+# buying will fail with an incorrect coupon so be careful
+#coupon: MYCOUPON
+
+# if True, don't actually buy (for testing)
+# set to False if you want to actually buy the servers
+# Try the script once with fakeBuy but don't forget to set it to False after your test
+fakeBuy: True
+
+
+# ============================================================
+# 3. buy_ovh only  (interactive display toggles)
+# ============================================================
+
 # show the monthly price
 showPrice: True
 # show the setup fee
@@ -61,29 +98,14 @@ showUnavailable: False
 # show the servers even if they have an unknown availability
 # (most probably there is a discrepancy between OVH's catalog and availabilities)
 showUnknown: False
-# show the bandwidth, including of the vRack if available
-# if this is False, only the price for the default bandwidth is displayed
-# (in case there are bandwidth options for the server)
-showBandwidth: False
 # print the FQN instead of spliting it
 # less readeable but up to you
 showFqn: False
 
-# define if you have a coupon
-# buying will fail with an incorrect coupon so be careful
-#coupon: MYCOUPON
 
-# if True, don't actually buy (for testing)
-# set to False if you want to actually buy the servers
-# Try the script once with fakeBuy but don't forget to set it to False after your test
-fakeBuy: True
-
-# ------------- monitor_ovh only -------------
-# These keys are read by monitor_ovh (the headless loop) and ignored by
-# buy_ovh. monitor_ovh only needs API credentials if auto_buy is set.
-
-# print or not the server list each cycle
-printListWhileLooping: True
+# ============================================================
+# 4. monitor_ovh only  (headless loop, auto_buy, email)
+# ============================================================
 
 # how many seconds between refreshes
 sleepsecs: 20

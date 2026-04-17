@@ -4,28 +4,41 @@ import sys
 import m.api
 import m.manage
 
-from m.config import configFile
+from m.config import configFile, config_path
 
 # ----------------- CONFIG -------------------------------------------------------------------
 
+MAIN_DEFAULTS = {
+    'APIEndpoint': 'ovh-eu',
+}
+
+LOGGING_DEFAULTS = {
+    'logFile': '',
+    'logLevel': 'WARNING',
+}
+
 def loadConfigMain(cf):
-    global APIEndpoint
-    APIEndpoint = cf['APIEndpoint'] if 'APIEndpoint' in cf else APIEndpoint
+    for name, spec in MAIN_DEFAULTS.items():
+        if isinstance(spec, tuple):
+            default, yaml_key = spec
+        else:
+            default, yaml_key = spec, name
+        globals()[name] = cf.get(yaml_key, globals().get(name, default))
 
 def loadConfigLogging(cf):
-    global logFile, logLevel
-    logFile = cf['logFile'] if 'logFile' in cf else logFile
-    logLevel = cf['logLevel'] if 'logLevel' in cf else logLevel
+    for name, spec in LOGGING_DEFAULTS.items():
+        if isinstance(spec, tuple):
+            default, yaml_key = spec
+        else:
+            default, yaml_key = spec, name
+        globals()[name] = cf.get(yaml_key, globals().get(name, default))
 
-APIEndpoint = "ovh-eu"
 loadConfigMain(configFile)
 
-logFile = ""
-logLevel = "WARNING"
 loadConfigLogging(configFile)
 if logFile:
     logging.basicConfig(level=logging.getLevelNamesMapping()[logLevel.upper()],
-                        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                        format="%(asctime)s [manage_ovh] [%(levelname)s] %(name)s: %(message)s",
                         handlers=[logging.FileHandler(logFile, encoding="utf-8")])
 if logLevel == "ERROR":
     logging.getLogger("urllib3").setLevel(logging.ERROR)
@@ -33,6 +46,7 @@ else:
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
+logger.info(f"Loaded config from {config_path}")
 
 # ----------------- LOGIN (required) ---------------------------------------------------------
 

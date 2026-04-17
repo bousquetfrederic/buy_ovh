@@ -10,71 +10,63 @@ import m.availability
 import m.catalog
 import m.interactive
 import m.print
+from m.print import format_age
 
-from m.config import configFile
+from m.config import configFile, config_path
 
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
+MAIN_DEFAULTS = {
+    'acceptable_dc': ([], 'datacenters'),
+    'addVAT': False,
+    'APIEndpoint': 'ovh-eu',
+    'coupon': '',
+    'fakeBuy': True,
+    'filterDisk': '',
+    'filterMemory': '',
+    'filterName': '',
+    'maxPrice': 0,
+    'months': 1,
+    'ovhSubsidiary': 'FR',
+    'showBandwidth': True,
+    'showCpu': True,
+    'showFee': False,
+    'showFqn': False,
+    'showPrice': True,
+    'showPrompt': True,
+    'showTotalPrice': False,
+    'showUnavailable': True,
+    'showUnknown': True,
+}
+
+LOGGING_DEFAULTS = {
+    'logFile': '',
+    'logLevel': 'WARNING',
+}
+
 def loadConfigMain(cf):
-    global acceptable_dc, filterName, filterDisk, filterMemory, maxPrice, addVAT, APIEndpoint, ovhSubsidiary, \
-           showPrompt, showCpu, showFqn, showUnavailable, showUnknown, \
-           showBandwidth, fakeBuy, coupon, months, \
-           showPrice, showFee, showTotalPrice
-    acceptable_dc = cf['datacenters'] if 'datacenters' in cf else acceptable_dc
-    addVAT = cf['addVAT'] if 'addVAT' in cf else addVAT
-    APIEndpoint = cf['APIEndpoint'] if 'APIEndpoint' in cf else APIEndpoint
-    coupon = cf['coupon'] if 'coupon' in cf else coupon
-    fakeBuy = cf['fakeBuy'] if 'fakeBuy' in cf else fakeBuy
-    filterDisk = cf['filterDisk'] if 'filterDisk' in cf else filterDisk
-    filterMemory = cf['filterMemory'] if 'filterMemory' in cf else filterMemory
-    filterName = cf['filterName'] if 'filterName' in cf else filterName
-    maxPrice = cf['maxPrice'] if 'maxPrice' in cf else maxPrice
-    months = cf['months'] if 'months' in cf else months
-    ovhSubsidiary = cf['ovhSubsidiary'] if 'ovhSubsidiary' in cf else ovhSubsidiary
-    showBandwidth = cf['showBandwidth'] if 'showBandwidth' in cf else showBandwidth
-    showCpu = cf['showCpu'] if 'showCpu' in cf else showCpu
-    showFee = cf['showFee'] if 'showFee' in cf else showFee
-    showFqn = cf['showFqn'] if 'showFqn' in cf else showFqn
-    showPrice = cf['showPrice'] if 'showPrice' in cf else showPrice
-    showPrompt = cf['showPrompt'] if 'showPrompt' in cf else showPrompt
-    showTotalPrice = cf['showTotalPrice'] if 'showTotalPrice' in cf else showTotalPrice
-    showUnavailable = cf['showUnavailable'] if 'showUnavailable' in cf else showUnavailable
-    showUnknown = cf['showUnknown'] if 'showUnknown' in cf else showUnknown
+    for name, spec in MAIN_DEFAULTS.items():
+        if isinstance(spec, tuple):
+            default, yaml_key = spec
+        else:
+            default, yaml_key = spec, name
+        globals()[name] = cf.get(yaml_key, globals().get(name, default))
 
 def loadConfigLogging(cf):
-    global logFile, logLevel
-    logFile = cf['logFile'] if 'logFile' in cf else logFile
-    logLevel = cf['logLevel'] if 'logLevel' in cf else logLevel
+    for name, spec in LOGGING_DEFAULTS.items():
+        if isinstance(spec, tuple):
+            default, yaml_key = spec
+        else:
+            default, yaml_key = spec, name
+        globals()[name] = cf.get(yaml_key, globals().get(name, default))
 
-acceptable_dc = []
-addVAT = False
-APIEndpoint = "ovh-eu"
-coupon = ''
-fakeBuy = True
-filterDisk = ""
-filterMemory = ""
-filterName = ""
-maxPrice = 0
-months = 1
-ovhSubsidiary = "FR"
-showBandwidth = True
-showCpu = True
-showFee = False
-showFqn = False
-showPrice = True
-showPrompt = True
-showTotalPrice = False
-showUnavailable = True
-showUnknown = True
 loadConfigMain(configFile)
 
 # Logging
-logFile = ""
-logLevel = "WARNING"
 loadConfigLogging(configFile)
 if logFile:
     logging.basicConfig(level=logging.getLevelNamesMapping()[logLevel.upper()],
-                        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+                        format="%(asctime)s [buy_ovh] [%(levelname)s] %(name)s: %(message)s",
                         handlers=[logging.FileHandler(logFile, encoding="utf-8")]
                        )
 if logLevel == "ERROR":
@@ -84,6 +76,7 @@ else:
 logger = logging.getLogger(__name__)
 # below in case there is no logfile
 logger.addHandler(logging.NullHandler())
+logger.info(f"Loaded config from {config_path}")
 
 # ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
 if ('APIKey' in configFile and 'APISecret' in configFile):
@@ -207,18 +200,6 @@ def getCommandValue(strC, current):
         strR = input("New: ")
     return strR
 
-def formatAge(ts):
-    if ts is None:
-        return '—'
-    secs = int((datetime.now() - ts).total_seconds())
-    if secs < 60:
-        return f'{secs}s ago'
-    if secs < 3600:
-        return f'{secs // 60}m ago'
-    if secs < 86400:
-        return f'{secs // 3600}h ago'
-    return f'{secs // 86400}d ago'
-
 # ----------------- MAIN PROGRAM --------------------------------------------------------------
 
 logger.info("-----------")
@@ -258,6 +239,7 @@ def enterInteractive():
         'showUnavailable': showUnavailable,
         'showUnknown': showUnknown,
         'fakeBuy': fakeBuy,
+        'months': months,
     }
 
     def intRefilter():
@@ -317,13 +299,13 @@ try:
             continue
 
         # ---------------- COMMAND PROMPT ----------------
-        print("")
+        m.print.clear_screen()
         if showPrompt:
             m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
                                  fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=False)
-            m.print.console.print(f'[bright_black]fetched {formatAge(fetched_at)}[/]')
-            m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
-                                    showPrice, showFee, showTotalPrice)
+        m.print.console.print(f'[bright_black]fetched {format_age(fetched_at) or "—"}[/]')
+        m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
+                                showPrice, showFee, showTotalPrice, months)
         if fakeBuy:
             m.print.console.print('[black on yellow] FAKE BUY [/]')
         allChoices = input("(H for Help, I for interactive, empty ENTER to refresh)> ")

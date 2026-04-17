@@ -1,10 +1,9 @@
 import logging
-import re
 import requests
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['added_removed', 'build_availability_dict', 'changed', 'test_availability']
+__all__ = ['added_removed', 'build_availability_dict', 'test_availability']
 
 # -------------- TEST AVAILABILITY AGAINST LISTS -----------------------------------------------------------------
 def test_availability(avail, allow_unavailable=False, allow_unknown=False):
@@ -38,25 +37,4 @@ def added_removed(previousA, newA):
     else:
         return ([],[])
 
-# -------------- CHECK IF AVAILABILITY OF FQN HAS CHANGED -------------------------------------
-def changed(previousA, newA, regex):
-    # look for availability change (unavailable <--> available)
-    # for this there is a filter in order to not spam
-    # the filter is on the FQN
-    availNow = []
-    availNotAnymore = []
-    if previousA:
-        for fqn in newA:
-            if bool(re.search(regex, fqn)):
-                if (test_availability(newA[fqn])):
-                    # found an available server that matches the filter
-                    if (fqn not in previousA.keys() or not test_availability(previousA[fqn])):
-                        # its availability went from unavailable to available
-                        availNow.append(fqn)
-                else:
-                    # found an unavailable server that matches the filter
-                    if (fqn in previousA.keys() and not test_availability(previousA[fqn])):
-                        # its availability went from available to unavailable
-                        availNotAnymore.append(fqn)
-    return (availNow, availNotAnymore)
 
