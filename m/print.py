@@ -1,175 +1,243 @@
 import time
+from datetime import datetime
+
+from rich import box
+from rich.console import Console, Group
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 import m.availability
 
-__all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep', 'print_orders', 'print_servers']
+__all__ = ['whichColor', 'print_plan_list', 'print_prompt', 'print_and_sleep',
+           'print_orders', 'print_servers', 'print_help_legend',
+           'clear_screen', 'console']
 
-# --- Coloring stuff ------------------------
-class color:
-   PURPLE = '\033[0;35;48m'
-   CYAN = '\033[0;36;48m'
-   BOLD = '\033[0;37;48m'
-   BLUE = '\033[0;34;48m'
-   GREEN = '\033[0;32;48m'
-   YELLOW = '\033[0;33;48m'
-   RED = '\033[0;31;48m'
-   BLACK = '\033[0;30;48m'
-   UNDERLINE = '\033[0;37;48m'
-   END = '\033[0;37;0m'
+console = Console()
 
-whichColor = { 'unknown'     : color.CYAN,
-               'low'         : color.YELLOW,
-               'high'        : color.GREEN,
-               'unavailable' : color.RED,
-               'comingSoon'  : color.BLUE,
-               'autobuy'     : color.PURPLE
-             }
+# Availability state -> rich style. Kept as a dict so external callers can
+# look up a style for a given state.
+whichColor = {
+    'unknown':     'cyan',
+    'low':         'yellow',
+    'high':        'bold green',
+    'unavailable': 'red',
+    'comingSoon':  'blue',
+    'autobuy':     'bold magenta',
+}
+
+_STATUS_GLYPH = {
+    'unknown':     '?',
+    'low':         '◐',
+    'high':        '●',
+    'unavailable': '○',
+    'comingSoon':  '◌',
+    'autobuy':     '★',
+}
+
+
+def clear_screen():
+    console.clear()
+
+
+def _resolve_state(plan):
+    if plan['autobuy']:
+        return 'autobuy'
+    avail = plan['availability']
+    if not m.availability.test_availability(avail, False, True):
+        return avail
+    if avail.endswith('low') or avail.endswith('H'):
+        return 'low'
+    if avail.endswith('high'):
+        return 'high'
+    return 'unknown'
+
 
 # ----------------- PRINT LIST OF SERVERS -----------------------------------------------------
-def print_plan_list(plans,
-                    showCpu, showFqn, showBandwidth,
+def print_plan_list(plans, showCpu, showFqn, showBandwidth,
                     showPrice, showFee, showTotalPrice):
     if not plans:
-        print(whichColor['unavailable'] + "No availability." + color.END)
-    sizeOfCol = {
-        'index' : 0,
-        'planCode' : 0,
-        'datacenter' : 0,
-        'model' : 0,
-        'cpu' : 0,
-        'fqn' : 0,
-        'memory' : 0,
-        'storage' : 0,
-        'bandwidth' : 0,
-        'vrack' : 0,
-        'price' : 0,
-        'fee' : 0,
-        'total' : 0
-    }
-    plansForDisplay = []
-    # determine what to print
-    for plan in plans:
+        console.print(Panel(Text('No availability.', style='bold red'),
+                            border_style='red', box=box.ROUNDED, expand=False))
+        return
+
+    table = Table(box=box.SIMPLE_HEAVY,
+                  header_style='bold white on grey15',
+                  row_styles=['', 'on grey7'],
+                  pad_edge=False, expand=False, show_edge=False)
+    table.add_column(' ', justify='center', no_wrap=True)
+    table.add_column('#', justify='right', no_wrap=True)
+    if showFqn:
+        table.add_column('FQN', no_wrap=True)
+    else:
+        table.add_column('Plan', no_wrap=True)
+        table.add_column('Model', no_wrap=True)
+        if showCpu:
+            table.add_column('CPU', no_wrap=True)
+        table.add_column('DC', justify='center', no_wrap=True)
+        table.add_column('Mem', justify='right', no_wrap=True)
+        table.add_column('Storage', no_wrap=True)
+    if showBandwidth:
+        table.add_column('BW', justify='right', no_wrap=True)
+        table.add_column('vRack', justify='right', no_wrap=True)
+    if showPrice:
+        table.add_column('€/mo', justify='right', no_wrap=True)
+    if showFee:
+        table.add_column('Fee', justify='right', no_wrap=True)
+    if showTotalPrice:
+        table.add_column('Total', justify='right', no_wrap=True)
+
+    for idx, plan in enumerate(plans):
         if plan['vrack'] == 'none':
             vrack = 'none'
         else:
-            vrack = plan['vrack'].split("-")[2]
-        # storage can be very verbose, keep only what disks are there (ex: "2x450ssd")
-        storage = "-".join(x for x in plan['storage'].split("-") if len(x) > 1 and x[1] == "x")
-        myPlanD = {
-            'index':        str(plans.index(plan)),
-            'planCode':     plan['planCode'],
-            'datacenter':   plan['datacenter'],
-            'fqn':          plan['fqn'],
-            'memory':       plan['memory'].split("-")[1],
-            'storage':      storage,
-            'bandwidth':    plan['bandwidth'].split("-")[1],
-            'vrack':        vrack,
-            'autobuy':      plan['autobuy'],
-            'availability': plan['availability'],
-            'model':        plan['model'],
-            'cpu':          plan['cpu'],
-            'price':        "{:.2f}".format(plan['price']),
-            'fee':          "{:.2f}".format(plan['fee']),
-            'total':        "{:.2f}".format(plan['fee']+plan['price'])
-            }
-        plansForDisplay.append(myPlanD)
-        # update the max width of each column if needed
-        exclude = {'autobuy', 'availability'}
-        for col, val in myPlanD.items():
-            if col not in exclude:
-                sizeOfCol[col] = max(sizeOfCol[col], len(val))
-    # print the list
-    for planD in plansForDisplay:
-        # what colour?
-        avail = planD['availability']
-        if not m.availability.test_availability(avail, False, True):
-            printcolor = whichColor[avail]
-        elif avail.endswith("low") or avail.endswith('H'):
-            printcolor = whichColor['low']
-        elif avail.endswith("high"):
-            printcolor = whichColor['high']
-        else:
-            printcolor = whichColor['unknown']
-        # special colour for autobuy
-        if planD['autobuy']:
-            planColor = whichColor['autobuy']
-        else:
-            planColor = printcolor
-        # show CPU or not?
-        if showCpu:
-            modelStr = planD['model'].ljust(sizeOfCol['model']) + " | " + planD['cpu'].ljust(sizeOfCol['cpu'])
-        else:
-            modelStr = planD['model'].ljust(sizeOfCol['model'])
-        # show FQN or split info into different columns?
+            vrack = plan['vrack'].split('-')[2]
+        storage = '-'.join(x for x in plan['storage'].split('-')
+                           if len(x) > 1 and x[1] == 'x')
+        memory = plan['memory'].split('-')[1]
+        bandwidth = plan['bandwidth'].split('-')[1]
+        state = _resolve_state(plan)
+        style = whichColor[state]
+        glyph = _STATUS_GLYPH[state]
+
+        row = [Text(glyph, style=style), str(idx)]
         if showFqn:
-            fqnStr = planColor + planD['fqn'].ljust(sizeOfCol['fqn']) + printcolor
+            row.append(plan['fqn'])
         else:
-            codeStr = planColor + planD['planCode'].ljust(sizeOfCol['planCode']) + printcolor
-            fqnStr = codeStr  + " | " + modelStr + " | " + \
-                     planD['datacenter'].ljust(sizeOfCol['datacenter']) + " | " + \
-                     planD['memory'].rjust(sizeOfCol['memory']) + " | " + \
-                     planD['storage'].ljust(sizeOfCol['storage'])
-        # show bandwidth and vrack?
+            row.append(plan['planCode'])
+            row.append(plan['model'])
+            if showCpu:
+                row.append(plan['cpu'])
+            row.append(plan['datacenter'])
+            row.append(memory)
+            row.append(storage)
         if showBandwidth:
-            if planD['vrack'] == 'none':
-                vRackStr = 'none'
-            else:
-                vRackStr = planD['vrack'].rjust(sizeOfCol['vrack'])
-            bandwidthStr = planD['bandwidth'].rjust(sizeOfCol['bandwidth']) + " | " + vRackStr + " | "
-        else:
-            bandwidthStr = ""
-
-        colStr = printcolor + planD['index'].rjust(sizeOfCol['index']) + " | " + \
-                 fqnStr + " | " + bandwidthStr
+            row.append(bandwidth)
+            row.append(vrack)
         if showPrice:
-            colStr = colStr + planD['price'].rjust(sizeOfCol['price']) + " | "
+            row.append(f"{plan['price']:.2f}")
         if showFee:
-            colStr = colStr + planD['fee'].rjust(sizeOfCol['fee']) + " | "
+            row.append(f"{plan['fee']:.2f}")
         if showTotalPrice:
-            colStr = colStr + planD['total'].rjust(sizeOfCol['total']) + " | "
-        colStr = colStr + color.END
-        print(colStr)
+            row.append(f"{plan['fee'] + plan['price']:.2f}")
 
-# ----------------- PRINT PROMPT --------------------------------------------------------------
-def print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months):
+        table.add_row(*row, style=style)
+
+    console.print(table)
+
+
+# ----------------- PRINT PROMPT (top-style header) --------------------------------------------
+def print_prompt(acceptable_dc, filterMemory, filterName, filterDisk,
+                 maxPrice, coupon, months,
+                 fakeBuy=False, loggedIn=True, loop=False):
+    dcs = ' '.join(acceptable_dc) if acceptable_dc else '—'
+    filt = ' / '.join(x for x in [filterName, filterDisk, filterMemory] if x) or '—'
+
+    line1 = Text.from_markup(
+        f"[bold]DCs[/]: {dcs}    [bold]Filter[/]: {filt}"
+    )
+    extras = []
     if maxPrice > 0:
-        strPrice = "[" + str(maxPrice) + "]"
-    else:
-        strPrice = ""
+        extras.append(f"[bold]Max[/]: €{maxPrice}")
+    if coupon:
+        extras.append(f"[bold]Coupon[/]: {coupon}")
     if months > 1:
-        strMonths = " - " + str(months) + "M"
-    else:
-        strMonths = ""
-    print("- DCs : [" + ",".join(acceptable_dc)
-          + "] - Filters : [" + filterName
-          + "][" + filterDisk
-          + "][" + filterMemory
-          + "]" + strPrice + " - Coupon : [" + coupon + "]"
-          + strMonths)
+        extras.append(f"[bold]Term[/]: {months}M")
+    line2 = Text.from_markup('    '.join(extras)) if extras else None
 
-# ----------------- SLEEP x SECONDS -----------------------------------------------------------
+    flags = []
+    flags.append(Text(' LOOP ', style='black on green') if loop
+                 else Text(' IDLE ', style='black on grey50'))
+    flags.append(Text(' LOGGED IN ', style='black on bright_blue') if loggedIn
+                 else Text(' OFFLINE ', style='white on red'))
+    if fakeBuy:
+        flags.append(Text(' FAKE BUY ', style='black on yellow'))
+    flag_line = Text('  ').join(flags)
+
+    body = Group(line1, line2, flag_line) if line2 else Group(line1, flag_line)
+
+    title = Text.assemble(
+        ('  BUY_OVH  ', 'bold white on dark_cyan'),
+        ('   ', ''),
+        (datetime.now().strftime('%H:%M:%S'), 'bright_black'),
+    )
+    console.print(Panel(body, title=title, title_align='left',
+                        border_style='bright_black', box=box.ROUNDED,
+                        padding=(0, 1)))
+
+
+# ----------------- SLEEP x SECONDS ------------------------------------------------------------
 def print_and_sleep(showMessage, sleepsecs):
-    for i in range(sleepsecs,0,-1):
-        if showMessage:
-            print(f"- Refresh in {i}s. CTRL-C to stop and buy/quit.", end="\r", flush=True)
-        time.sleep(1)
+    if not showMessage:
+        time.sleep(sleepsecs)
+        return
+    bar_width = 30
+    try:
+        for i in range(sleepsecs, 0, -1):
+            filled = int(bar_width * (sleepsecs - i) / max(sleepsecs, 1))
+            bar = '█' * filled + '░' * (bar_width - filled)
+            console.print(
+                f'[dim]⟲[/] [cyan]{bar}[/] [bold cyan]{i:>3}s[/] '
+                f'[dim](CTRL-C to stop and buy/quit)[/]',
+                end='\r', soft_wrap=True, highlight=False)
+            time.sleep(1)
+    finally:
+        # wipe the line so subsequent output starts clean
+        console.print(' ' * (bar_width + 60), end='\r', highlight=False)
+
 
 # ----------------- PRINT LIST OF ORDERS -------------------------------------------------------
 def print_orders(orderList, printDate=False):
-    for order in orderList:
-        strOrder = str(orderList.index(order)).ljust(4) + "| " \
-                       + order['description'].ljust(10) + "| " \
-                       + order['location']
+    if not orderList:
+        console.print('[dim]No orders.[/]')
+        return
+    table = Table(box=box.SIMPLE_HEAVY, header_style='bold white on grey15')
+    table.add_column('#', justify='right', no_wrap=True)
+    table.add_column('Description', no_wrap=True)
+    table.add_column('Location', no_wrap=True)
+    if printDate:
+        table.add_column('Expires', no_wrap=True)
+    for idx, order in enumerate(orderList):
+        row = [str(idx), order['description'], order['location']]
         if printDate:
-            strOrder = strOrder + " | " + order['date']
-        print (strOrder)
+            row.append(order['date'])
+        table.add_row(*row)
+    console.print(table)
 
-# ------------------ PRINT SERVER SPECS ----------------------------------------------------------
+
+# ------------------ PRINT SERVER SPECS --------------------------------------------------------
 def print_servers(server_list):
-    for server in server_list:
-        print ("NAME:  " + server['name'])
-        print ("DC:    " + server['datacenter'])
-        print ("CPU:   " + server['cpu'])
-        print ("RAM:   " + server['memory'])
-        print ("DISKS: " + " + ".join(server['disks']))
-        print ()
+    if not server_list:
+        console.print('[dim]No servers.[/]')
+        return
+    table = Table(box=box.SIMPLE_HEAVY, header_style='bold white on grey15',
+                  show_lines=True)
+    table.add_column('Name', style='bold')
+    table.add_column('DC', justify='center')
+    table.add_column('CPU')
+    table.add_column('RAM', justify='right')
+    table.add_column('Disks')
+    for s in server_list:
+        table.add_row(s['name'], s['datacenter'], s['cpu'], s['memory'],
+                      '\n'.join(s['disks']))
+    console.print(table)
+
+
+# ------------------ HELP-SCREEN COLOUR LEGEND -------------------------------------------------
+def print_help_legend():
+    table = Table(box=box.MINIMAL, show_header=False, pad_edge=False)
+    table.add_column(no_wrap=True)
+    table.add_column(no_wrap=True)
+    legend = [
+        ('high',        'Available HIGH'),
+        ('low',         'Available LOW'),
+        ('unavailable', 'Unavailable'),
+        ('comingSoon',  'Coming Soon'),
+        ('unknown',     'Availability unknown'),
+        ('autobuy',     'Auto-buy candidate'),
+    ]
+    for state, label in legend:
+        style = whichColor[state]
+        table.add_row(Text(_STATUS_GLYPH[state], style=style),
+                      Text(label, style=style))
+    console.print(table)

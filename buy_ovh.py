@@ -1,6 +1,5 @@
 import copy
 import logging
-import os
 import re
 import sys
 import time
@@ -150,11 +149,7 @@ def showHelp():
     print("")
     print("Colour coding")
     print("-------------")
-    print(m.print.whichColor['high'] + "Available HIGH")
-    print(m.print.whichColor['low'] + "Available LOW")
-    print(m.print.whichColor['unavailable'] + "Unavailable")
-    print(m.print.whichColor['comingSoon'] + "Coming Soon")
-    print(m.print.whichColor['unknown'] + "Availability unknown" + m.print.color.END)
+    m.print.print_help_legend()
     print("")
     print("Infinite Loop")
     print("-------------")
@@ -315,7 +310,7 @@ while True:
         logger.debug("Starting a new update cycle")
         while True:
             try:
-                os.system('cls' if os.name == 'nt' else 'clear')
+                m.print.clear_screen()
                 if availabilities:
                     previousAvailabilities = availabilities
                     previousPlans = plans
@@ -333,10 +328,6 @@ while True:
                                         or x['autobuy'])]
                     m.print.print_plan_list(displayedPlans, showCpu, showFqn, showBandwidth,
                                             showPrice, showFee, showTotalPrice)
-                if fakeBuy:
-                    print("- Fake Buy ON")
-                if not m.api.is_logged_in():
-                    print("- Not logged in")
                 foundAutoBuyServer = False
                 if autoBuy:
                     logger.debug("Looking for servers to auto buy")
@@ -375,11 +366,13 @@ while True:
                 # if the conf says no loop, jump to the menu
                 if not loop:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months)
+                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
+                                             fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=loop)
                     break
                 if not foundAutoBuyServer:
                     if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months)
+                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
+                                             fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=loop)
                     m.print.print_and_sleep(showPrompt, sleepsecs)
             except KeyboardInterrupt:
                 raise
