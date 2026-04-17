@@ -138,8 +138,8 @@ def print_prompt(acceptable_dc, filterMemory, filterName, filterDisk,
                  else Text(' IDLE ', style='black on grey50'))
     flags.append(Text(' LOGGED IN ', style='black on bright_blue') if loggedIn
                  else Text(' OFFLINE ', style='white on red'))
-    if fakeBuy:
-        flags.append(Text(' FAKE BUY ', style='black on yellow'))
+    flags.append(Text(' FAKE BUY ', style='black on yellow') if fakeBuy
+                 else Text(' REAL BUY ', style='white on red'))
     flag_line = Text('  ').join(flags)
 
     body = Group(line1, line2, flag_line) if line2 else Group(line1, flag_line)

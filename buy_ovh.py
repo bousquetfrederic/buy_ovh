@@ -9,6 +9,7 @@ import m.api
 import m.availability
 import m.catalog
 import m.email
+import m.interactive
 import m.monitor
 import m.orders
 import m.print
@@ -190,6 +191,7 @@ def showHelp():
     print("Commands")
     print("--------")
     print(" D  - show your undelivered orders and a link to see your bill for one")
+    print(" I  - enter interactive mode (navigate the list with arrow keys)")
     print(" K  - enter a coupon (buying will fail if coupon is invalid)")
     print(" L  - (re)start the infinite loop, activating monitoring if configured")
     print(" O  - show your unpaid orders and a link to pay for one")
@@ -311,6 +313,11 @@ while True:
         while True:
             try:
                 m.print.clear_screen()
+                # Render the header panel first so toggles (fake buy, filters,
+                # etc.) show up immediately, before the slow catalog fetch.
+                if showPrompt:
+                    m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
+                                         fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=loop)
                 if availabilities:
                     previousAvailabilities = availabilities
                     previousPlans = plans
@@ -365,14 +372,8 @@ while True:
                     filtersChanged = False
                 # if the conf says no loop, jump to the menu
                 if not loop:
-                    if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
-                                             fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=loop)
                     break
                 if not foundAutoBuyServer:
-                    if showPrompt:
-                        m.print.print_prompt(acceptable_dc, filterMemory, filterName, filterDisk, maxPrice, coupon, months,
-                                             fakeBuy=fakeBuy, loggedIn=m.api.is_logged_in(), loop=loop)
                     m.print.print_and_sleep(showPrompt, sleepsecs)
             except KeyboardInterrupt:
                 raise
@@ -391,6 +392,10 @@ while True:
     print("")
     # stop the infinite loop, the user must press L to restart it
     loop = False
+    # surface FAKE BUY right above the prompt regardless of showPrompt;
+    # absence of the badge is sufficient signal that buys would be real
+    if fakeBuy:
+        m.print.console.print('[black on yellow] FAKE BUY [/]')
     allChoices = input("(H for Help)> ")
     logger.info("User Choice: " + allChoices)
     # The user can specify to buy a server multiple times
@@ -506,6 +511,40 @@ while True:
         elif sChoice == '$':
             fakeBuy = not fakeBuy
             logger.info("Fake Buy=" + str(fakeBuy))
+        elif sChoice.lower() == 'i':
+            logger.info("User entered interactive mode")
+            intState = {
+                'showCpu': showCpu, 'showFqn': showFqn,
+                'showBandwidth': showBandwidth,
+                'showPrice': showPrice, 'showFee': showFee,
+                'showTotalPrice': showTotalPrice,
+                'showUnavailable': showUnavailable,
+                'showUnknown': showUnknown,
+                'fakeBuy': fakeBuy,
+            }
+            def intRefilter():
+                return [x for x in plans
+                        if (m.availability.test_availability(x['availability'],
+                                                             intState['showUnavailable'],
+                                                             intState['showUnknown'])
+                            or x['autobuy'])]
+            def intBuy(plan, buyNow):
+                # buyServer reads the fakeBuy global, so push the interactive
+                # toggle through before each buy
+                global fakeBuy
+                fakeBuy = intState['fakeBuy']
+                buyServer(plan, buyNow, False)
+            displayedPlans = intRefilter()
+            m.interactive.run(displayedPlans, intState, intBuy, intRefilter)
+            showCpu = intState['showCpu']
+            showFqn = intState['showFqn']
+            showBandwidth = intState['showBandwidth']
+            showPrice = intState['showPrice']
+            showFee = intState['showFee']
+            showTotalPrice = intState['showTotalPrice']
+            showUnavailable = intState['showUnavailable']
+            showUnknown = intState['showUnknown']
+            fakeBuy = intState['fakeBuy']
         elif sChoice.lower() == 'l':
             logger.info("User started the infinite loop")
             loop = True

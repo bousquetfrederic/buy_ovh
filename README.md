@@ -1,12 +1,9 @@
 # buy_ovh.py
 Python script that uses the OVH API and their Python helper. See here: https://github.com/ovh/python-ovh
 
-The 'ovh' and 'PyYAML' modules must be installed.
+Install the dependencies:
 ```
-pip install ovh
-```
-```
-pip install PyYAML
+pip install -r requirements.txt
 ```
 
 The main program is buy_ovh.py.
