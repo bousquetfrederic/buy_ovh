@@ -14,7 +14,7 @@ def _reset_modules():
 
 def _install_fakes(conf, login_succeeds=True):
     _reset_modules()
-    sys.argv = ['manage_ovh', 'conf.example.yaml']
+    sys.argv = ['manage_ovh', '--conf', 'conf.example.yaml']
     import m.config
     m.config.configFile = copy.deepcopy(conf)
 

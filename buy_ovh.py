@@ -1,3 +1,4 @@
+import argparse
 import logging
 import sys
 import time
@@ -10,6 +11,26 @@ import m.catalog
 import m.interactive
 
 from m.config import configFile, config_path
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser(
+        prog='buy_ovh',
+        description='Browse and order OVH dedicated servers.')
+    parser.add_argument('--conf', '-c', default='conf.yaml',
+                        help='Path to the YAML config file (default: conf.yaml).')
+    sub = parser.add_subparsers(dest='cmd')
+    sub.add_parser('list',
+                   help='Print the filtered plan list and exit.')
+    buy_p = sub.add_parser(
+        'buy',
+        help='Run a buy-command grammar (e.g. "!3 ?5x2") and exit.')
+    buy_p.add_argument('tokens', nargs=argparse.REMAINDER,
+                       help='Buy tokens, space-separated: !N, ?N, !NxM, !N*M.')
+    return parser.parse_args()
+
+
+ARGS = _parse_args()
 
 # ----------------- GLOBAL VARIABLES ----------------------------------------------------------
 
@@ -203,6 +224,30 @@ def runInteractive():
     _applyStateToGlobals(intState)
 
 
+def runList():
+    """Print the plan list once and exit — `buy_ovh.py list`."""
+    m.interactive.render_list(displayedPlans, _stateFromGlobals())
+
+
+def runBuy(tokens):
+    """Execute a buy-command grammar and exit — `buy_ovh.py buy ...`."""
+    line = ' '.join(tokens)
+    ops, errors = m.interactive.parse_command(line)
+    for e in errors:
+        print(e)
+    if not ops:
+        if not errors:
+            print('No buy tokens. Example: buy_ovh.py buy "!3 ?5x2"')
+        return
+    for buyNow, n, times in ops:
+        if n < 0 or n >= len(displayedPlans):
+            print(f'index {n} out of range (0-{len(displayedPlans) - 1})')
+            continue
+        plan = displayedPlans[n]
+        for _ in range(times):
+            buyServer(plan, buyNow)
+
+
 # initial fetch
 try:
     refetch()
@@ -212,8 +257,14 @@ except Exception as e:
     print(e)
 
 try:
-    runInteractive()
+    if ARGS.cmd == 'list':
+        runList()
+    elif ARGS.cmd == 'buy':
+        runBuy(ARGS.tokens)
+    else:
+        runInteractive()
 except KeyboardInterrupt:
-    logger.info("User pressed CTRL-C in interactive.")
+    logger.info("User pressed CTRL-C.")
 logger.info("Bye.")
-sys.exit("Bye now.")
+if ARGS.cmd is None:
+    sys.exit("Bye now.")

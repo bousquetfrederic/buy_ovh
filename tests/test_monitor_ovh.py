@@ -29,10 +29,10 @@ def _install_fakes(conf, avail=None, plans=None, login_succeeds=True,
     """
     _reset_modules()
 
-    # m.config loads YAML from sys.argv[1] at import time; point it at the
+    # m.config parses --conf from argv at import time; point it at the
     # example file so the import succeeds, then overwrite configFile with
     # our test dict.
-    sys.argv = ['monitor_ovh', 'conf.example.yaml']
+    sys.argv = ['monitor_ovh', '--conf', 'conf.example.yaml']
     import m.config
     m.config.configFile = copy.deepcopy(conf)
 

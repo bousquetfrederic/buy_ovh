@@ -1,6 +1,9 @@
+import io
 import logging
+import re
 import select
 import sys
+from contextlib import redirect_stderr, redirect_stdout
 
 import readchar
 from rich import box
@@ -13,7 +16,7 @@ from rich.text import Text
 from m.catalog import column_display_value
 from m.print import console, format_age, resolve_state, whichColor
 
-__all__ = ['run']
+__all__ = ['run', 'render_list', 'parse_command']
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +71,7 @@ HELP_LINES = [
     ('1-9 then ! / ?',   'buy (!) / invoice (?) N times'),
     ('! / ?',            'buy now / invoice (once)'),
     ('/',                'enter filter mode'),
+    (':',                'enter buy-command mode'),
     ('X',                'clear all filters'),
     ('r',                'refresh catalog'),
     ('R',                'reload config from disk'),
@@ -88,6 +92,58 @@ FILTER_HELP_LINES = [
     ('Enter',               'apply and leave filter mode'),
     ('Esc',                 'cancel changes'),
 ]
+
+COMMAND_HELP_LINES = [
+    ('!N',     'buy row N now'),
+    ('?N',     'request invoice for row N'),
+    ('NxM',    'multiplier — e.g. !3x2 buys row 3 twice'),
+    ('N*M',    'same as NxM'),
+    ('space',  'separate multiple tokens, e.g. !3 ?5x2'),
+    ('Enter',  'run the whole command line'),
+    ('Esc',    'cancel'),
+    ('Ctrl-U', 'clear the line'),
+]
+
+_COMMAND_TOKEN_RE = re.compile(r'^([!?])(\d+)(?:[x*](\d+))?$')
+
+
+def parse_command(line):
+    """Public alias so non-interactive callers (e.g. the `buy` CLI subcommand)
+    can reuse the exact same grammar as interactive command mode."""
+    return _parse_command(line)
+
+
+def render_list(displayedPlans, state):
+    """One-shot, non-interactive render of the plan list to the shared
+    console — used by the `list` CLI subcommand. Matches interactive column
+    choices but drops the filter bar, cursor, footer, and any Live chrome."""
+    cols = _visible_columns(state)
+    table = Table(box=box.SIMPLE_HEAVY,
+                  header_style='bold white on grey15',
+                  pad_edge=False, expand=False, show_edge=False)
+    for header, justify, _key in cols:
+        table.add_column(header, justify=justify, no_wrap=True)
+    for i, plan in enumerate(displayedPlans):
+        style = whichColor[resolve_state(plan)]
+        table.add_row(*_row_data(plan, i, cols), style=style)
+    console.print(table)
+
+
+def _parse_command(line):
+    """Parse a buy command line into ops + errors.
+    Each token is `[!?]N[xM|*M]`. Returns (ops, errors) where ops is a list
+    of (buyNow, index, times) and errors is a list of human-readable strings
+    for tokens that didn't parse."""
+    ops = []
+    errors = []
+    for tok in line.split():
+        m = _COMMAND_TOKEN_RE.match(tok)
+        if not m:
+            errors.append(f'bad token: {tok!r} (expected !N, ?N, !NxM, ...)')
+            continue
+        sign, n, mult = m.groups()
+        ops.append((sign == '!', int(n), int(mult) if mult else 1))
+    return ops, errors
 
 
 def _visible_columns(state):
@@ -222,6 +278,15 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
             '[bold]h[/] help',
         ])
         rows = [meta, Text.from_markup(nav)]
+    elif mode == 'command':
+        nav = '   '.join([
+            '[bold]type[/] !N ?N !NxM ...',
+            '[bold]↵[/] run',
+            '[bold]Esc[/] cancel',
+            '[bold]^U[/] clear',
+            '[bold]h[/] help',
+        ])
+        rows = [meta, Text.from_markup(nav)]
     else:
         months = state.get('months', 1)
         term_label = '1mo' if months == 1 else f'{months}mo'
@@ -229,6 +294,7 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
             '[bold]↑↓[/] move',
             '[bold]![/] buy',
             '[bold]?[/] invoice',
+            '[bold]:[/] command',
             '[bold]/[/] filter',
             '[bold]X[/] clear',
             '[bold]r[/] refresh',
@@ -252,10 +318,14 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
 
 
 def _help_overlay(mode):
-    lines = FILTER_HELP_LINES if mode == 'filter' else HELP_LINES
+    if mode == 'filter':
+        lines, title = FILTER_HELP_LINES, 'Filter keys'
+    elif mode == 'command':
+        lines, title = COMMAND_HELP_LINES, 'Buy-command syntax'
+    else:
+        lines, title = HELP_LINES, 'Keys'
     rendered = [Text.from_markup(f'[bold cyan]{k:<22}[/] {v}')
                 for k, v in lines]
-    title = 'Filter keys' if mode == 'filter' else 'Keys'
     return Panel(Group(*rendered), title=title, title_align='left',
                  border_style='cyan', box=box.ROUNDED)
 
@@ -291,6 +361,8 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
     filters = state.setdefault('filters', {})
     filter_snapshot = dict(filters)
     focus_idx = 0
+    buy_message = None
+    command_buffer = ''
 
     def filterable():
         return [c for c in _visible_columns(state) if c[2] is not None]
@@ -299,15 +371,50 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
                 redirect_stdout=False, redirect_stderr=False)
 
     def buy_many(plan, buyNow, times):
-        live.stop()
-        try:
+        # Keep the Live display up; capture everything the buy path prints
+        # into a buffer and surface it as an overlay panel. The next key
+        # press dismisses the panel.
+        nonlocal buy_message
+        render(message=Text.from_markup(
+            f'[bold]Buying[/] {plan.get("model", "")} '
+            f'in {plan.get("datacenter", "")}…'))
+        buf = io.StringIO()
+        with redirect_stdout(buf), redirect_stderr(buf):
             for _ in range(times):
-                buy_fn(plan, buyNow)
-            input('Press Enter.')
-        finally:
-            live.start()
+                try:
+                    buy_fn(plan, buyNow)
+                except Exception:
+                    logger.exception('Buy failed inside interactive')
+        out = buf.getvalue().rstrip() or '(no output)'
+        buy_message = Text(out)
 
-    def render(fetching=False):
+    def run_command(line):
+        """Parse and run a buy-command line. Errors and output go to the
+        same yellow buy panel as a single-row buy."""
+        nonlocal buy_message
+        ops, errors = _parse_command(line)
+        if not ops and not errors:
+            return
+        render(message=Text.from_markup(f'[bold]Running[/] {line}…'))
+        buf = io.StringIO()
+        for e in errors:
+            buf.write(e + '\n')
+        with redirect_stdout(buf), redirect_stderr(buf):
+            for buyNow, n, times in ops:
+                if n < 0 or n >= len(displayedPlans):
+                    max_idx = len(displayedPlans) - 1
+                    print(f'index {n} out of range (0-{max_idx})')
+                    continue
+                plan = displayedPlans[n]
+                for _ in range(times):
+                    try:
+                        buy_fn(plan, buyNow)
+                    except Exception:
+                        logger.exception('Buy failed inside interactive command')
+        out = buf.getvalue().rstrip() or '(no output)'
+        buy_message = Text(out)
+
+    def render(fetching=False, message=None):
         """Paint the current state to the Live display. Used both by the main
         loop and by key handlers that want to show a 'fetching…' hint before
         synchronously waiting on the network."""
@@ -321,11 +428,34 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
         size = console.size
         footer = _footer_bar(state, fetched_at, count_buffer, mode, fetching)
         help_panel = _help_overlay(mode) if show_help else None
+        msg = message if message is not None else buy_message
+        if msg is not None:
+            buy_panel = Panel(
+                Group(msg, Text.from_markup('[dim]Press any key to dismiss[/]')),
+                title='Buy', title_align='left',
+                border_style='bright_yellow', box=box.ROUNDED)
+        else:
+            buy_panel = None
+        if mode == 'command':
+            cmd_line = Text('> ', style='bold') + Text(
+                command_buffer + '▌', style='black on bright_yellow')
+            hint = Text.from_markup(
+                '[dim]e.g. [/][bold]!3 ?5x2 !10*3[/]  '
+                '[dim]— Enter run, Esc cancel, ^U clear, h help[/]')
+            cmd_panel = Panel(Group(cmd_line, hint),
+                              title='Buy command', title_align='left',
+                              border_style='cyan', box=box.ROUNDED)
+        else:
+            cmd_panel = None
         # chrome: header row + header underline (2 lines) + filter row +
-        # position line = 4, plus footer and optional help.
+        # position line = 4, plus footer and optional help/buy/cmd panels.
         reserved = 4 + len(console.render_lines(footer))
         if help_panel is not None:
             reserved += len(console.render_lines(help_panel))
+        if buy_panel is not None:
+            reserved += len(console.render_lines(buy_panel))
+        if cmd_panel is not None:
+            reserved += len(console.render_lines(cmd_panel))
         window = max(3, size.height - reserved)
 
         if cursor < 0:
@@ -352,6 +482,10 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
                 '[dim]No servers match the current filters. '
                 'Press [bold]/[/] to edit or [bold]X[/] to clear.[/]')
         renderables = [table, pos, footer]
+        if cmd_panel is not None:
+            renderables.append(cmd_panel)
+        if buy_panel is not None:
+            renderables.append(buy_panel)
         if help_panel is not None:
             renderables.append(help_panel)
         live.update(Group(*renderables), refresh=True)
@@ -376,6 +510,11 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
                 key = _readkey()
             except KeyboardInterrupt:
                 break
+
+            # Dismiss a buy-result overlay on any key, without acting on it.
+            if buy_message is not None:
+                buy_message = None
+                continue
 
             # ---------------- FILTER MODE ----------------
             if mode == 'filter':
@@ -408,6 +547,25 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
                 elif _printable(key) and fkey is not None:
                     filters[fkey] = filters.get(fkey, '') + key
                     displayedPlans = refilter_fn()
+                continue
+
+            # ---------------- COMMAND MODE ----------------
+            if mode == 'command':
+                if key == readchar.key.ESC:
+                    command_buffer = ''
+                    mode = 'nav'
+                elif key in (readchar.key.ENTER, readchar.key.CR, readchar.key.LF):
+                    line = command_buffer
+                    command_buffer = ''
+                    mode = 'nav'
+                    if line.strip():
+                        run_command(line)
+                elif key == readchar.key.BACKSPACE:
+                    command_buffer = command_buffer[:-1]
+                elif key == readchar.key.CTRL_U:
+                    command_buffer = ''
+                elif _printable(key):
+                    command_buffer += key
                 continue
 
             # ---------------- NAV MODE ----------------
@@ -444,6 +602,9 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
                 if filterable():
                     filter_snapshot = dict(filters)
                     mode = 'filter'
+            elif key == ':':
+                command_buffer = ''
+                mode = 'command'
             elif key == 'X':
                 if filters:
                     filters.clear()

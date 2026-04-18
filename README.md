@@ -15,8 +15,19 @@ It's recommended to have at least a filter on the server name (or plan code) oth
 ## buy_ovh
 The interactive one. It fetches the catalog at startup and drops you in a navigator — everything happens from there, there is no separate command prompt.
 
+Invocation:
+```
+python buy_ovh.py [--conf PATH]              # interactive (default)
+python buy_ovh.py [--conf PATH] list         # print the list and exit
+python buy_ovh.py [--conf PATH] buy !3 ?5x2  # run a buy grammar and exit
+```
+`--conf` (or `-c`) points at the YAML config file (default `./conf.yaml`). `buy` tokens are `!N` / `?N` (buy now / invoice for row N) with an optional multiplier `xM` or `*M`. Indices are the `#` column from `list`.
+
+Interactive keys:
+
 - `↑`/`↓` (or `j`/`k`) move the cursor; `PgUp`/`PgDn`, `g`/`G` for jumps.
 - `!` buys the highlighted row, `?` requests an invoice for it. To create several orders at once, type a number first (vim style): `3!` places three identical orders.
+- `:` opens a buy-command line inside the navigator — same grammar as the `buy` subcommand (`!3 ?5x2 !10*3`), Enter runs it, Esc cancels, Ctrl-U clears.
 - `/` opens filter mode. The focus jumps to the filter row under the column headers; `←`/`→` (or `Tab`) moves between columns, typing edits the regex, `Enter` applies, `Esc` cancels, `Ctrl-U` clears the current cell. Numeric columns (price, fee, total) accept `<N`, `>N`, `<=N`, `>=N`, `=N`, or a bare number (treated as `<=N`). `X` clears every filter at once. The `filterName` / `filterDisk` / `filterMemory` / `maxPrice` keys in `conf.yaml` are a separate layer applied at catalog-fetch time and do not show up in the filter bar.
 - `M` cycles the commitment term 1 → 12 → 24 months, `T` toggles VAT, `r` refreshes the catalog, `R` reloads `conf.yaml` from disk.
 - `c`/`f`/`b`/`u`/`U`/`$` toggle CPU / FQN / BW columns, include-unavailable, include-unknown-availability and fake-buy mode.
@@ -25,6 +36,8 @@ The interactive one. It fetches the catalog at startup and drops you in a naviga
 The colour coding is in the code. Red is unavailable. Green and yellow are available. Etc.
 
 If you end up buying a 600€ server, it's not the script fault, it's yours, because this is just a random python script you found on the internet.
+
+All three scripts accept `--conf PATH` (or `-c PATH`) to point at a config file other than `./conf.yaml`.
 
 ## monitor_ovh
 The headless one. Runs forever, refreshing availability and the catalog every `sleepsecs`, and can email you when servers appear or disappear or when their availability changes. It can also auto-buy servers that match an `auto_buy` rule. Credentials are only required if `auto_buy` is set — for plain monitoring, the public endpoints are enough. Run it in tmux or as a systemd service.
