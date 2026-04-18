@@ -3,7 +3,7 @@ import logging
 import re
 import select
 import sys
-from contextlib import redirect_stderr, redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 
 import readchar
 from rich import box
@@ -21,47 +21,63 @@ __all__ = ['run', 'render_list', 'parse_command']
 logger = logging.getLogger(__name__)
 
 
-def _readkey():
+@contextmanager
+def _cbreak_mode():
+    """Hold the terminal in cbreak mode for the entire interactive session.
+    Toggling termios per-keystroke used to let auto-repeat leak bytes into
+    the cooked (echoing) state between reads — the terminal would echo raw
+    escape sequences like '^[[B' on-screen. Setting it once for the whole
+    run stops that. Yields False on non-POSIX so the caller knows to fall
+    back to readchar.readkey()."""
+    try:
+        import termios
+        import tty
+    except ImportError:
+        yield False
+        return
+    fd = sys.stdin.fileno()
+    old = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd, termios.TCSANOW)
+        yield True
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _readkey(cbreak):
     """readchar.readkey() blocks after ESC waiting for an escape sequence,
     so a bare Esc press never returns until the user hits another key. And
     we can't just peek with select() around readchar's readchar(), because
     sys.stdin's BufferedReader may already hold the rest of the sequence
     while select() on the fd sees nothing pending.
 
-    Bypass Python's buffering by reading directly from the fd via os.read,
-    after putting the terminal in cbreak mode. After an ESC we wait 50 ms
-    for a continuation byte; if none arrives the user really did hit Esc.
-    Falls back to readchar.readkey() on non-POSIX platforms."""
-    try:
-        import os
-        import termios
-        import tty
-    except ImportError:
+    Bypass Python's buffering by reading directly from the fd via os.read.
+    The terminal is already in cbreak mode for the whole interactive run
+    (see _cbreak_mode). After an ESC we wait 50 ms for a continuation byte;
+    if none arrives the user really did hit Esc. Falls back to
+    readchar.readkey() on non-POSIX platforms."""
+    if not cbreak:
         return readchar.readkey()
+    import os
 
     fd = sys.stdin.fileno()
-    old = termios.tcgetattr(fd)
-    try:
-        tty.setcbreak(fd, termios.TCSANOW)
-        b = os.read(fd, 1)
-        if not b:
-            return ''
-        c1 = b.decode('utf-8', 'replace')
-        if c1 == '\x03':
-            raise KeyboardInterrupt
-        if c1 != '\x1b':
-            return c1
-        if not select.select([fd], [], [], 0.05)[0]:
-            return '\x1b'
-        seq = b''
-        while select.select([fd], [], [], 0.005)[0]:
-            chunk = os.read(fd, 32)
-            if not chunk:
-                break
-            seq += chunk
-        return c1 + seq.decode('utf-8', 'replace')
-    finally:
-        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+    b = os.read(fd, 1)
+    if not b:
+        return ''
+    c1 = b.decode('utf-8', 'replace')
+    if c1 == '\x03':
+        raise KeyboardInterrupt
+    if c1 != '\x1b':
+        return c1
+    if not select.select([fd], [], [], 0.05)[0]:
+        return '\x1b'
+    seq = b''
+    while select.select([fd], [], [], 0.005)[0]:
+        chunk = os.read(fd, 32)
+        if not chunk:
+            break
+        seq += chunk
+    return c1 + seq.decode('utf-8', 'replace')
 
 
 HELP_LINES = [
@@ -80,6 +96,7 @@ HELP_LINES = [
     ('c / f / b',        'toggle CPU / FQN / BW columns'),
     ('u / U',            'toggle Unavailable / Unknown rows'),
     ('$',                'toggle Fake-buy'),
+    ('Q',                'toggle Quick-look (ignore conf name/disk/memory/price filters)'),
     ('h',                'toggle this help'),
     ('q  Esc',           'quit'),
 ]
@@ -311,6 +328,7 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
             _toggle('u', 'unavail', state['showUnavailable']),
             _toggle('U', 'unknown', state['showUnknown']),
             _toggle('$', 'fake', state['fakeBuy']),
+            _toggle('Q', 'QuickLook', state.get('quickLook', False)),
         ])
         rows = [meta, Text.from_markup(nav), Text.from_markup(toggles)]
     return Panel(Group(*rows),
@@ -501,13 +519,15 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
         except Exception:
             logger.exception('Fetch inside interactive failed')
 
+    cbreak_cm = _cbreak_mode()
+    cbreak = cbreak_cm.__enter__()
     live.start()
     try:
         while True:
             window = render()
 
             try:
-                key = _readkey()
+                key = _readkey(cbreak)
             except KeyboardInterrupt:
                 break
 
@@ -633,6 +653,10 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
                 displayedPlans = refilter_fn()
             elif key == '$':
                 state['fakeBuy'] = not state['fakeBuy']
+            elif key == 'Q' and refresh_fn is not None:
+                state['quickLook'] = not state.get('quickLook', False)
+                do_fetch(refresh_fn)
     finally:
         live.stop()
+        cbreak_cm.__exit__(None, None, None)
         logger.info('Leaving interactive mode')

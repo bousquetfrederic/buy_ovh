@@ -151,6 +151,10 @@ fetched_at = None
 # (filterName, filterDisk, filterMemory, maxPrice) still narrow the catalog
 # at build_list time; column filters narrow the on-screen list on top of that.
 columnFilters = {}
+# Manual "ignore conf filters" override, toggled from the interactive UI.
+# Intentionally not in MAIN_DEFAULTS / MIRRORED_KEYS: never persisted, never
+# read from conf, always starts False.
+quickLook = False
 
 
 def _filter_displayed(all_plans):
@@ -165,11 +169,15 @@ def _filter_displayed(all_plans):
 def refetch():
     """Rebuild availabilities, plans, displayedPlans, and fetched_at."""
     global availabilities, plans, displayedPlans, fetched_at
+    fName = '' if quickLook else filterName
+    fDisk = '' if quickLook else filterDisk
+    fMem = '' if quickLook else filterMemory
+    mPrice = 0 if quickLook else maxPrice
     availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint), acceptable_dc)
     plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                  availabilities,
                                  ovhSubsidiary,
-                                 filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
+                                 fName, fDisk, fMem, acceptable_dc, mPrice,
                                  addVAT, months,
                                  showBandwidth)
     for p in plans:
@@ -197,6 +205,9 @@ def _applyStateToGlobals(state):
 def runInteractive():
     """Run the interactive navigator; returns when the user quits."""
     intState = _stateFromGlobals()
+    # quickLook is a manual, session-only override — never persisted and
+    # never loaded from conf, so it always enters interactive mode off.
+    intState['quickLook'] = False
     # Shared mutable dict: interactive mutates column filters in place so
     # they survive across a config reload.
     intState['filters'] = columnFilters
@@ -214,15 +225,19 @@ def runInteractive():
         buyServer(plan, buyNow)
 
     def intRefresh():
+        global quickLook
         _applyStateToGlobals(intState)
+        quickLook = intState.get('quickLook', False)
         refetch()
         return intRefilter(), fetched_at
 
     def intReload():
+        global quickLook
         logger.info('User reloaded the configuration')
         loadConfigMain(configFile)
         for k in _MIRRORED_STATE:
             intState[k] = globals()[k]
+        quickLook = intState.get('quickLook', False)
         refetch()
         return intRefilter(), fetched_at
 
