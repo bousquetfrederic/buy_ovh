@@ -23,6 +23,8 @@ python buy_ovh.py [--conf PATH] buy !3 ?5x2  # run a buy grammar and exit
 ```
 `--conf` (or `-c`) points at the YAML config file (default `./conf.yaml`). `buy` tokens are `!N` / `?N` (buy now / invoice for row N) with an optional multiplier `xM` or `*M`. Indices are the `#` column from `list`.
 
+`list` caches the printed rows at `~/.buy_ovh/last_list.json` with a timestamp, and `buy` reads that cache instead of refetching — so indices line up with whatever `list` last showed you. If you haven't run `list` yet, `buy` refuses and tells you to.
+
 Interactive keys:
 
 - `↑`/`↓` (or `j`/`k`) move the cursor; `PgUp`/`PgDn`, `g`/`G` for jumps.

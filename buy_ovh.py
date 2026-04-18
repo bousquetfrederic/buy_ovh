@@ -7,8 +7,10 @@ from datetime import datetime
 # modules
 import m.api
 import m.availability
+import m.cache
 import m.catalog
 import m.interactive
+import m.print
 
 from m.config import configFile, config_path
 
@@ -225,12 +227,15 @@ def runInteractive():
 
 
 def runList():
-    """Print the plan list once and exit — `buy_ovh.py list`."""
+    """Print the plan list once, cache it, and exit — `buy_ovh.py list`."""
     m.interactive.render_list(displayedPlans, _stateFromGlobals())
+    m.cache.save_list(displayedPlans, fetched_at)
 
 
 def runBuy(tokens):
-    """Execute a buy-command grammar and exit — `buy_ovh.py buy ...`."""
+    """Execute a buy-command grammar and exit — `buy_ovh.py buy ...`.
+    Operates against the cached list written by `list`, so indices line up
+    with what was last printed."""
     line = ' '.join(tokens)
     ops, errors = m.interactive.parse_command(line)
     for e in errors:
@@ -239,6 +244,9 @@ def runBuy(tokens):
         if not errors:
             print('No buy tokens. Example: buy_ovh.py buy "!3 ?5x2"')
         return
+    print(f'Using cached list from {fetched_at:%Y-%m-%d %H:%M} '
+          f'({m.print.format_age(fetched_at)}). '
+          f"Run 'buy_ovh.py list' to refresh.")
     for buyNow, n, times in ops:
         if n < 0 or n >= len(displayedPlans):
             print(f'index {n} out of range (0-{len(displayedPlans) - 1})')
@@ -248,13 +256,23 @@ def runBuy(tokens):
             buyServer(plan, buyNow)
 
 
-# initial fetch
-try:
-    refetch()
-except Exception as e:
-    logger.exception("Startup fetch exception")
-    print("Startup fetch failed:")
-    print(e)
+# initial fetch — `buy` reuses the cache written by `list` so indices stay
+# stable between the two invocations; everything else fetches fresh.
+if ARGS.cmd == 'buy':
+    cached_plans, cached_at = m.cache.load_list()
+    if cached_plans is None:
+        sys.exit("No cached list found. Run 'buy_ovh.py list' first.")
+    for p in cached_plans:
+        p.setdefault('autobuy', False)
+    displayedPlans = cached_plans
+    fetched_at = cached_at
+else:
+    try:
+        refetch()
+    except Exception as e:
+        logger.exception("Startup fetch exception")
+        print("Startup fetch failed:")
+        print(e)
 
 try:
     if ARGS.cmd == 'list':
