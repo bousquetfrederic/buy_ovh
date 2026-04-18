@@ -11,6 +11,7 @@ import m.cache
 import m.catalog
 import m.interactive
 import m.print
+import m.state
 
 from m.config import configFile, config_path
 
@@ -79,6 +80,12 @@ def loadConfigLogging(cf):
         globals()[name] = cf.get(yaml_key, globals().get(name, default))
 
 loadConfigMain(configFile)
+
+# Overlay the last-saved interactive state on top of conf defaults.
+# Applied only once at startup; the `R` key re-runs loadConfigMain
+# without re-applying state, so R stays a clean "reset to conf".
+for _k, _v in m.state.load().items():
+    globals()[_k] = _v
 
 # Logging
 loadConfigLogging(configFile)
@@ -173,10 +180,9 @@ def refetch():
 # State keys mirrored between the module globals and the interactive state
 # dict. `refresh_fn` / `reload_fn` copy in both directions so whichever side
 # mutates (interactive key, or config reload) both agree on what to fetch.
-_MIRRORED_STATE = ('showCpu', 'showFqn', 'showBandwidth',
-                   'showPrice', 'showFee', 'showTotalPrice',
-                   'showUnavailable', 'showUnknown',
-                   'fakeBuy', 'addVAT', 'months')
+# Sourced from m.state so the persisted-state overlay and the interactive
+# mirror stay in lockstep.
+_MIRRORED_STATE = m.state.MIRRORED_KEYS
 
 
 def _stateFromGlobals():
@@ -224,6 +230,7 @@ def runInteractive():
                       refresh_fn=intRefresh, reload_fn=intReload,
                       fetched_at=fetched_at)
     _applyStateToGlobals(intState)
+    m.state.save(intState)
 
 
 def runList():
