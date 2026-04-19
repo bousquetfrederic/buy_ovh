@@ -53,7 +53,7 @@ def _avail_changed(previousA, newA, regex):
                         availNow.append(fqn)
                 else:
                     # found an unavailable server that matches the filter
-                    if (fqn in previousA.keys() and not m.availability.test_availability(previousA[fqn])):
+                    if (fqn in previousA.keys() and m.availability.test_availability(previousA[fqn])):
                         # its availability went from available to unavailable
                         availNotAnymore.append(fqn)
     return (availNow, availNotAnymore)
@@ -61,7 +61,7 @@ def _avail_changed(previousA, newA, regex):
 def _catalog_added_removed(previousP, newP):
     addedFqns = []
     removedFqns = []
-    if previousP:
+    if previousP and newP:
         previousFqns = [x['fqn'] for x in previousP]
         newFqns = [x['fqn'] for x in newP]
         addedFqns = [x for x in newFqns if x not in previousFqns]

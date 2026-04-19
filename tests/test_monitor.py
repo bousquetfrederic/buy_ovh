@@ -113,6 +113,19 @@ class TestAvailChangedStr:
                                     r'24sk40')
         assert out == ''
 
+    def test_went_unavailable_emits_X(self):
+        out = mon.avail_changed_Str({'24sk40.foo.gra': 'low'},
+                                    {'24sk40.foo.gra': 'unavailable'},
+                                    r'24sk40')
+        assert out == 'X 24sk40.foo.gra\n'
+
+    def test_still_unavailable_no_output(self):
+        # regression: both ticks unavailable should not re-emit X every loop
+        out = mon.avail_changed_Str({'24sk40.foo.gra': 'unavailable'},
+                                    {'24sk40.foo.gra': 'unavailable'},
+                                    r'24sk40')
+        assert out == ''
+
     def test_pre_and_post_str(self):
         out = mon.avail_changed_Str({'24sk40.foo.gra': 'unavailable'},
                                     {'24sk40.foo.gra': 'low'},
@@ -159,3 +172,8 @@ class TestCatalogAddedRemovedStr:
         prev = [self._p('a.b.c.d')]
         new = [self._p('a.b.c.d')]
         assert mon.catalog_added_removed_Str(prev, new) == ''
+
+    def test_empty_new_returns_empty(self):
+        # guard against transient empty catalog fetch flooding the diff
+        prev = [self._p('a.b.c.d'), self._p('a.b.c.e')]
+        assert mon.catalog_added_removed_Str(prev, []) == ''
