@@ -10,6 +10,7 @@ import requests
 from rich.table import Table
 
 import m.api
+import m.bootstrap
 from m.config import configFile, config_path
 from m.print import console
 
@@ -29,33 +30,13 @@ APIEndpoint   = configFile.get('APIEndpoint', 'ovh-eu')
 ovhSubsidiary = configFile.get('ovhSubsidiary', 'FR')
 fakeBuy       = configFile.get('fakeBuy', True)
 addVAT        = configFile.get('addVAT', False)
-logFile       = configFile.get('logFile', '')
-logLevel      = configFile.get('logLevel', 'WARNING')
 
-if logFile:
-    logging.basicConfig(level=logging.getLevelNamesMapping()[logLevel.upper()],
-                        format="%(asctime)s [buy_vps] [%(levelname)s] %(name)s: %(message)s",
-                        handlers=[logging.FileHandler(logFile, encoding="utf-8")])
+m.bootstrap.setup_logging(configFile, 'buy_vps')
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 logger.info(f"Loaded config from {config_path}")
 
-if 'APIKey' in configFile and 'APISecret' in configFile:
-    if 'APIConsumerKey' in configFile:
-        m.api.login(APIEndpoint,
-                    configFile['APIKey'],
-                    configFile['APISecret'],
-                    configFile['APIConsumerKey'])
-    else:
-        ck = m.api.get_consumer_key(APIEndpoint,
-                                    configFile['APIKey'],
-                                    configFile['APISecret'])
-        if ck != "nokey":
-            print("To add the generated consumer key to your conf.yaml file:")
-            print("APIConsumerKey: " + ck)
-        else:
-            print("Failed to get a consumer key, did you authenticate?")
-        input("Press Enter to continue...")
+m.bootstrap.login_if_credentials(configFile, APIEndpoint)
 
 
 # --- Catalog ---------------------------------------------------------------

@@ -7,6 +7,7 @@ from datetime import datetime
 # modules
 import m.api
 import m.availability
+import m.bootstrap
 import m.cache
 import m.catalog
 import m.interactive
@@ -58,21 +59,8 @@ MAIN_DEFAULTS = {
     'showUnknown': True,
 }
 
-LOGGING_DEFAULTS = {
-    'logFile': '',
-    'logLevel': 'WARNING',
-}
-
 def loadConfigMain(cf):
     for name, spec in MAIN_DEFAULTS.items():
-        if isinstance(spec, tuple):
-            default, yaml_key = spec
-        else:
-            default, yaml_key = spec, name
-        globals()[name] = cf.get(yaml_key, globals().get(name, default))
-
-def loadConfigLogging(cf):
-    for name, spec in LOGGING_DEFAULTS.items():
         if isinstance(spec, tuple):
             default, yaml_key = spec
         else:
@@ -88,39 +76,13 @@ for _k, _v in m.state.load().items():
     globals()[_k] = _v
 
 # Logging
-loadConfigLogging(configFile)
-if logFile:
-    logging.basicConfig(level=logging.getLevelNamesMapping()[logLevel.upper()],
-                        format="%(asctime)s [buy_ovh] [%(levelname)s] %(name)s: %(message)s",
-                        handlers=[logging.FileHandler(logFile, encoding="utf-8")]
-                       )
-if logLevel == "ERROR":
-    logging.getLogger("urllib3").setLevel(logging.ERROR)
-else:
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+m.bootstrap.setup_logging(configFile, 'buy_ovh')
 logger = logging.getLogger(__name__)
-# below in case there is no logfile
 logger.addHandler(logging.NullHandler())
 logger.info(f"Loaded config from {config_path}")
 
 # ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
-if ('APIKey' in configFile and 'APISecret' in configFile):
-    if 'APIConsumerKey' in configFile:
-        m.api.login(APIEndpoint,
-                    configFile['APIKey'],
-                    configFile['APISecret'],
-                    configFile['APIConsumerKey'])
-    else:
-        ck = m.api.get_consumer_key(APIEndpoint,
-                                    configFile['APIKey'],
-                                    configFile['APISecret'])
-        if ck != "nokey":
-            print("To add the generated consumer key to your conf.yaml file:")
-            print("APIConsumerKey: " + ck)
-        else:
-            logger.error("Failed to get a consumer key")
-            print("Failed to get a consumer key, did you authenticate?")
-        input("Press Enter to continue...")
+m.bootstrap.login_if_credentials(configFile, APIEndpoint)
 
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow):

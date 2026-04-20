@@ -7,6 +7,7 @@ import time
 import m.api
 import m.autobuy
 import m.availability
+import m.bootstrap
 import m.catalog
 import m.email
 import m.monitor
@@ -42,11 +43,6 @@ EMAIL_DEFAULTS = {
     'email_exception': False,
 }
 
-LOGGING_DEFAULTS = {
-    'logFile': '',
-    'logLevel': 'WARNING',
-}
-
 def loadConfigMain(cf):
     for name, spec in MAIN_DEFAULTS.items():
         if isinstance(spec, tuple):
@@ -71,14 +67,6 @@ def loadConfigEmail(cf):
         else:
             globals()[name] = globals().get(name, default)
 
-def loadConfigLogging(cf):
-    for name, spec in LOGGING_DEFAULTS.items():
-        if isinstance(spec, tuple):
-            default, yaml_key = spec
-        else:
-            default, yaml_key = spec, name
-        globals()[name] = cf.get(yaml_key, globals().get(name, default))
-
 def loadConfigAutoBuy(cf):
     global autoBuy
     autoBuy = copy.deepcopy(cf['auto_buy']) if 'auto_buy' in cf else autoBuy
@@ -87,17 +75,8 @@ loadConfigMain(configFile)
 
 loadConfigEmail(configFile)
 
-# Logging
-loadConfigLogging(configFile)
-_log_handlers = [logging.FileHandler(logFile, encoding="utf-8")] if logFile \
-                else [logging.StreamHandler(sys.stdout)]
-logging.basicConfig(level=logging.getLevelNamesMapping()[logLevel.upper()],
-                    format="%(asctime)s [monitor_ovh] [%(levelname)s] %(name)s: %(message)s",
-                    handlers=_log_handlers)
-if logLevel == "ERROR":
-    logging.getLogger("urllib3").setLevel(logging.ERROR)
-else:
-    logging.getLogger("urllib3").setLevel(logging.WARNING)
+# Logging — stdout fallback so a long-running monitor is observable without a logFile.
+m.bootstrap.setup_logging(configFile, 'monitor_ovh', stream_fallback=True)
 logger = logging.getLogger(__name__)
 logger.info(f"Loaded config from {config_path}")
 
@@ -108,15 +87,10 @@ loadConfigAutoBuy(configFile)
 # ----------------- LOGIN IF AUTOBUY IS ACTIVE -------------------------------------------------
 # The public endpoints (availability + catalog) don't need auth; only autobuy does.
 if autoBuy:
-    if not ('APIKey' in configFile
-            and 'APISecret' in configFile
-            and 'APIConsumerKey' in configFile):
-        sys.exit("auto_buy is configured but APIKey / APISecret / APIConsumerKey are missing from the config.")
-    if not m.api.login(APIEndpoint,
-                       configFile['APIKey'],
-                       configFile['APISecret'],
-                       configFile['APIConsumerKey']):
-        sys.exit("auto_buy is configured but login failed.")
+    m.bootstrap.login_required(
+        configFile, APIEndpoint,
+        "auto_buy is configured but APIKey / APISecret / APIConsumerKey are missing from the config.",
+        "auto_buy is configured but login failed.")
 
 # ----------------- BUY SERVER ----------------------------------------------------------------
 def buyServer(plan, buyNow):
