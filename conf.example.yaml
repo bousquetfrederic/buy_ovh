@@ -121,6 +121,15 @@ email_added_removed: False
 # Example: all KS-4 in GRA
 email_availability_monitor: 24sk40.*gra
 
+# Same idea for VPS plans. Scans all base VPS planCodes from the public
+# catalog and builds super-FQNs of the form "<planCode>.linux.<DC>".
+# (Windows is not monitored; OVH VPS DC codes are UPPERCASE and differ
+# from the dedi naming -- e.g. EU-WEST-RBX, DE, UK, YNM.)
+# An out-of-stock DC is reported as "unavailable"; a preorder with
+# daysBeforeDelivery <= 30 counts as available.
+# Example: vps-2025-model1/2 in GRA, SBG or RBX.
+email_availability_monitor_vps: vps-2025-model[12]\.linux\.(GRA|SBG|EU-WEST-RBX)
+
 # Checks if any server was added to the catalog
 # These must pass the filters (name, disk and memory)
 email_catalog_monitor: False

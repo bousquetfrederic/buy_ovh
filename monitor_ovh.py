@@ -10,6 +10,7 @@ import m.availability
 import m.catalog
 import m.email
 import m.monitor
+import m.vps
 
 from m.config import configFile, config_path
 
@@ -36,6 +37,7 @@ EMAIL_DEFAULTS = {
     'email_auto_buy': False,
     'email_added_removed': False,
     'email_availability_monitor': '',
+    'email_availability_monitor_vps': '',
     'email_catalog_monitor': False,
     'email_exception': False,
 }
@@ -143,6 +145,8 @@ availabilities = {}
 previousAvailabilities = {}
 plans = []
 previousPlans = []
+vpsAvailabilities = {}
+previousVpsAvailabilities = {}
 
 logger.debug("Starting the monitor loop")
 try:
@@ -151,6 +155,8 @@ try:
             if availabilities:
                 previousAvailabilities = availabilities
                 previousPlans = plans
+            if vpsAvailabilities:
+                previousVpsAvailabilities = vpsAvailabilities
             availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint), acceptable_dc)
             plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
                                          availabilities,
@@ -190,6 +196,15 @@ try:
                 strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "", "<br>")
                 if strCatalogMonitor:
                     m.email.send_email("BUY_OVH: catalog", strCatalogMonitor, False)
+            if email_availability_monitor_vps:
+                vpsAvailabilities = m.vps.build_vps_availability_dict(m.api.api_url(APIEndpoint),
+                                                                      ovhSubsidiary)
+                strVpsMonitor = m.monitor.avail_changed_Str(previousVpsAvailabilities,
+                                                            vpsAvailabilities,
+                                                            email_availability_monitor_vps,
+                                                            "", "<br>")
+                if strVpsMonitor:
+                    m.email.send_email("BUY_OVH: VPS availabilities", strVpsMonitor, False)
             if not foundAutoBuyServer:
                 time.sleep(sleepsecs)
         except KeyboardInterrupt:
