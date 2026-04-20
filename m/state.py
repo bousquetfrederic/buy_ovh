@@ -2,19 +2,15 @@ import logging
 import yaml
 from pathlib import Path
 
+from m.conf import MIRRORED_KEYS
+
 __all__ = ['load', 'save', 'state_file', 'MIRRORED_KEYS']
 
 logger = logging.getLogger(__name__)
 
-# Togglable UI flags mirrored between conf.yaml, the buy_ovh.py globals,
-# and the interactive state dict. Saved to ~/.buy_ovh/state.yaml on
-# interactive exit and re-applied at startup so the next run picks up
-# where the user left off. conf.yaml still provides the baseline — state
-# is a thin overlay on top of the loaded config.
-MIRRORED_KEYS = ('showCpu', 'showFqn', 'showBandwidth',
-                 'showPrice', 'showFee', 'showTotalPrice',
-                 'showUnavailable', 'showUnknown',
-                 'fakeBuy', 'addVAT', 'months')
+# MIRRORED_KEYS lives on m.conf now — the authoritative list is next to
+# the BuyOvhConfig dataclass it describes. Re-exported here so existing
+# imports (`from m.state import MIRRORED_KEYS`) keep working.
 
 
 def state_file():

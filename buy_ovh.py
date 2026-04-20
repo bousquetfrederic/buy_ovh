@@ -1,4 +1,5 @@
 import argparse
+import dataclasses
 import logging
 import sys
 import time
@@ -14,6 +15,7 @@ import m.interactive
 import m.print
 import m.state
 
+from m.conf import BuyOvhConfig
 from m.config import configFile, config_path
 
 
@@ -36,69 +38,40 @@ def _parse_args():
 
 ARGS = _parse_args()
 
-# ----------------- GLOBAL VARIABLES ----------------------------------------------------------
+# ----------------- CONFIG ----------------------------------------------------
 
-MAIN_DEFAULTS = {
-    'acceptable_dc': ([], 'datacenters'),
-    'addVAT': False,
-    'APIEndpoint': 'ovh-eu',
-    'fakeBuy': True,
-    'filterDisk': '',
-    'filterMemory': '',
-    'filterName': '',
-    'maxPrice': 0,
-    'months': 1,
-    'ovhSubsidiary': 'FR',
-    'showBandwidth': True,
-    'showCpu': True,
-    'showFee': False,
-    'showFqn': False,
-    'showPrice': True,
-    'showTotalPrice': False,
-    'showUnavailable': True,
-    'showUnknown': True,
-}
+# Build the typed config once, overlay the persisted UI state from the
+# last interactive session, then hand the whole thing around. The `R`
+# key in interactive builds a fresh config without re-applying the
+# overlay — that's the "reset to conf" escape hatch.
+CFG = BuyOvhConfig.from_yaml(configFile)
+CFG.apply_state_overlay(m.state.load())
 
-def loadConfigMain(cf):
-    for name, spec in MAIN_DEFAULTS.items():
-        if isinstance(spec, tuple):
-            default, yaml_key = spec
-        else:
-            default, yaml_key = spec, name
-        globals()[name] = cf.get(yaml_key, globals().get(name, default))
-
-loadConfigMain(configFile)
-
-# Overlay the last-saved interactive state on top of conf defaults.
-# Applied only once at startup; the `R` key re-runs loadConfigMain
-# without re-applying state, so R stays a clean "reset to conf".
-for _k, _v in m.state.load().items():
-    globals()[_k] = _v
-
-# Logging
 m.bootstrap.setup_logging(configFile, 'buy_ovh')
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.NullHandler())
 logger.info(f"Loaded config from {config_path}")
 
-# ----------------- CONNECT IF INFO IN CONF FILE ----------------------------------------------
-m.bootstrap.login_if_credentials(configFile, APIEndpoint)
+m.bootstrap.login_if_credentials(configFile, CFG.APIEndpoint)
 
-# ----------------- BUY SERVER ----------------------------------------------------------------
-def buyServer(plan, buyNow):
+# ----------------- BUY SERVER ------------------------------------------------
+
+def buyServer(plan, buyNow, cfg):
     strBuyNow = "buy now a " if buyNow else "get an invoice for a "
     strBuy = strBuyNow + plan['model'] + " in " + plan['datacenter'] + "."
     logger.info("Buying: " + strBuy)
     print("Let's " + strBuy)
     try:
-        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, fakeBuy, months), buyNow, fakeBuy)
+        m.api.checkout_cart(
+            m.api.build_cart(plan, cfg.ovhSubsidiary, cfg.fakeBuy, cfg.months),
+            buyNow, cfg.fakeBuy)
     except Exception as e:
         logger.exception("Buying Exception")
         print("Not today.")
         print(e)
         time.sleep(3)
 
-# ----------------- MAIN PROGRAM --------------------------------------------------------------
+# ----------------- MAIN PROGRAM ---------------------------------------------
 
 logger.info("-----------")
 logger.info("Starting up")
@@ -108,111 +81,78 @@ availabilities = {}
 plans = []
 displayedPlans = []
 fetched_at = None
-# Per-column regex filters driven by the interactive UI. Empty at startup;
-# mutated in place by the interactive run loop. The config-level filters
-# (filterName, filterDisk, filterMemory, maxPrice) still narrow the catalog
-# at build_list time; column filters narrow the on-screen list on top of that.
-columnFilters = {}
-# Manual "ignore conf filters" override, toggled from the interactive UI.
-# Intentionally not in MAIN_DEFAULTS / MIRRORED_KEYS: never persisted, never
-# read from conf, always starts False.
-quickLook = False
 
 
-def _filter_displayed(all_plans):
+def _filter_displayed(all_plans, cfg):
     """Apply availability toggles plus per-column regex filters."""
     avail_filtered = [p for p in all_plans
                       if m.availability.test_availability(p['availability'],
-                                                          showUnavailable,
-                                                          showUnknown)]
-    return m.catalog.apply_column_filters(avail_filtered, columnFilters)
+                                                          cfg.showUnavailable,
+                                                          cfg.showUnknown)]
+    return m.catalog.apply_column_filters(avail_filtered, cfg.columnFilters)
 
 
-def refetch():
+def refetch(cfg):
     """Rebuild availabilities, plans, displayedPlans, and fetched_at."""
     global availabilities, plans, displayedPlans, fetched_at
-    fName = '' if quickLook else filterName
-    fDisk = '' if quickLook else filterDisk
-    fMem = '' if quickLook else filterMemory
-    mPrice = 0 if quickLook else maxPrice
-    availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint), acceptable_dc)
-    plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
+    fName = '' if cfg.quickLook else cfg.filterName
+    fDisk = '' if cfg.quickLook else cfg.filterDisk
+    fMem = '' if cfg.quickLook else cfg.filterMemory
+    mPrice = 0 if cfg.quickLook else cfg.maxPrice
+    availabilities = m.availability.build_availability_dict(
+        m.api.api_url(cfg.APIEndpoint), cfg.acceptable_dc)
+    plans = m.catalog.build_list(m.api.api_url(cfg.APIEndpoint),
                                  availabilities,
-                                 ovhSubsidiary,
-                                 fName, fDisk, fMem, acceptable_dc, mPrice,
-                                 addVAT, months,
-                                 showBandwidth)
+                                 cfg.ovhSubsidiary,
+                                 fName, fDisk, fMem, cfg.acceptable_dc, mPrice,
+                                 cfg.addVAT, cfg.months,
+                                 cfg.showBandwidth)
     for p in plans:
         p['autobuy'] = False
-    displayedPlans = _filter_displayed(plans)
+    displayedPlans = _filter_displayed(plans, cfg)
     fetched_at = datetime.now()
-
-# State keys mirrored between the module globals and the interactive state
-# dict. `refresh_fn` / `reload_fn` copy in both directions so whichever side
-# mutates (interactive key, or config reload) both agree on what to fetch.
-# Sourced from m.state so the persisted-state overlay and the interactive
-# mirror stay in lockstep.
-_MIRRORED_STATE = m.state.MIRRORED_KEYS
-
-
-def _stateFromGlobals():
-    return {k: globals()[k] for k in _MIRRORED_STATE}
-
-
-def _applyStateToGlobals(state):
-    for k in _MIRRORED_STATE:
-        globals()[k] = state[k]
 
 
 def runInteractive():
     """Run the interactive navigator; returns when the user quits."""
-    intState = _stateFromGlobals()
     # quickLook is a manual, session-only override — never persisted and
     # never loaded from conf, so it always enters interactive mode off.
-    intState['quickLook'] = False
-    # Shared mutable dict: interactive mutates column filters in place so
-    # they survive across a config reload.
-    intState['filters'] = columnFilters
+    CFG.quickLook = False
 
     def intRefilter():
-        avail = [x for x in plans
-                 if m.availability.test_availability(x['availability'],
-                                                     intState['showUnavailable'],
-                                                     intState['showUnknown'])]
-        return m.catalog.apply_column_filters(avail, columnFilters)
+        return _filter_displayed(plans, CFG)
 
     def intBuy(plan, buyNow):
-        # Push the interactive fakeBuy toggle into the global buyServer reads.
-        _applyStateToGlobals(intState)
-        buyServer(plan, buyNow)
+        buyServer(plan, buyNow, CFG)
 
     def intRefresh():
-        global quickLook
-        _applyStateToGlobals(intState)
-        quickLook = intState.get('quickLook', False)
-        refetch()
+        refetch(CFG)
         return intRefilter(), fetched_at
 
     def intReload():
-        global quickLook
         logger.info('User reloaded the configuration')
-        loadConfigMain(configFile)
-        for k in _MIRRORED_STATE:
-            intState[k] = globals()[k]
-        quickLook = intState.get('quickLook', False)
-        refetch()
+        # Rebuild from conf alone — the persisted overlay is intentionally
+        # not re-applied here, so R acts as a clean reset to conf baseline.
+        # columnFilters survive the reload because the interactive UI owns
+        # them in place.
+        saved_filters = CFG.columnFilters
+        fresh = BuyOvhConfig.from_yaml(configFile)
+        for f in dataclasses.fields(CFG):
+            if f.name != 'columnFilters':
+                setattr(CFG, f.name, getattr(fresh, f.name))
+        CFG.columnFilters = saved_filters
+        refetch(CFG)
         return intRefilter(), fetched_at
 
-    m.interactive.run(displayedPlans, intState, intBuy, intRefilter,
+    m.interactive.run(displayedPlans, CFG, intBuy, intRefilter,
                       refresh_fn=intRefresh, reload_fn=intReload,
                       fetched_at=fetched_at)
-    _applyStateToGlobals(intState)
-    m.state.save(intState)
+    m.state.save(CFG.mirrored_state())
 
 
 def runList():
     """Print the plan list once, cache it, and exit — `buy_ovh.py list`."""
-    m.interactive.render_list(displayedPlans, _stateFromGlobals())
+    m.interactive.render_list(displayedPlans, CFG)
     m.cache.save_list(displayedPlans, fetched_at)
 
 
@@ -237,7 +177,7 @@ def runBuy(tokens):
             continue
         plan = displayedPlans[n]
         for _ in range(times):
-            buyServer(plan, buyNow)
+            buyServer(plan, buyNow, CFG)
 
 
 # initial fetch — `buy` reuses the cache written by `list` so indices stay
@@ -252,7 +192,7 @@ if ARGS.cmd == 'buy':
     fetched_at = cached_at
 else:
     try:
-        refetch()
+        refetch(CFG)
     except Exception as e:
         logger.exception("Startup fetch exception")
         print("Startup fetch failed:")

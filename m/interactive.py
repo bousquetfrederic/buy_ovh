@@ -167,25 +167,25 @@ def _visible_columns(state):
     """Return a list of (header, justify, filter_key) tuples in display
     order. filter_key is None for the row-number column."""
     cols = [('#', 'right', None)]
-    if state['showFqn']:
+    if state.showFqn:
         cols.append(('FQN', 'left', 'fqn'))
     else:
         cols.append(('Plan', 'left', 'planCode'))
         cols.append(('Model', 'left', 'model'))
-        if state['showCpu']:
+        if state.showCpu:
             cols.append(('CPU', 'left', 'cpu'))
         cols.append(('DC', 'center', 'datacenter'))
         cols.append(('Mem', 'right', 'memory'))
         cols.append(('Storage', 'left', 'storage'))
-    if state['showBandwidth']:
+    if state.showBandwidth:
         cols.append(('BW', 'right', 'bandwidth'))
         cols.append(('vRack', 'right', 'vrack'))
-    if state['showPrice']:
-        header = '€/mo' if state.get('months', 1) == 1 else f"€/{state['months']}mo"
+    if state.showPrice:
+        header = '€/mo' if state.months == 1 else f"€/{state.months}mo"
         cols.append((header, 'right', 'price'))
-    if state['showFee']:
+    if state.showFee:
         cols.append(('Fee', 'right', 'fee'))
-    if state['showTotalPrice']:
+    if state.showTotalPrice:
         cols.append(('Total', 'right', 'total'))
     return cols
 
@@ -266,7 +266,7 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
       - toggles:   nav mode only — flags you flip on/off
     Breaking it into distinct rows means each category lives on its own line
     instead of wrapping whenever the terminal happens to be narrow."""
-    if state['fakeBuy']:
+    if state.fakeBuy:
         fake_markup = '[black on yellow] $ FAKE BUY [/]'
     else:
         fake_markup = '[white on red] $ REAL BUY [/]'
@@ -305,7 +305,7 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
         ])
         rows = [meta, Text.from_markup(nav)]
     else:
-        months = state.get('months', 1)
+        months = state.months
         term_label = '1mo' if months == 1 else f'{months}mo'
         nav = '   '.join([
             '[bold]↑↓[/] move',
@@ -321,14 +321,14 @@ def _footer_bar(state, fetched_at, count_buffer, mode, fetching=False):
             '[bold]q[/] quit',
         ])
         toggles = '  '.join([
-            _toggle('c', 'CPU', state['showCpu']),
-            _toggle('f', 'FQN', state['showFqn']),
-            _toggle('b', 'BW', state['showBandwidth']),
-            _toggle('T', 'VAT', state.get('addVAT', False)),
-            _toggle('u', 'unavail', state['showUnavailable']),
-            _toggle('U', 'unknown', state['showUnknown']),
-            _toggle('$', 'fake', state['fakeBuy']),
-            _toggle('Q', 'QuickLook', state.get('quickLook', False)),
+            _toggle('c', 'CPU', state.showCpu),
+            _toggle('f', 'FQN', state.showFqn),
+            _toggle('b', 'BW', state.showBandwidth),
+            _toggle('T', 'VAT', state.addVAT),
+            _toggle('u', 'unavail', state.showUnavailable),
+            _toggle('U', 'unknown', state.showUnknown),
+            _toggle('$', 'fake', state.fakeBuy),
+            _toggle('Q', 'QuickLook', state.quickLook),
         ])
         rows = [meta, Text.from_markup(nav), Text.from_markup(toggles)]
     return Panel(Group(*rows),
@@ -355,17 +355,17 @@ def _printable(key):
 def run(displayedPlans, state, buy_fn, refilter_fn,
         refresh_fn=None, reload_fn=None, fetched_at=None):
     """
-    state: dict of toggle flags the caller reads back on return. Keys:
-      showCpu, showFqn, showBandwidth, showPrice, showFee, showTotalPrice,
-      showUnavailable, showUnknown, fakeBuy, addVAT, months, filters.
-    `filters` is a mutable {column_key: pattern} dict owned by the caller;
-    interactive mutates it in place.
+    state: a BuyOvhConfig-like object exposing the fields the UI reads and
+      writes via attribute access: showCpu, showFqn, showBandwidth,
+      showPrice, showFee, showTotalPrice, showUnavailable, showUnknown,
+      fakeBuy, addVAT, months, quickLook, columnFilters. Interactive
+      mutates these in place; the caller persists the subset it cares
+      about on return.
     buy_fn(plan, buyNow): called once per buy, N times for a N-multiplier.
     refilter_fn(): returns a freshly filtered displayedPlans for the current
-      state and filters.
+      state and columnFilters.
     refresh_fn(): re-fetches availabilities/catalog with the current state
-      (months/addVAT written back to globals by the caller) and returns
-      (displayedPlans, fetched_at).
+      and returns (displayedPlans, fetched_at).
     reload_fn(): re-reads the config file (mutating state in place) and
       returns (displayedPlans, fetched_at).
     """
@@ -376,7 +376,7 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
     show_help = False
     mode = 'nav'
     count_buffer = ''
-    filters = state.setdefault('filters', {})
+    filters = state.columnFilters
     filter_snapshot = dict(filters)
     focus_idx = 0
     buy_message = None
@@ -634,27 +634,27 @@ def run(displayedPlans, state, buy_fn, refilter_fn,
             elif key == 'R' and reload_fn is not None:
                 do_fetch(reload_fn)
             elif key == 'M' and refresh_fn is not None:
-                state['months'] = {1: 12, 12: 24, 24: 1}.get(state.get('months', 1), 1)
+                state.months = {1: 12, 12: 24, 24: 1}.get(state.months, 1)
                 do_fetch(refresh_fn)
             elif key == 'T' and refresh_fn is not None:
-                state['addVAT'] = not state.get('addVAT', False)
+                state.addVAT = not state.addVAT
                 do_fetch(refresh_fn)
             elif key == 'c':
-                state['showCpu'] = not state['showCpu']
+                state.showCpu = not state.showCpu
             elif key == 'f':
-                state['showFqn'] = not state['showFqn']
+                state.showFqn = not state.showFqn
             elif key == 'b':
-                state['showBandwidth'] = not state['showBandwidth']
+                state.showBandwidth = not state.showBandwidth
             elif key == 'u':
-                state['showUnavailable'] = not state['showUnavailable']
+                state.showUnavailable = not state.showUnavailable
                 displayedPlans = refilter_fn()
             elif key == 'U':
-                state['showUnknown'] = not state['showUnknown']
+                state.showUnknown = not state.showUnknown
                 displayedPlans = refilter_fn()
             elif key == '$':
-                state['fakeBuy'] = not state['fakeBuy']
+                state.fakeBuy = not state.fakeBuy
             elif key == 'Q' and refresh_fn is not None:
-                state['quickLook'] = not state.get('quickLook', False)
+                state.quickLook = not state.quickLook
                 do_fetch(refresh_fn)
     finally:
         live.stop()

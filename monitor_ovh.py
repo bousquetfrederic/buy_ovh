@@ -1,4 +1,3 @@
-import copy
 import logging
 import sys
 import time
@@ -13,97 +12,38 @@ import m.email
 import m.monitor
 import m.vps
 
+from m.conf import MonitorConfig
 from m.config import configFile, config_path
 
-# ----------------- GLOBAL VARIABLES ----------------------------------------------------------
-
-MAIN_DEFAULTS = {
-    'acceptable_dc': ([], 'datacenters'),
-    'addVAT': False,
-    'APIEndpoint': 'ovh-eu',
-    'fakeBuy': True,
-    'filterDisk': '',
-    'filterMemory': '',
-    'filterName': '',
-    'maxPrice': 0,
-    'months': 1,
-    'ovhSubsidiary': 'FR',
-    'showBandwidth': True,
-    'sleepsecs': 60,
-}
-
-EMAIL_DEFAULTS = {
-    'email_on': False,
-    'email_at_startup': False,
-    'email_auto_buy': False,
-    'email_added_removed': False,
-    'email_availability_monitor': '',
-    'email_availability_monitor_vps': '',
-    'email_catalog_monitor': False,
-    'email_exception': False,
-}
-
-def loadConfigMain(cf):
-    for name, spec in MAIN_DEFAULTS.items():
-        if isinstance(spec, tuple):
-            default, yaml_key = spec
-        else:
-            default, yaml_key = spec, name
-        globals()[name] = cf.get(yaml_key, globals().get(name, default))
-
-def loadConfigEmail(cf):
-    # email_on must be resolved first so the gating below is correct
-    email_on_val = cf.get('email_on', globals().get('email_on', EMAIL_DEFAULTS['email_on']))
-    globals()['email_on'] = email_on_val
-    for name, spec in EMAIL_DEFAULTS.items():
-        if name == 'email_on':
-            continue  # already handled
-        if isinstance(spec, tuple):
-            default, yaml_key = spec
-        else:
-            default, yaml_key = spec, name
-        if yaml_key in cf and email_on_val:
-            globals()[name] = cf[yaml_key]
-        else:
-            globals()[name] = globals().get(name, default)
-
-def loadConfigAutoBuy(cf):
-    global autoBuy
-    autoBuy = copy.deepcopy(cf['auto_buy']) if 'auto_buy' in cf else autoBuy
-
-loadConfigMain(configFile)
-
-loadConfigEmail(configFile)
+CFG = MonitorConfig.from_yaml(configFile)
 
 # Logging — stdout fallback so a long-running monitor is observable without a logFile.
 m.bootstrap.setup_logging(configFile, 'monitor_ovh', stream_fallback=True)
 logger = logging.getLogger(__name__)
 logger.info(f"Loaded config from {config_path}")
 
-# Auto Buy
-autoBuy = []
-loadConfigAutoBuy(configFile)
-
 # ----------------- LOGIN IF AUTOBUY IS ACTIVE -------------------------------------------------
 # The public endpoints (availability + catalog) don't need auth; only autobuy does.
-if autoBuy:
+if CFG.autoBuy:
     m.bootstrap.login_required(
-        configFile, APIEndpoint,
+        configFile, CFG.APIEndpoint,
         "auto_buy is configured but APIKey / APISecret / APIConsumerKey are missing from the config.",
         "auto_buy is configured but login failed.")
 
 # ----------------- BUY SERVER ----------------------------------------------------------------
-def buyServer(plan, buyNow):
+def buyServer(plan, buyNow, cfg):
     strBuyNow = "buy now a " if buyNow else "get an invoice for a "
     strBuy = strBuyNow + plan['model'] + " in " + plan['datacenter'] + "."
     logger.info("Buying: " + strBuy + "   -Auto Mode-")
     try:
-        m.api.checkout_cart(m.api.build_cart(plan, ovhSubsidiary, fakeBuy, months), buyNow, fakeBuy)
-        if email_auto_buy:
+        m.api.checkout_cart(
+            m.api.build_cart(plan, cfg.ovhSubsidiary, cfg.fakeBuy, cfg.months),
+            buyNow, cfg.fakeBuy)
+        if cfg.email_auto_buy:
             m.email.send_auto_buy_email("SUCCESS: " + strBuy)
     except Exception as e:
         logger.exception("Buying Exception")
-        if email_auto_buy:
+        if cfg.email_auto_buy:
             m.email.send_auto_buy_email("FAILED: " + strBuy)
         time.sleep(3)
 
@@ -112,7 +52,7 @@ def buyServer(plan, buyNow):
 logger.info("-----------")
 logger.info("Starting up")
 logger.info("-----------")
-if email_at_startup:
+if CFG.email_at_startup:
     m.email.send_startup_email()
 
 availabilities = {}
@@ -131,64 +71,66 @@ try:
                 previousPlans = plans
             if vpsAvailabilities:
                 previousVpsAvailabilities = vpsAvailabilities
-            availabilities = m.availability.build_availability_dict(m.api.api_url(APIEndpoint), acceptable_dc)
-            plans = m.catalog.build_list(m.api.api_url(APIEndpoint),
+            availabilities = m.availability.build_availability_dict(
+                m.api.api_url(CFG.APIEndpoint), CFG.acceptable_dc)
+            plans = m.catalog.build_list(m.api.api_url(CFG.APIEndpoint),
                                          availabilities,
-                                         ovhSubsidiary,
-                                         filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
-                                         addVAT, months,
-                                         showBandwidth)
-            m.autobuy.add_auto_buy(plans, autoBuy)
+                                         CFG.ovhSubsidiary,
+                                         CFG.filterName, CFG.filterDisk, CFG.filterMemory,
+                                         CFG.acceptable_dc, CFG.maxPrice,
+                                         CFG.addVAT, CFG.months,
+                                         CFG.showBandwidth)
+            m.autobuy.add_auto_buy(plans, CFG.autoBuy)
             foundAutoBuyServer = False
-            if autoBuy:
+            if CFG.autoBuy:
                 logger.debug("Looking for servers to auto buy")
                 for plan in plans:
                     if plan['autobuy']:
-                        for auto in autoBuy:
+                        for auto in CFG.autoBuy:
                             if (m.autobuy.is_auto_buy(plan, auto)
                                 and m.availability.test_availability(plan['availability'], False, auto['unknown'])
                             ):
                                 logger.info("Found one for regex [" + auto['regex'] + "]: " + plan['fqn'])
                                 foundAutoBuyServer = True
-                                buyServer(plan, not auto['invoice'])
+                                buyServer(plan, not auto['invoice'], CFG)
                                 auto['num'] -= 1
                 if not foundAutoBuyServer:
                     logger.debug("Found none.")
             # availability and catalog monitor if configured
             strAvailMonitor = ""
-            if email_added_removed:
+            if CFG.email_added_removed:
                 strAvailMonitor = m.monitor.avail_added_removed_Str(previousAvailabilities, availabilities, "", "<br>")
-            if email_availability_monitor:
+            if CFG.email_availability_monitor:
                 strAvailMonitor = strAvailMonitor + \
                                   m.monitor.avail_changed_Str(previousAvailabilities,
                                                               availabilities,
-                                                              email_availability_monitor,
+                                                              CFG.email_availability_monitor,
                                                               "", "<br>")
             if strAvailMonitor:
                 m.email.send_email("BUY_OVH: availabilities", strAvailMonitor, False)
-            if email_catalog_monitor:
+            if CFG.email_catalog_monitor:
                 strCatalogMonitor = m.monitor.catalog_added_removed_Str(previousPlans, plans, "", "<br>")
                 if strCatalogMonitor:
                     m.email.send_email("BUY_OVH: catalog", strCatalogMonitor, False)
-            if email_availability_monitor_vps:
-                vpsAvailabilities = m.vps.build_vps_availability_dict(m.api.api_url(APIEndpoint),
-                                                                      ovhSubsidiary)
+            if CFG.email_availability_monitor_vps:
+                vpsAvailabilities = m.vps.build_vps_availability_dict(
+                    m.api.api_url(CFG.APIEndpoint), CFG.ovhSubsidiary)
                 strVpsMonitor = m.monitor.avail_changed_Str(previousVpsAvailabilities,
                                                             vpsAvailabilities,
-                                                            email_availability_monitor_vps,
+                                                            CFG.email_availability_monitor_vps,
                                                             "", "<br>")
                 if strVpsMonitor:
                     m.email.send_email("BUY_OVH: VPS availabilities", strVpsMonitor, False)
             if not foundAutoBuyServer:
-                time.sleep(sleepsecs)
+                time.sleep(CFG.sleepsecs)
         except KeyboardInterrupt:
             raise
         except Exception as e:
             logger.exception("Exception!")
-            if email_exception:
+            if CFG.email_exception:
                 m.email.send_email("BUY_OVH: Exception", str(e))
-            logger.info("Wait " + str(sleepsecs) + "s before retry.")
-            time.sleep(sleepsecs)
+            logger.info("Wait " + str(CFG.sleepsecs) + "s before retry.")
+            time.sleep(CFG.sleepsecs)
 except KeyboardInterrupt:
     logger.info("User pressed CTRL-C.")
     sys.exit("Bye now.")
