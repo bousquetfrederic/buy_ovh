@@ -4,7 +4,8 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['build_list', 'apply_column_filters', 'column_display_value',
+__all__ = ['build_list', 'fetch_catalog',
+           'apply_column_filters', 'column_display_value',
            'COLUMN_KEYS', 'TEXT_COLUMNS', 'NUMERIC_COLUMNS']
 
 # Canonical column identifiers used by the interactive filter bar. Kept in
@@ -93,211 +94,257 @@ def apply_column_filters(plans, filters):
             out.append(p)
     return out
 
-# -------------- EXTRACT THE PRICE AND FEES INCLUDING PROMOTION ----------------------------------------------------
-def getPriceValue(price):
-    myPrice = float(price['price'])/100000000
-    allPromo = price['promotions']
-    if allPromo:
-        allPercentPromo = [x for x in allPromo if x['type']=='percentage']
-        # take only the first one
-        if allPercentPromo:
-            myPromo = float(100-allPercentPromo[0]['value'])/100
-        else:
-            myPromo = 1
-    else:
-        myPromo = 1
-    return myPrice * myPromo
+# -------------- PRICING ----------------------------------------------------
 
-def getPlanPrice(plan, mode):
+# OVH quotes prices in 1e-8 of the locale currency (e.g. 1_000_000_000 → 10.00 EUR).
+_PRICE_SCALE = 100_000_000
+
+
+def _apply_promo(entry):
+    """Convert an OVH `pricings` row to a currency float, applying any
+    percentage promo attached to the row. Non-percentage promos are
+    ignored (buy_ovh never implemented those)."""
+    base = float(entry['price']) / _PRICE_SCALE
+    promos = entry.get('promotions') or []
+    pct = next((p for p in promos if p.get('type') == 'percentage'), None)
+    if pct is None:
+        return base
+    return base * (100 - float(pct['value'])) / 100
+
+
+def _find_pricing(plan, *, mode, phase, capacity):
+    """Return the first `pricings` row matching (mode, phase, capacity)
+    with strategy=tiered, or None if no such row exists. Malformed rows
+    — missing keys, wrong types — are treated as absent rather than
+    crashing the whole catalog parse."""
+    for entry in plan.get('pricings') or []:
+        try:
+            if (entry['phase'] == phase
+                    and entry['capacities'][0] == capacity
+                    and entry['strategy'] == 'tiered'
+                    and entry['mode'] == mode):
+                return entry
+        except (KeyError, IndexError, TypeError):
+            continue
+    return None
+
+
+def plan_price(plan, mode):
+    """Return the monthly/term price for `plan` in `mode`, or None if the
+    plan has no offer at that commitment. Callers use None to drop plans
+    from the list rather than fake a price."""
+    entry = _find_pricing(plan, mode=mode, phase=1, capacity='renew')
+    return _apply_promo(entry) if entry is not None else None
+
+
+def plan_fee(plan, mode):
+    """Return the installation fee for `plan` in `mode`, or 0.0 when no
+    fee row exists. (Unlike price, a missing fee is not a reason to drop
+    the plan — plenty of plans ship with no installation charge.)"""
+    entry = _find_pricing(plan, mode=mode, phase=0, capacity='installation')
+    return _apply_promo(entry) if entry is not None else 0.0
+
+
+def addon_price_with_fallback(addon, mode, months):
+    """Return the addon's price in `mode`, falling back to default×months
+    when `mode` is absent but the plan quotes a monthly default.
+
+    Distinguishes two flavors of 0:
+     - a bundled addon whose default quote is 0.0 (free memory tier, etc.)
+       stays 0.0, because default is found and multiplied;
+     - an addon that doesn't list any renew pricing at all returns 0.0
+       because there's nothing to charge.
+    """
+    entry = _find_pricing(addon, mode=mode, phase=1, capacity='renew')
+    if entry is not None:
+        return _apply_promo(entry)
+    if mode == 'default':
+        return 0.0
+    default_entry = _find_pricing(addon, mode='default', phase=1, capacity='renew')
+    if default_entry is None:
+        return 0.0
+    return _apply_promo(default_entry) * months
+
+# -------------- CATALOG PARSING -----------------------------------------------
+
+def fetch_catalog(url, ovhSubsidiary):
+    """Fetch the eco (dedicated-server) catalog for the given subsidiary.
+    Thin wrapper around requests.get so tests can patch one seam."""
+    response = requests.get(
+        url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
+    return response.json()
+
+
+def _pricing_mode(months):
+    if months == 12:
+        return 'upfront12'
+    if months == 24:
+        return 'upfront24'
+    return 'default'
+
+
+def _addons_by_code(catalog):
+    """Map planCode → addon dict (minus planCode itself, which becomes the key)."""
+    return {addon['planCode']: {k: v for k, v in addon.items() if k != 'planCode'}
+            for addon in catalog['addons']}
+
+
+def _vat_rate(catalog, addVAT):
+    """Return (1 + taxRate/100) from the catalog's locale, or 1 when
+    the catalog doesn't expose a tax rate. The warning is printed only
+    when the user actually asked for VAT — silent otherwise."""
     try:
-        allPlanPrices = [x for x in plan['pricings']
-                         if x['phase'] == 1
-                         and x['capacities'][0] == 'renew'
-                         and x['strategy'] == 'tiered'
-                         and x['mode'] == mode]
-        return getPriceValue(allPlanPrices[0])
-    except (KeyError, IndexError, TypeError):
-        return 0
-
-def getPlanFee(plan, mode):
-    try:
-        allPlanFees = [x for x in plan['pricings']
-                       if x['phase'] == 0
-                       and x['capacities'][0] == 'installation'
-                       and x['strategy'] == 'tiered'
-                       and x['mode']  == mode]
-        return getPriceValue(allPlanFees[0])
-    except (KeyError, IndexError, TypeError):
-        return 0
+        return 1 + catalog['locale']['taxRate'] / 100
+    except (KeyError, TypeError):
+        logger.exception("Could not read VAT from the catalog")
+        if addVAT:
+            print("Could not read VAT from the catalog")
+        return 1
 
 
-def priceWithFallback(plan, mode, months):
-    # Addon-only fallback: when the plan supports the requested commitment
-    # but an addon doesn't list that mode, estimate the cost as default
-    # × months. Bundled addons have default=0 so this is a no-op for them.
-    # The plan itself is handled separately (plans without the mode are
-    # dropped, not faked).
-    price = getPlanPrice(plan, mode)
-    if price == 0 and mode != 'default':
-        default_price = getPlanPrice(plan, 'default')
-        if default_price > 0:
-            return default_price * months
-    return price
+def _parse_invoice_name(invoice_name):
+    """'MODEL |CPU ' (OVH's format) → (model, cpu). Missing cpu segment
+    yields ('MODEL', 'unknown')."""
+    parts = invoice_name.split('|')
+    if len(parts) > 1:
+        # trim the trailing space baked into OVH's model column
+        return parts[0][:-1], parts[1][1:]
+    return parts[0], 'unknown'
 
-# -------------- BUILD LIST OF SERVERS ---------------------------------------------------------------------------
+
+def _addon_families(plan):
+    """Extract the four mandatory addon lists. Missing families return
+    empty lists; a missing vrack family is later coerced to ['none']."""
+    out = {'storage': [], 'memory': [], 'bandwidth': [], 'vrack': []}
+    for family in plan.get('addonFamilies') or []:
+        if family['name'] in out:
+            out[family['name']] = family['addons']
+    return out
+
+
+def _datacenters_for_plan(plan, acceptable_dc):
+    """Plan's DCs restricted to the user's acceptable_dc list and
+    sorted to match its order. When acceptable_dc is empty, return the
+    plan's list unchanged."""
+    dcs = []
+    for config in plan.get('configurations') or []:
+        if config['name'] == 'dedicated_datacenter':
+            dcs = config['values']
+            break
+    if not acceptable_dc:
+        return dcs
+    filtered = [x for x in dcs if x in acceptable_dc]
+    return sorted(filtered, key=acceptable_dc.index)
+
+# -------------- CROSS-PRODUCT EXPANSION --------------------------------------
+
+def _expand_plan(plan, addons, mode, months,
+                 acceptable_dc, filterName, filterDisk, filterMemory,
+                 maxPrice, addVAT, vat_rate,
+                 bandwidthAndVRack, avail):
+    """Turn one OVH plan into the full list of {plan}×{dc}×{mem}×{storage}×
+    {bw}×{vrack} variants that pass all the filters. Returns []  when the
+    plan has no offer at this commitment or no combination survives the
+    filters."""
+    planCode = plan['planCode']
+    model, cpu = _parse_invoice_name(plan['invoiceName'])
+
+    # Name filter: match either invoice model or plan code.
+    if not (re.search(filterName, model) or re.search(filterName, planCode)):
+        return []
+
+    price = plan_price(plan, mode)
+    # Plans without an offer at this commitment are dropped rather than
+    # priced at 0 — the cart API would reject them anyway.
+    if price is None:
+        return []
+    fee = plan_fee(plan, mode)
+
+    families = _addon_families(plan)
+    memories = families['memory']
+    storages = families['storage']
+    bandwidths = families['bandwidth']
+    vracks = families['vrack'] or ['none']
+    dcs = _datacenters_for_plan(plan, acceptable_dc)
+
+    out = []
+    for da in dcs:
+        for me in memories:
+            memory_addon = addons[me]
+            if not re.search(filterMemory, memory_addon['product']):
+                continue
+            mem_price = addon_price_with_fallback(memory_addon, mode, months)
+            mem_fee = plan_fee(memory_addon, mode)
+            for st in storages:
+                storage_addon = addons[st]
+                if not re.search(filterDisk, storage_addon['product']):
+                    continue
+                st_price = addon_price_with_fallback(storage_addon, mode, months)
+                st_fee = plan_fee(storage_addon, mode)
+                for ba in bandwidths:
+                    bw_price = addon_price_with_fallback(addons[ba], mode, months)
+                    # Paid bandwidth is dropped when the flag is off; bundled
+                    # (price==0) bandwidth always passes.
+                    if not bandwidthAndVRack and bw_price > 0.0:
+                        continue
+                    for vr in vracks:
+                        vr_price = 0.0
+                        if vr != 'none':
+                            vr_price = addon_price_with_fallback(addons[vr], mode, months)
+                            if not bandwidthAndVRack and vr_price > 0.0:
+                                continue
+
+                        total_price = price + mem_price + st_price + bw_price + vr_price
+                        total_fee = fee + mem_fee + st_fee
+                        if addVAT:
+                            total_price = round(total_price * vat_rate, 2)
+                            total_fee = round(total_fee * vat_rate, 2)
+
+                        # maxPrice is per-month; scale to the current term.
+                        if maxPrice > 0 and total_price > maxPrice * months:
+                            continue
+
+                        fqn = f"{planCode}.{memory_addon['product']}.{storage_addon['product']}.{da}"
+                        out.append({
+                            'planCode': planCode,
+                            'model': model,
+                            'cpu': cpu,
+                            'datacenter': da,
+                            'storage': st,
+                            'memory': me,
+                            'bandwidth': ba,
+                            'vrack': vr,
+                            'fqn': fqn,
+                            'price': total_price,
+                            'fee': total_fee,
+                            'availability': avail.get(fqn, 'unknown'),
+                        })
+    return out
+
+
 def build_list(url,
                avail, ovhSubsidiary,
                filterName, filterDisk, filterMemory, acceptable_dc, maxPrice,
                addVAT, months,
                bandwidthAndVRack):
+    """Top-level: fetch OVH's catalog, expand every plan into its
+    {dc×mem×storage×bw×vrack} variants, apply the user's filters, and
+    return the resulting list sorted by planCode.
+
+    Public signature kept stable — `buy_ovh.py` and `monitor_ovh.py` both
+    call this with positional args."""
     logger.debug("Building Server list")
-    response = requests.get(url + "order/catalog/public/eco?ovhSubsidiary=" + ovhSubsidiary)
-    API_catalog = response.json()
+    catalog = fetch_catalog(url, ovhSubsidiary)
+    mode = _pricing_mode(months)
+    addons = _addons_by_code(catalog)
+    vat_rate = _vat_rate(catalog, addVAT)
+    logger.debug("VAT Rate=" + str(vat_rate))
 
-    allPlans = API_catalog['plans']
-    myPlans = []
-
-    if months == 12:
-        pricingMode = 'upfront12'
-    elif months == 24:
-        pricingMode = 'upfront24'
-    else:
-        pricingMode = 'default'
-
-    allAddonsDict = {}
-    for addon in API_catalog['addons']:
-        planCode = addon["planCode"]
-        allAddonsDict[planCode] = {k: v for k, v in addon.items() if k != "planCode"}
-
-    try:
-        vatRate = 1 + (API_catalog['locale']['taxRate']) / 100
-    except (KeyError, TypeError):
-        logger.exception("Could not read VAT from the catalog")
-        if addVAT:
-            print("Could not read VAT from the catalog")
-        vatRate = 1
-    logger.debug("VAT Rate=" + str(vatRate))
-
-    for plan in allPlans:
-        planCode = plan['planCode']
-        invoiceNameSplit = plan['invoiceName'].split('|')
-        model = invoiceNameSplit[0]
-        if len(invoiceNameSplit) > 1:
-            cpu = invoiceNameSplit[1][1:]
-            # remove extra space at the end of the model name
-            model = model[:-1]
-        else:
-            cpu = "unknown"
-        # only consider plans passing the name filter, which is a regular expression
-        # Either model (from invoice name) of plan code must match
-        if not (bool(re.search(filterName, model))
-                or bool(re.search(filterName, plan['planCode']))):
-            continue
-
-        # find the price and fee
-        planFee = getPlanFee(plan, pricingMode)
-        planPrice = getPlanPrice(plan, pricingMode)
-        # If the plan has no entry for the requested commitment (e.g. some
-        # 2026 KS plans ship without upfront24), it can't be bought at that
-        # term — drop it from the list rather than fake a price.
-        if planPrice == 0 and pricingMode != 'default':
-            continue
-
-        allStorages = []
-        allMemories = []
-        allBandwidths = []
-        allVRack = []
-
-        # find mandatory addons
-        for family in plan['addonFamilies']:
-            if family['name'] == "storage":
-                allStorages = family['addons']
-            elif family['name'] == "memory":
-                allMemories = family['addons']
-            elif family['name'] == "bandwidth":
-                allBandwidths = family['addons']
-            elif family['name'] == "vrack":
-                allVRack = family['addons']
-
-        # vRack is not always present
-        if not allVRack:
-            allVRack = ['none']
-
-        allDatacenters = []
-
-        # same for datacenters
-        for config in plan['configurations']:
-            if config['name'] == "dedicated_datacenter":
-                allDatacenters = config['values']
-                # filter and sort datacenters per acceptable_dc
-                if acceptable_dc:
-                    filteredDatacenters = [x for x in allDatacenters if x in acceptable_dc]
-                    sortedDatacenters = sorted(filteredDatacenters, key=lambda x: acceptable_dc.index(x))
-                else:
-                    sortedDatacenters = allDatacenters
-
-        # build a list of all possible combinations
-        for da in sortedDatacenters:
-            for me in allMemories:
-                memoryPlan = allAddonsDict[me]
-                # apply the memory filter
-                if not bool(re.search(filterMemory,memoryPlan['product'])):
-                    continue
-                memoryFee = getPlanFee(memoryPlan, pricingMode)
-                memoryPrice = priceWithFallback(memoryPlan, pricingMode, months)
-                for st in allStorages:
-                    storagePlan = allAddonsDict[st]
-                    # apply the disk filter
-                    if not bool(re.search(filterDisk,storagePlan['product'])):
-                        continue
-                    storageFee = getPlanFee(storagePlan, pricingMode)
-                    storagePrice = priceWithFallback(storagePlan, pricingMode, months)
-                    for ba in allBandwidths:
-                        bandwidthPlan = allAddonsDict[ba]
-                        bandwidthPrice = priceWithFallback(bandwidthPlan, pricingMode, months)
-                        for vr in allVRack:
-                            thisPrice = planPrice + memoryPrice + storagePrice
-                            thisFee = planFee + memoryFee + storageFee
-                            # if showBandwidth is false, drop the plans with a bandwidth that costs money
-                            if not bandwidthAndVRack and bandwidthPrice > 0.0:
-                                continue
-                            thisPrice = thisPrice + bandwidthPrice
-                            if vr != 'none':
-                                vRackPlan = allAddonsDict[vr]
-                                vRackPrice = priceWithFallback(vRackPlan, pricingMode, months)
-                                # if showBandwidth is false, drop the plans with a vRack that costs money
-                                if not bandwidthAndVRack and vRackPrice > 0.0:
-                                    continue
-                                # not sure if there is setup fee for the vRack?
-                                thisPrice = thisPrice + vRackPrice
-                            if addVAT:
-                                # apply the VAT to the price
-                                thisFee = round(thisFee * vatRate, 2)
-                                thisPrice = round(thisPrice * vatRate, 2)
-                            # apply the max price filter if different from 0
-                            # maxPrice is always per month; scale it to match
-                            # the period covered by the current price.
-                            if maxPrice > 0 and thisPrice > maxPrice * months:
-                                continue
-                            myFqn = planCode + "." + memoryPlan['product'] + "." + storagePlan['product'] + "." + da
-                            if myFqn in avail:
-                                myavailability = avail[myFqn]
-                            else:
-                                myavailability = 'unknown'
-                            # Add the plan to the list
-                            myPlans.append(
-                                { 'planCode' : planCode,
-                                'model' : model,
-                                'cpu' : cpu,
-                                'datacenter' : da,
-                                'storage' : st,
-                                'memory' : me,
-                                'bandwidth' : ba,
-                                'vrack' : vr,
-                                'fqn' : myFqn, # for auto buy
-                                'price' : thisPrice,
-                                'fee' : thisFee,
-                                'availability' : myavailability
-                                })
-    return sorted(myPlans, key=lambda x: x['planCode'])
-
+    plans_out = []
+    for plan in catalog['plans']:
+        plans_out.extend(_expand_plan(
+            plan, addons, mode, months,
+            acceptable_dc, filterName, filterDisk, filterMemory,
+            maxPrice, addVAT, vat_rate,
+            bandwidthAndVRack, avail))
+    return sorted(plans_out, key=lambda x: x['planCode'])
