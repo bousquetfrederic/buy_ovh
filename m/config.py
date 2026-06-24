@@ -2,6 +2,8 @@ import sys
 import yaml
 from pathlib import Path
 
+from m.conf import warn_unknown_keys
+
 __all__ = ['configFile', 'config_path']
 
 
@@ -39,3 +41,8 @@ except Exception as e:
         print("Error with config file")
         print(e)
         sys.exit("Bye now.")
+
+# Flag conf keys no tool understands (typos, stale keys). Skipped under
+# --help, where the config isn't actually used.
+if not _wants_help:
+    warn_unknown_keys(configFile)

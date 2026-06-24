@@ -85,8 +85,6 @@ showFee: False
 # show the price for first month (price+fee)
 showTotalPrice: False
 
-# show a helpful prompt after the list of server
-showPrompt: True
 # show the CPU type if available (unless showFqn=true)
 showCpu: False
 # show the servers even if they are unavailable

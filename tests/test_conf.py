@@ -4,7 +4,8 @@ These tests cover the from_yaml / apply_state_overlay / mirrored_state
 round-trip that used to be scattered across buy_ovh's loadConfigMain
 function, module globals, MIRRORED_KEYS, and the m.state overlay.
 """
-from m.conf import BuyOvhConfig, MonitorConfig, MIRRORED_KEYS
+from m.conf import (BuyOvhConfig, MonitorConfig, MIRRORED_KEYS,
+                    KNOWN_YAML_KEYS, warn_unknown_keys)
 
 
 class TestBuyOvhConfigFromYaml:
@@ -149,3 +150,30 @@ class TestMonitorConfig:
     def test_datacenters_alias(self):
         cfg = MonitorConfig.from_yaml({'datacenters': ['gra']})
         assert cfg.acceptable_dc == ['gra']
+
+
+class TestUnknownKeys:
+
+    def test_clean_config_has_no_unknown_keys(self):
+        cf = {'showFee': True, 'datacenters': ['gra'], 'auto_buy': [],
+              'APIKey': 'x', 'logFile': 'log.txt', 'email_sender': 'a@b.c'}
+        assert warn_unknown_keys(cf) == []
+
+    def test_typo_is_flagged(self, capsys):
+        # The bug that started this: showFees (plural) is silently ignored.
+        unknown = warn_unknown_keys({'showFees': True, 'showFee': True})
+        assert unknown == ['showFees']
+        assert 'showFees' in capsys.readouterr().err
+
+    def test_multiple_unknown_keys_sorted(self):
+        assert warn_unknown_keys({'zzz': 1, 'aaa': 2}) == ['aaa', 'zzz']
+
+    def test_aliased_field_name_is_unknown(self):
+        # YAML must use `datacenters`, not the attribute name `acceptable_dc`.
+        assert warn_unknown_keys({'acceptable_dc': []}) == ['acceptable_dc']
+
+    def test_union_of_both_tools_is_accepted(self):
+        # A buy_ovh-only key and a monitor_ovh-only key are both "known"
+        # because conf.yaml is shared across tools.
+        assert 'showFqn' in KNOWN_YAML_KEYS      # buy_ovh only
+        assert 'sleepsecs' in KNOWN_YAML_KEYS    # monitor_ovh only

@@ -22,8 +22,10 @@ from dataclasses import dataclass, field, fields
 from typing import Any
 
 import copy
+import sys
 
-__all__ = ['BuyOvhConfig', 'MonitorConfig', 'MIRRORED_KEYS']
+__all__ = ['BuyOvhConfig', 'MonitorConfig', 'MIRRORED_KEYS',
+           'KNOWN_YAML_KEYS', 'warn_unknown_keys']
 
 # Keys round-tripped between the buy_ovh Config and ~/.buy_ovh/state.yaml.
 # The interactive UI mutates these; everything else on BuyOvhConfig is
@@ -170,3 +172,44 @@ class MonitorConfig:
         # deep-copy to avoid poisoning the YAML dict.
         inst.autoBuy = copy.deepcopy(inst.autoBuy)
         return inst
+
+
+# Keys consumed directly by entry points / helpers without going through a
+# dataclass (API credentials, logging, email server settings). Listed here
+# so the unknown-key check below doesn't flag them.
+_DIRECT_YAML_KEYS = frozenset({
+    'APIKey', 'APISecret', 'APIConsumerKey',
+    'logFile', 'logLevel',
+    'email_server_port', 'email_server_name', 'email_server_login',
+    'email_server_password', 'email_sender', 'email_receiver',
+})
+
+
+def _known_yaml_keys() -> frozenset:
+    """Every key any tool understands: both dataclasses' fields, their YAML
+    aliases, and the keys consumed directly by helpers/entry points. The
+    conf.yaml is shared across all tools, so validation is against the
+    union -- a key used only by monitor_ovh is still 'known' to buy_ovh."""
+    keys = set(_DIRECT_YAML_KEYS)
+    for cls in (BuyOvhConfig, MonitorConfig):
+        keys.update(f.name for f in fields(cls))
+        keys.update(cls._YAML_ALIASES.values())
+        # An aliased field's own name is never a valid YAML key
+        # (datacenters, not acceptable_dc) -- drop it so that typo is caught.
+        keys.difference_update(cls._YAML_ALIASES.keys())
+    return frozenset(keys)
+
+
+KNOWN_YAML_KEYS = _known_yaml_keys()
+
+
+def warn_unknown_keys(cf: dict) -> list:
+    """Warn (stderr) about any conf key no tool recognizes, and return the
+    sorted list of unknown keys. Catches typos (showFees -> showFee) and
+    stale keys that were removed from the code but left in conf.yaml.
+    Runs before logging is configured, so it prints rather than logs."""
+    unknown = sorted(set(cf) - KNOWN_YAML_KEYS)
+    if unknown:
+        print("Warning: ignoring unrecognized config key(s): "
+              + ", ".join(unknown), file=sys.stderr)
+    return unknown
