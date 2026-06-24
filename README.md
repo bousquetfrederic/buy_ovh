@@ -25,7 +25,7 @@ python buy_ovh.py [--conf PATH] buy !3 ?5x2  # run a buy grammar and exit
 
 `list` caches the printed rows at `~/.buy_ovh/last_list.json` with a timestamp, and `buy` reads that cache instead of refetching — so indices line up with whatever `list` last showed you. If you haven't run `list` yet, `buy` refuses and tells you to.
 
-Interactive toggles (shown columns, VAT, fake-buy, months, include-unavailable, include-unknown) are saved to `~/.buy_ovh/state.yaml` when you quit, and re-applied on the next run so your setup carries over. `conf.yaml` is still the baseline — state is just an overlay on top of it — and the `R` key resets your live session to what `conf.yaml` says.
+Interactive toggles (shown columns, VAT, fake-buy, months, include-unavailable, include-unknown) apply for the current session only — `conf.yaml` is the single source of truth and the toggles reset to its values on the next run. Set the defaults you want in `conf.yaml`; the `R` key reloads it to reset your live session.
 
 Interactive keys:
 

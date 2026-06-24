@@ -1,17 +1,16 @@
 """Typed configuration objects.
 
 Before this module the four entry-point scripts carried a MAIN_DEFAULTS
-dict, a loadConfigMain helper that mutated globals(), and — in buy_ovh —
-a parallel MIRRORED_KEYS constant that described which of those globals
-round-tripped to the interactive state dict and the persisted state
-file. That pattern made adding a new flag a four-place edit and made
-refetch impossible to unit-test without monkey-patching a module.
+dict and a loadConfigMain helper that mutated globals(). That pattern
+made adding a new flag a multi-place edit and made refetch impossible to
+unit-test without monkey-patching a module.
 
 Two dataclasses cover the current scripts:
 
 - BuyOvhConfig: everything buy_ovh / the interactive UI reads, plus the
   few flags the UI mutates at runtime (show*, fakeBuy, addVAT, months,
-  quickLook). A subset — MIRRORED_KEYS — round-trips to ~/.buy_ovh/state.yaml.
+  quickLook). conf.yaml is the single source of truth — toggles made in
+  the UI live for the session only and are never persisted.
 - MonitorConfig: what monitor_ovh's loop reads, including the email and
   autoBuy blocks. No UI state.
 
@@ -24,18 +23,8 @@ from typing import Any
 import copy
 import sys
 
-__all__ = ['BuyOvhConfig', 'MonitorConfig', 'MIRRORED_KEYS',
+__all__ = ['BuyOvhConfig', 'MonitorConfig',
            'KNOWN_YAML_KEYS', 'warn_unknown_keys']
-
-# Keys round-tripped between the buy_ovh Config and ~/.buy_ovh/state.yaml.
-# The interactive UI mutates these; everything else on BuyOvhConfig is
-# conf-only. Kept here (not m/state.py) so the authoritative list lives
-# next to the dataclass it describes; m.state re-exports it for the
-# persistence API.
-MIRRORED_KEYS = ('showCpu', 'showFqn', 'showBandwidth',
-                 'showPrice', 'showFee', 'showTotalPrice',
-                 'showUnavailable', 'showUnknown',
-                 'fakeBuy', 'addVAT', 'months')
 
 
 def _assign_from_yaml(instance, cf: dict, yaml_aliases: dict,
@@ -54,8 +43,8 @@ def _assign_from_yaml(instance, cf: dict, yaml_aliases: dict,
 
 @dataclass
 class BuyOvhConfig:
-    """Everything buy_ovh and the interactive UI read. Fields with
-    _mirrored=True (see MIRRORED_KEYS) round-trip to state.yaml."""
+    """Everything buy_ovh and the interactive UI read. All fields come
+    from conf.yaml (or their defaults); UI toggles are session-only."""
     # --- API / catalog ---
     APIEndpoint: str = 'ovh-eu'
     ovhSubsidiary: str = 'FR'
@@ -72,7 +61,7 @@ class BuyOvhConfig:
     filterMemory: str = ''
     maxPrice: float = 0
 
-    # --- UI-level column toggles (persisted via MIRRORED_KEYS) ---
+    # --- UI-level column toggles (session-only; from conf or default) ---
     showBandwidth: bool = True
     showCpu: bool = True
     showFee: bool = False
@@ -101,18 +90,6 @@ class BuyOvhConfig:
         inst = cls()
         _assign_from_yaml(inst, cf, cls._YAML_ALIASES, cls._EPHEMERAL)
         return inst
-
-    def apply_state_overlay(self, overlay: dict) -> None:
-        """Overwrite MIRRORED_KEYS fields from `overlay`. Unknown keys
-        and non-mirrored keys are silently skipped — the overlay is
-        written by an older/newer version so we tolerate drift."""
-        for k in MIRRORED_KEYS:
-            if k in overlay:
-                setattr(self, k, overlay[k])
-
-    def mirrored_state(self) -> dict:
-        """The subset persisted to state.yaml."""
-        return {k: getattr(self, k) for k in MIRRORED_KEYS}
 
 
 @dataclass

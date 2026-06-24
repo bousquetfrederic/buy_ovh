@@ -13,7 +13,6 @@ import m.cache
 import m.catalog
 import m.interactive
 import m.print
-import m.state
 
 from m.conf import BuyOvhConfig
 from m.config import configFile, config_path
@@ -40,12 +39,11 @@ ARGS = _parse_args()
 
 # ----------------- CONFIG ----------------------------------------------------
 
-# Build the typed config once, overlay the persisted UI state from the
-# last interactive session, then hand the whole thing around. The `R`
-# key in interactive builds a fresh config without re-applying the
-# overlay — that's the "reset to conf" escape hatch.
+# Build the typed config once from conf.yaml — the single source of
+# truth. Interactive toggles (columns, VAT, fake-buy, months, …) live for
+# the duration of the session and reset to the conf baseline on the next
+# run; nothing is persisted to the home directory.
 CFG = BuyOvhConfig.from_yaml(configFile)
-CFG.apply_state_overlay(m.state.load())
 
 m.bootstrap.setup_logging(configFile, 'buy_ovh')
 logger = logging.getLogger(__name__)
@@ -131,10 +129,9 @@ def runInteractive():
 
     def intReload():
         logger.info('User reloaded the configuration')
-        # Rebuild from conf alone — the persisted overlay is intentionally
-        # not re-applied here, so R acts as a clean reset to conf baseline.
-        # columnFilters survive the reload because the interactive UI owns
-        # them in place.
+        # Rebuild from conf alone, so R acts as a clean reset to the conf
+        # baseline — discarding any toggles made this session. columnFilters
+        # survive the reload because the interactive UI owns them in place.
         saved_filters = CFG.columnFilters
         fresh = BuyOvhConfig.from_yaml(configFile)
         for f in dataclasses.fields(CFG):
@@ -147,7 +144,6 @@ def runInteractive():
     m.interactive.run(displayedPlans, CFG, intBuy, intRefilter,
                       refresh_fn=intRefresh, reload_fn=intReload,
                       fetched_at=fetched_at)
-    m.state.save(CFG.mirrored_state())
 
 
 def runList():

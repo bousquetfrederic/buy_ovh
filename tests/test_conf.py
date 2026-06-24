@@ -1,10 +1,10 @@
 """Unit tests for m.conf — the typed config layer.
 
-These tests cover the from_yaml / apply_state_overlay / mirrored_state
-round-trip that used to be scattered across buy_ovh's loadConfigMain
-function, module globals, MIRRORED_KEYS, and the m.state overlay.
+These tests cover the from_yaml construction that used to be scattered
+across buy_ovh's loadConfigMain function and module globals. conf.yaml is
+the single source of truth; nothing is persisted to the home directory.
 """
-from m.conf import (BuyOvhConfig, MonitorConfig, MIRRORED_KEYS,
+from m.conf import (BuyOvhConfig, MonitorConfig,
                     KNOWN_YAML_KEYS, warn_unknown_keys)
 
 
@@ -53,52 +53,6 @@ class TestBuyOvhConfigFromYaml:
         b = BuyOvhConfig.from_yaml({})
         a.columnFilters['planCode'] = 'foo'
         assert b.columnFilters == {}
-
-
-class TestStateOverlay:
-
-    def test_overlay_applies_mirrored_keys(self):
-        cfg = BuyOvhConfig.from_yaml({})
-        cfg.apply_state_overlay({
-            'showCpu': False,
-            'fakeBuy': False,
-            'months': 12,
-        })
-        assert cfg.showCpu is False
-        assert cfg.fakeBuy is False
-        assert cfg.months == 12
-
-    def test_overlay_ignores_non_mirrored_keys(self):
-        cfg = BuyOvhConfig.from_yaml({})
-        cfg.apply_state_overlay({
-            'filterName': 'KS-',  # not mirrored — should be ignored
-            'APIEndpoint': 'ovh-ca',  # ditto
-        })
-        assert cfg.filterName == ''
-        assert cfg.APIEndpoint == 'ovh-eu'
-
-    def test_overlay_tolerates_unknown_keys(self):
-        # Drift across versions shouldn't crash — saved state may carry
-        # keys we don't know about.
-        cfg = BuyOvhConfig.from_yaml({})
-        cfg.apply_state_overlay({'some_future_flag': True})
-        # No exception; nothing set.
-        assert not hasattr(cfg, 'some_future_flag')
-
-    def test_mirrored_state_round_trip(self):
-        cfg = BuyOvhConfig.from_yaml({})
-        cfg.showFqn = True
-        cfg.addVAT = True
-        cfg.months = 12
-        state = cfg.mirrored_state()
-        # All mirrored keys are in the dict.
-        assert set(state) == set(MIRRORED_KEYS)
-        # Only mirrored values are present.
-        assert state['showFqn'] is True
-        assert state['addVAT'] is True
-        assert state['months'] == 12
-        assert 'filterName' not in state
-        assert 'quickLook' not in state
 
 
 class TestMonitorConfig:
