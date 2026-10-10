@@ -45,7 +45,7 @@ If you end up buying a 600€ server, it's not the script fault, it's yours, bec
 All three scripts accept `--conf PATH` (or `-c PATH`) to point at a config file other than `./conf.yaml`.
 
 ## monitor_ovh
-The headless one. Runs forever, refreshing availability and the catalog every `sleepsecs`, and can email you when servers appear or disappear or when their availability changes. It can also auto-buy servers that match an `auto_buy` rule. Credentials are only required if `auto_buy` is set — for plain monitoring, the public endpoints are enough. Run it in tmux or as a systemd service.
+The headless one. Runs forever, refreshing availability every `sleepsecs` (and the catalog too, when `auto_buy` or `email_catalog_monitor` needs it), and can email you when servers appear or disappear or when their availability changes. It can also auto-buy servers that match an `auto_buy` rule. Credentials are only required if `auto_buy` is set — for plain monitoring, the public endpoints are enough. Run it in tmux or as a systemd service.
 
 ## manage_ovh
 A small TUI to browse your servers and your orders (unpaid or undelivered). Press Enter on an order to open its URL in your browser.

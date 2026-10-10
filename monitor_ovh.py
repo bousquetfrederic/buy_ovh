@@ -68,6 +68,13 @@ previousVpsAvailabilities = {}
 # report how many attempts each rule has used.
 autoBuyInitialNums = [auto['num'] for auto in CFG.autoBuy]
 
+# Only auto_buy and the catalog monitor read the plans; the availability
+# monitors work from the availability dict alone, so skip the catalog fetch
+# when neither is configured.
+needCatalog = bool(CFG.autoBuy) or CFG.email_catalog_monitor
+if not needCatalog:
+    logger.info("No auto_buy and no catalog monitor: not fetching the catalog")
+
 logger.debug("Starting the monitor loop")
 try:
     while True:
@@ -79,14 +86,15 @@ try:
                 previousVpsAvailabilities = vpsAvailabilities
             availabilities = m.availability.build_availability_dict(
                 m.api.api_url(CFG.APIEndpoint), CFG.acceptable_dc)
-            plans = m.catalog.build_list(m.api.api_url(CFG.APIEndpoint),
-                                         availabilities,
-                                         CFG.ovhSubsidiary,
-                                         CFG.filterName, CFG.filterDisk, CFG.filterMemory,
-                                         CFG.acceptable_dc, CFG.maxPrice,
-                                         CFG.addVAT, CFG.months,
-                                         CFG.showBandwidth)
-            m.autobuy.add_auto_buy(plans, CFG.autoBuy)
+            if needCatalog:
+                plans = m.catalog.build_list(m.api.api_url(CFG.APIEndpoint),
+                                             availabilities,
+                                             CFG.ovhSubsidiary,
+                                             CFG.filterName, CFG.filterDisk, CFG.filterMemory,
+                                             CFG.acceptable_dc, CFG.maxPrice,
+                                             CFG.addVAT, CFG.months,
+                                             CFG.showBandwidth)
+                m.autobuy.add_auto_buy(plans, CFG.autoBuy)
             foundAutoBuyServer = False
             if CFG.autoBuy:
                 logger.debug("Looking for servers to auto buy")

@@ -445,3 +445,31 @@ class TestMonitorEmails:
             import monitor_ovh  # noqa: F401
 
         assert calls['send_email'] == []
+
+
+# ---------------- Monitor: catalog fetch gating ----------------
+
+class TestCatalogFetch:
+
+    def test_availability_monitor_alone_skips_catalog(self):
+        conf = dict(BASE_CONF)
+        conf['email_on'] = True
+        conf['email_availability_monitor'] = '24sk40'
+        conf['email_added_removed'] = True
+        calls = _run(conf, avail={'24sk40.gra': 'low'})
+        assert calls['availability'] == 2
+        assert calls['catalog'] == 0
+
+    def test_catalog_monitor_fetches_catalog(self):
+        conf = dict(BASE_CONF)
+        conf['email_on'] = True
+        conf['email_catalog_monitor'] = True
+        calls = _run(conf)
+        assert calls['catalog'] == 1
+
+    def test_catalog_monitor_with_email_off_skips_catalog(self):
+        # email_* flags are reset when email_on is false, so nothing reads plans.
+        conf = dict(BASE_CONF)
+        conf['email_catalog_monitor'] = True
+        calls = _run(conf)
+        assert calls['catalog'] == 0
