@@ -190,6 +190,25 @@ def checkout_cart(cartId, buyNow, fake=False):
                         )
     logger.info("Cart checkout successful")
 
+# (name, datacenter) of an order line, from its extension rather than its description (issue #5)
+def order_item(orderId, detailId, text):
+    try:
+        ext = client.get("/me/order/{0}/details/{1}/extension".format(orderId, detailId))['order']
+    except Exception:
+        logger.warning(f"No extension for order {orderId} detail {detailId}")
+        ext = {}
+    location = next((c['value'] for c in ext.get('configurations', [])
+                     if c['label'].endswith('datacenter')), None)
+    if location is None:
+        parts = text.split(' - ')
+        location = parts[1][-3:] if len(parts) > 1 else ''
+    # only dedicated servers have their model in the description
+    if '|' in text:
+        name = text.split('|')[0].split(' ')[0]
+    else:
+        name = ext.get('plan', {}).get('code') or text.split(' ')[0]
+    return name, location
+
 def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
     if client == None:
         raise NotLoggedIn("Need to be logged in to get unpaid orders.")
@@ -216,8 +235,7 @@ def get_orders_per_status(date_from, date_to, status_list, printMessage=False):
                     now = datetime.now(timezone.utc)
                     # order awaiting delivery don't expire
                     if now < dt or orderStatus == 'delivering':
-                        description = orderDetail['description'].split('|')[0].split(' ')[0]
-                        location = orderDetail['description'].split(' - ')[1][-3:]
+                        description, location = order_item(orderId, detailId, orderDetail['description'])
                         orderURL = theOrder['url']
                         orderDate = theOrder['expirationDate'].split('T')[0]
                         orderList.append({
